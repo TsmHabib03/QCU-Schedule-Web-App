@@ -1,0 +1,27 @@
+[
+  {
+    "code": "IL",
+    "name": "New Academic Building",
+    "image": "New Academic building(1).jpg",
+    "description": "Lecture rooms used for mathematics, programming lectures, computing, and general education courses.",
+    "rooms": ["IL502A", "IL601A", "IL606A"],
+    "floors": "5th to 6th Floor"
+  },
+  {
+    "code": "IK",
+    "name": "Bautista Building",
+    "image": "QCU-BUILDING-1024x683-1.jpg",
+    "description": "Laboratory building used for hands-on programming and computing classes.",
+    "rooms": ["IK603 F1"],
+    "floors": "6th Floor"
+  },
+  {
+    "code": "SB",
+    "name": "Belmonte Hall",
+    "image": "Belmonte Building 2.jpg",
+    "description": "Campus hall used for NSTP and physical wellness classes at the open ground area.",
+    "rooms": ["SB OG"],
+    "floors": "Ground Floor"
+  }
+]
+

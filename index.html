@@ -1,0 +1,113 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#005BAC">
+  <meta name="description" content="QCU Student Portal ??? view today's schedule, current class, upcoming classes and daily progress for Quezon City University.">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>QCU Schedule ??? Home</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
+  <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css?v=43">
+</head>
+<body data-page="home">
+  <div class="app-shell">
+    <header id="app-header" class="page-header"></header>
+
+    <main class="page-container home-layout">
+
+      <!-- 1. Hero -->
+      <section class="home-hero">
+        <div class="home-hero-main">
+          <p class="home-hero-eyebrow">
+            <span class="home-hero-rule"></span>
+            <span id="home-greeting">Good day</span>
+          </p>
+          <h1 class="home-hero-title">Student Overview</h1>
+          <p class="home-hero-sub">Live class status updates every second.</p>
+          <div class="home-hero-stats">
+            
+            <span class="home-hero-stat">
+              <strong id="hero-class-count">0</strong>
+              <span>classes today</span>
+            </span>
+
+            <span class="home-hero-stat-divider" aria-hidden="true"></span>
+            <span class="home-hero-stat">
+              <strong id="hero-today-date">???</strong>
+              <span>today</span>
+            </span>
+          </div>
+        </div>
+        <div class="home-hero-seal" aria-hidden="true">
+          <img src="assets/images/cropped-logo.jpg" alt="">
+        </div>
+      </section>
+
+      <!-- 1b. Today's Schedule -->
+      <div class="home-today-head">
+        <h2 class="home-kicker">Today's schedule</h2>
+      </div>
+      <div id="today-grid" class="home-today-grid"></div>
+
+      <!-- 1c. Class Tracker + Countdown -->
+      <section class="home-nownext">
+        <div class="home-nownext-head">
+          <h2 class="home-kicker">Class tracker</h2>
+          <span class="home-nownext-state" id="countdown-state-label">???</span>
+        </div>
+        <div id="home-tracker" class="home-tracker">
+          <div id="tracker-now" class="home-tracker-cell home-tracker-cell--now"></div>
+          <div class="home-tracker-arrow"><i data-lucide="arrow-right"></i></div>
+          <div id="tracker-next" class="home-tracker-cell home-tracker-cell--next"></div>
+        </div>
+        <div id="countdown-slot" class="home-countdown"></div>
+      </section>
+
+      <!-- 2. Today in Quezon City: weather + class suspension -->
+      <section id="home-status" class="portal-card home-status-card" aria-label="Today's weather and class suspension status"></section>
+
+      <!-- 3. Weekly Overview -->
+      <section class="home-week">
+        <div class="home-week-head">
+          <h2 class="home-kicker">Weekly overview</h2>
+          <a class="home-week-link" href="schedule.html">
+            Full schedule
+            <i data-lucide="arrow-right"></i>
+          </a>
+        </div>
+        <div id="home-week-strip" class="home-week-strip"></div>
+        <p class="home-week-hint">Tap a day to preview its classes.</p>
+      </section>
+
+      <footer class="caption" style="display:flex;justify-content:center;gap:18px;padding:8px 0 20px;">
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Service</a>
+      </footer>
+    </main>
+
+    <!-- Day schedule modal -->
+    <div id="day-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Daily class schedule">
+      <div id="day-modal-content" class="modal-card"></div>
+    </div>
+
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation"></nav>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="assets/js/app.js?v=40"></script>
+  <script>
+    // Optional overrides for the Home status panel (all keyless/optional).
+    // Open-Meteo needs NO API key, so nothing sensitive is ever hardcoded here.
+    window.QCU_STATUS_CONFIG = {};
+  </script>
+  <script src="assets/js/status.js?v=40"></script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#005BAC">
+  <meta name="description" content="QCity Bus Libreng Sakay information for QCU San Bartolome commuters — Route 4 (QC Hall ↔ General Luis) corridor, published schedule, fare and stops. Schedule-based; no live bus tracking.">
+  <title>QCity Bus · Libreng Sakay | QCU Portal</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
+  <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+
+  <!-- MapLibre GL JS -->
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="assets/css/styles.css?v=46">
+  <link rel="stylesheet" href="assets/css/eta.css?v=40">
+</head>
+<body data-page="campus-eta">
+  <div class="app-shell">
+    <header id="app-header" class="page-header"></header>
+
+    <main class="page-container section-stack">
+
+      <!-- ── Page header ─────────────────────────────────────── -->
+      <section class="portal-card">
+        <div class="bus-page-head">
+          <span class="bus-page-mark" aria-hidden="true"><i data-lucide="bus"></i></span>
+          <div class="bus-page-headings">
+            <div class="bus-title-row">
+              <h1 class="page-title">QCity Bus · Libreng Sakay</h1>
+              <span class="bus-free-badge"><i data-lucide="ticket" aria-hidden="true"></i> Free ride</span>
+            </div>
+            <p class="caption" style="margin-top:4px;">
+              Find useful information about the free QCity Bus serving routes near QCU San Bartolome.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Route 4 information ─────────────────────────────── -->
+      <section class="bus-panel" aria-labelledby="bus-route-heading">
+        <div class="bus-route-ident">
+          <span class="bus-route-no" aria-hidden="true">4</span>
+          <div class="bus-route-ident-text">
+            <h2 class="bus-route-corridor" id="bus-route-heading">
+              <span class="bus-sr">Route 4 · </span>QC Hall ↔ General Luis
+            </h2>
+            <p class="bus-route-anchor">QCU San Bartolome</p>
+          </div>
+        </div>
+
+        <p class="bus-route-note">
+          Route&nbsp;4 runs Mindanao Avenue onto Quirino Highway through Novaliches before turning
+          into General&nbsp;Luis Street. <strong>QCU Main Campus is one of its 15 designated
+          stops</strong> — the 10th heading to General&nbsp;Luis, the 6th heading back to QC&nbsp;Hall —
+          so both directions serve the campus.
+        </p>
+
+        <dl class="bus-facts">
+          <div class="bus-fact">
+            <dt class="bus-fact-k">Route</dt>
+            <dd class="bus-fact-v">4</dd>
+          </div>
+          <div class="bus-fact">
+            <dt class="bus-fact-k">Direction</dt>
+            <dd class="bus-fact-v">QC Hall ↔ General Luis</dd>
+          </div>
+          <div class="bus-fact">
+            <dt class="bus-fact-k">Fare</dt>
+            <dd class="bus-fact-v bus-fact-v--free">Free</dd>
+          </div>
+          <div class="bus-fact">
+            <dt class="bus-fact-k">Service</dt>
+            <dd class="bus-fact-v bus-fact-v--muted">QCity Bus · Libreng Sakay</dd>
+          </div>
+          <div class="bus-fact">
+            <dt class="bus-fact-k">Frequency</dt>
+            <dd class="bus-fact-v" id="bus-fact-frequency">—</dd>
+          </div>
+          <div class="bus-fact">
+            <dt class="bus-fact-k">Status</dt>
+            <dd class="bus-fact-v bus-fact-v--muted">Schedule-based · No live bus tracking</dd>
+          </div>
+        </dl>
+
+        <div class="bus-advisory">
+          <i data-lucide="locate-off" class="bus-advisory-icon" aria-hidden="true"></i>
+          <div>
+            <p><strong>No live bus tracking available.</strong></p>
+            <p>Schedules and intervals may change depending on QCity Bus operations and advisories.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Map: primary visual element ─────────────────────── -->
+      <div class="eta-map-wrapper">
+        <div id="eta-map" role="img"
+             aria-label="Map of the QCity Bus Route 4 corridor between Quezon City Hall and General Luis Street, showing the QCU San Bartolome campus on Quirino Highway."></div>
+
+        <div class="map-route-overlay">
+          <div class="map-route-overlay-head">
+            <span class="map-route-overlay-no" aria-hidden="true">4</span>
+            <span class="map-route-overlay-label">QCity Bus corridor</span>
+          </div>
+          <p class="map-route-overlay-sub" id="map-route-overlay-sub">
+            Road path between the published Route&nbsp;4 endpoints — indicative, not a live bus position.
+          </p>
+        </div>
+
+        <div class="map-legend">
+          <p class="map-legend-title" id="map-legend-title">Legend</p>
+          <ul class="map-legend-list" aria-labelledby="map-legend-title">
+            <li class="map-legend-item"><span class="map-legend-key map-legend-key--campus" aria-hidden="true"></span> QCU Campus</li>
+            <li class="map-legend-item"><span class="map-legend-key map-legend-key--route" aria-hidden="true"></span> QCity Bus Route</li>
+            <li class="map-legend-item"><span class="map-legend-key map-legend-key--stop" aria-hidden="true"></span> Bus Stop</li>
+            <li class="map-legend-item"><span class="map-legend-key map-legend-key--terminus" aria-hidden="true"></span> Terminus</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ── Route 4 schedule ────────────────────────────────── -->
+      <section class="bus-panel" aria-labelledby="bus-sched-heading">
+        <div class="bus-panel-head">
+          <span class="bus-panel-title-group">
+            <i data-lucide="calendar-clock" class="bus-panel-icon" aria-hidden="true"></i>
+            <h2 class="bus-panel-title" id="bus-sched-heading">Route 4 Schedule</h2>
+          </span>
+          <span class="bus-free-badge" id="bus-sched-badge">Published</span>
+        </div>
+
+        <div class="bus-sched-tabs" role="tablist" aria-label="Route 4 service days">
+          <button class="bus-sched-tab" type="button" role="tab" id="bus-tab-weekdays"
+                  aria-controls="bus-sched-body" aria-selected="true" data-day="weekdays">
+            <span class="bus-sched-tab-name">Weekdays</span>
+            <span class="bus-sched-tab-meta" data-day-meta="weekdays">—</span>
+          </button>
+          <button class="bus-sched-tab" type="button" role="tab" id="bus-tab-saturday"
+                  aria-controls="bus-sched-body" aria-selected="false" tabindex="-1" data-day="saturday">
+            <span class="bus-sched-tab-name">Saturday</span>
+            <span class="bus-sched-tab-meta" data-day-meta="saturday">—</span>
+          </button>
+          <button class="bus-sched-tab" type="button" role="tab" id="bus-tab-sunday"
+                  aria-controls="bus-sched-body" aria-selected="false" tabindex="-1" data-day="sunday">
+            <span class="bus-sched-tab-name">Sunday</span>
+            <span class="bus-sched-tab-meta" data-day-meta="sunday">—</span>
+          </button>
+        </div>
+
+        <div class="bus-sched-body" id="bus-sched-body" role="tabpanel"
+             aria-labelledby="bus-tab-weekdays" aria-live="polite">
+          <div class="bus-skeleton" aria-hidden="true">
+            <span class="bus-skeleton-bar"></span>
+            <span class="bus-skeleton-bar"></span>
+            <span class="bus-skeleton-bar"></span>
+          </div>
+        </div>
+
+        <p class="bus-sched-foot">
+          Schedule may change — check official QC advisories for updates.
+        </p>
+      </section>
+
+      <!-- ── About Libreng Sakay ─────────────────────────────── -->
+      <section class="bus-panel bus-panel--muted" aria-labelledby="bus-about-heading">
+        <div class="bus-panel-head">
+          <span class="bus-panel-title-group">
+            <i data-lucide="info" class="bus-panel-icon" aria-hidden="true"></i>
+            <h2 class="bus-panel-title" id="bus-about-heading">QCity Bus Libreng Sakay</h2>
+          </span>
+        </div>
+
+        <p class="bus-about-lead">
+          Free public transportation provided by the Quezon City Government for QC commuters.
+        </p>
+
+        <ul class="bus-about-list">
+          <li class="bus-about-item">
+            <i data-lucide="bus" aria-hidden="true"></i>
+            <div class="bus-about-item-text">
+              <p class="bus-about-item-k" id="bus-about-routes">QCity Bus routes</p>
+              <p class="bus-about-item-d">A city-wide network radiating from Quezon City Hall.</p>
+            </div>
+          </li>
+          <li class="bus-about-item">
+            <i data-lucide="ticket" aria-hidden="true"></i>
+            <div class="bus-about-item-text">
+              <p class="bus-about-item-k">Free ride</p>
+              <p class="bus-about-item-d" id="bus-about-fare-note">No fare, no beep card, no tap-in required.</p>
+            </div>
+          </li>
+          <li class="bus-about-item">
+            <i data-lucide="map-pin" aria-hidden="true"></i>
+            <div class="bus-about-item-text">
+              <p class="bus-about-item-k">Route 4: QC Hall ↔ General Luis</p>
+              <p class="bus-about-item-d">Passes QCU San Bartolome along Quirino Highway.</p>
+            </div>
+          </li>
+          <li class="bus-about-item" id="bus-about-wifi">
+            <i data-lucide="wifi" aria-hidden="true"></i>
+            <div class="bus-about-item-text">
+              <p class="bus-about-item-k">Free Wi-Fi onboard</p>
+              <p class="bus-about-item-d">Required on every Route 4 unit, alongside air conditioning.</p>
+            </div>
+          </li>
+          <li class="bus-about-item">
+            <i data-lucide="calendar-days" aria-hidden="true"></i>
+            <div class="bus-about-item-text">
+              <p class="bus-about-item-k">Operates according to published schedules</p>
+              <p class="bus-about-item-d">Service hours follow QC Government advisories, not a live feed.</p>
+            </div>
+          </li>
+        </ul>
+
+        <div class="bus-source">
+          <p class="bus-source-note">
+            <i data-lucide="shield-check" aria-hidden="true"></i>
+            Route and schedule details from the Quezon City Government · checked
+            <time id="bus-source-date" datetime="">—</time>
+          </p>
+          <a class="btn btn-primary bus-official-link" id="bus-official-link"
+             href="https://quezoncity.gov.ph/" target="_blank" rel="noopener noreferrer">
+            <i data-lucide="external-link" aria-hidden="true"></i> Official QCity Bus Info
+          </a>
+        </div>
+      </section>
+
+    </main>
+
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation"></nav>
+  </div>
+
+  <!-- MapLibre JS -->
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+  <!-- App & page scripts -->
+  <script src="assets/js/app.js?v=42"></script>
+  <script src="assets/js/eta.js?v=40"></script>
+  <script>initETA();</script>
+</body>
+</html>

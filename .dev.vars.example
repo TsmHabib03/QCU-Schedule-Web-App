@@ -1,0 +1,14 @@
+# Cloudflare Pages local/deployment secrets for Google Integration.
+# Copy to .dev.vars for `wrangler pages dev .`; never commit .dev.vars.
+
+GOOGLE_CLIENT_ID="your-google-oauth-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
+# Use a random value of at least 32 characters. This encrypts the HttpOnly session cookie.
+GOOGLE_SESSION_SECRET="replace-with-a-long-random-secret"
+
+# Leave empty for local development so the redirect URI follows the request
+# origin (http://127.0.0.1:8788 for `npm run dev`, :8790 for `npm run
+# dev:wrangler`). In production this is pinned in wrangler.toml, because Google
+# matches redirect URIs exactly and every Cloudflare Pages deployment otherwise
+# presents a different hostname.
+GOOGLE_PUBLIC_ORIGIN=

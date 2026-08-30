@@ -1,0 +1,55 @@
+# =============================================================
+# Keeps data/suspensions.json current from the OFFICIAL Quezon City
+# Government announcements page (server-side; the static frontend
+# cannot fetch it directly due to CORS / no JSON API).
+#
+# Safety: the script PRESERVES the existing file on any fetch failure
+# or empty parse — a missing update must never read as "no suspension".
+# No API keys, no secrets; reads a public page only.
+# =============================================================
+name: Update class-suspension feed
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # UTC. PH is UTC+8 → these fire ~6:07, 8:07, 10:07, 12:07 PH time,
+    # covering the usual "walang pasok" announcement window. Off-minute
+    # (:07) to avoid the top-of-hour scheduler crush.
+    - cron: "7 22 * * *"
+    - cron: "7 0 * * *"
+    - cron: "7 2 * * *"
+    - cron: "7 4 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: suspensions-feed
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch + normalize official announcements
+        run: node scripts/fetch-suspensions.mjs
+
+      - name: Commit if changed
+        run: |
+          if [[ -n "$(git status --porcelain data/suspensions.json)" ]]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/suspensions.json
+            git commit -m "chore(data): refresh class-suspension feed"
+            git push
+          else
+            echo "No changes to commit."
+          fi

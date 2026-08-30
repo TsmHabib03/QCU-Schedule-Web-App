@@ -1,0 +1,127 @@
+[
+  {
+    "day": "Monday",
+    "start": "11:00",
+    "end": "14:00",
+    "subject": "Mathematics in the Modern World",
+    "course": "MATH 1",
+    "building": "New Academic Building",
+    "code": "IL",
+    "room": "IL502A",
+    "floor": "5th Floor",
+    "units": 3
+  },
+  {
+    "day": "Monday",
+    "start": "15:00",
+    "end": "17:00",
+    "subject": "Fundamentals of Programming (Lecture)",
+    "course": "CC102",
+    "building": "New Academic Building",
+    "code": "IL",
+    "room": "IL601A",
+    "floor": "6th Floor",
+    "units": 3
+  },
+  {
+    "day": "Monday",
+    "start": "18:00",
+    "end": "21:00",
+    "subject": "Fundamentals of Programming (Laboratory)",
+    "course": "CC102",
+    "building": "Bautista Building",
+    "code": "IK",
+    "room": "IK603 F1",
+    "floor": "6th Floor",
+    "units": 0
+  },
+  {
+    "day": "Tuesday",
+    "noClasses": true
+  },
+  {
+    "day": "Wednesday",
+    "start": "10:00",
+    "end": "13:00",
+    "subject": "National Service Training Program 1",
+    "course": "NSTP 1",
+    "building": "Belmonte Hall",
+    "code": "SB",
+    "room": "SB OG",
+    "floor": "Ground Floor",
+    "units": 3
+  },
+  {
+    "day": "Wednesday",
+    "start": "14:30",
+    "end": "17:30",
+    "subject": "Introduction to Computing (Laboratory)",
+    "course": "CC101",
+    "building": "Bautista Building",
+    "code": "IK",
+    "room": "IK603 F1",
+    "floor": "6th Floor",
+    "units": 0
+  },
+  {
+    "day": "Wednesday",
+    "start": "19:00",
+    "end": "21:00",
+    "subject": "Introduction to Computing (Lecture)",
+    "course": "CC101",
+    "building": "New Academic Building",
+    "code": "IL",
+    "room": "IL601A",
+    "floor": "6th Floor",
+    "units": 3
+  },
+  {
+    "day": "Thursday",
+    "start": "08:00",
+    "end": "11:00",
+    "subject": "People and the Earth's Ecosystems",
+    "course": "GEE 2",
+    "building": "New Academic Building",
+    "code": "IL",
+    "room": "IL606A",
+    "floor": "6th Floor",
+    "units": 3
+  },
+  {
+    "day": "Thursday",
+    "start": "14:30",
+    "end": "17:30",
+    "subject": "Gender and Society",
+    "course": "GEE 1",
+    "building": "New Academic Building",
+    "code": "IL",
+    "room": "IL606A",
+    "floor": "6th Floor",
+    "units": 3
+  },
+  {
+    "day": "Friday",
+    "start": "07:00",
+    "end": "10:00",
+    "subject": "College Algebra",
+    "course": "MATH 2",
+    "building": "New Academic Building",
+    "code": "IL",
+    "room": "IL502A",
+    "floor": "5th Floor",
+    "units": 3
+  },
+  {
+    "day": "Friday",
+    "start": "11:30",
+    "end": "13:30",
+    "subject": "Physical Fitness and Wellness",
+    "course": "PE 1",
+    "building": "Belmonte Hall",
+    "code": "SB",
+    "room": "SB OG",
+    "floor": "Ground Floor",
+    "units": 2
+  }
+]
+

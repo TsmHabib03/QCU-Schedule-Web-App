@@ -1,0 +1,22 @@
+{
+  "status": "UNKNOWN",
+  "riskLevel": "UNKNOWN",
+  "riskLabel": "Advisory unavailable",
+  "gauge": {
+    "id": null,
+    "name": null,
+    "river": null,
+    "distanceKm": null
+  },
+  "waterLevel": {
+    "trend": null,
+    "unit": "m",
+    "value": null
+  },
+  "inundationProbability24h": null,
+  "outlook24h": null,
+  "source": "Google Flood Hub",
+  "sourceUrl": "https://sites.research.google/floods/",
+  "publishedAt": null,
+  "checkedAt": null
+}

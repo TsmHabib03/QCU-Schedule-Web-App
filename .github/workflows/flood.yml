@@ -1,0 +1,58 @@
+# =============================================================
+# Keeps data/flood.json current from the Google Flood Forecasting
+# API (Flood Hub), server-side. The static frontend cannot call the
+# API directly because the key must stay secret.
+#
+# Safety: the script PRESERVES the existing file on any fetch failure,
+# empty result, or missing key — a missing update must never read as
+# "no flood risk". The API key is a GitHub Actions secret, injected via
+# env only on the fetch step; it is never committed or shipped to the
+# browser.
+# =============================================================
+name: Update flood advisory feed
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # UTC. PH is UTC+8. River/flood status shifts through the day, so we
+    # refresh a few times. Off-minute (:13) to dodge the scheduler crush.
+    - cron: "13 21 * * *"
+    - cron: "13 1 * * *"
+    - cron: "13 5 * * *"
+    - cron: "13 9 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flood-feed
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch + normalize flood advisory
+        env:
+          GOOGLE_FLOOD_API_KEY: ${{ secrets.GOOGLE_FLOOD_API_KEY }}
+        run: node scripts/fetch-flood.mjs
+
+      - name: Commit if changed
+        run: |
+          if [[ -n "$(git status --porcelain data/flood.json)" ]]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/flood.json
+            git commit -m "chore(data): refresh flood advisory feed"
+            git push
+          else
+            echo "No changes to commit."
+          fi

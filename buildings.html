@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#005BAC">
+  <meta name="description" content="Campus buildings directory for Quezon City University ??? rooms, floors, and subjects per building.">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Campus Buildings | QCU Portal</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
+  <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css?v=44">
+</head>
+<body data-page="buildings">
+  <div class="app-shell">
+    <header id="app-header" class="page-header"></header>
+
+    <main class="page-container section-stack">
+
+      <section class="portal-card">
+        <h1 class="page-title">Campus Buildings</h1>
+        <p class="caption" style="margin-top:4px;">Tap a building for rooms, floors, and subject details.</p>
+      </section>
+
+      <section id="building-grid"
+        style="display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));">
+      </section>
+
+    </main>
+
+    <div id="building-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Building details">
+      <div id="building-modal-content" class="modal-card"></div>
+    </div>
+
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation"></nav>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="assets/js/app.js?v=40"></script>
+</body>
+</html>

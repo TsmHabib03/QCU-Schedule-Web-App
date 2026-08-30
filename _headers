@@ -1,0 +1,30 @@
+# Cloudflare Pages response headers.
+# Goal: new deployments appear on a normal refresh — never require Ctrl+Shift+R.
+
+# The service worker MUST always be fetched fresh. If the edge or the browser
+# serves a stale service-worker.js, the browser never detects a new deploy and
+# the old worker keeps controlling the page. This is the #1 cause of a PWA that
+# "won't update".
+/service-worker.js
+  Cache-Control: no-store, no-cache, must-revalidate, max-age=0
+
+# HTML shells must revalidate every load so they always point at the current
+# ?v= asset URLs. (no-cache = "may cache but must revalidate before use".)
+/
+  Cache-Control: no-cache
+/*.html
+  Cache-Control: no-cache
+
+# Live data / API responses are never cached as "current".
+/api/*
+  Cache-Control: no-store
+/api/google/*
+  Cache-Control: no-store
+  Referrer-Policy: no-referrer
+/data/*.json
+  Cache-Control: no-store
+
+# Version-stamped static assets (loaded as .css?v=NN / .js?v=NN) are safe to
+# cache long-term: a new deploy bumps the ?v= query so the URL changes.
+/assets/*
+  Cache-Control: public, max-age=31536000

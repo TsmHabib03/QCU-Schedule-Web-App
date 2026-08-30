@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#005BAC">
+  <meta name="description" content="Google Classroom and Email integration for QCU Student Portal.">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Google Integration | QCU Portal</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
+  <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css?v=46">
+</head>
+<body data-page="google">
+  <div class="app-shell">
+    <header id="app-header" class="page-header"></header>
+    <main class="page-container section-stack settings-page google-page">
+      <section class="portal-card google-page-intro">
+        <div class="google-page-intro-icon" aria-hidden="true"><i data-lucide="link-2"></i></div>
+        <div>
+          <p class="google-section-kicker">Connected services</p>
+          <h1 class="page-title">Google Integration</h1>
+          <p class="caption" style="margin-top:4px;">Manage Google Classroom and optional email updates in one place.</p>
+        </div>
+      </section>
+
+      <section id="google-integration" class="portal-card" aria-labelledby="google-integration-title">
+        <div class="google-integration-heading">
+          <div>
+            <p class="workspace-kicker">Google Integration</p>
+            <h2 id="google-integration-title" class="page-title">Google Classroom & Email</h2>
+            <p class="caption" style="margin-top:4px;">Connect your Google account to receive updates when new announcements, materials, assignments, or other Classroom activity are posted.</p>
+          </div>
+          <span id="google-status-indicator" class="google-status-badge is-loading">Checking</span>
+        </div>
+
+        <div id="google-feedback" class="google-feedback" role="status" aria-live="polite" hidden></div>
+        <div id="google-account-card" aria-live="polite" aria-busy="true">
+          <div class="google-account-card google-card-skeleton">
+            <div class="google-card-band"></div>
+            <div class="google-card-body"><span class="skeleton-line skeleton-line-lg"></span><span class="skeleton-line"></span><span class="skeleton-line skeleton-line-sm"></span></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="google-updates-section" class="portal-card" hidden>
+        <div class="google-updates-heading">
+          <div>
+            <p class="workspace-kicker">Activity Feed</p>
+            <h2 class="page-title">Recent Classroom Updates</h2>
+            <p class="caption" style="margin-top:4px;">Scan announcements, assignments, and new materials without digging through the full feed.</p>
+          </div>
+          <div class="google-updates-summary"><span id="google-update-count" class="google-update-count" aria-live="polite">0 new</span><div class="google-feed-view-toggle" role="tablist" aria-label="Update view"><button type="button" role="tab" aria-selected="true" aria-controls="google-updates-list" class="is-active" data-google-view="new"><i data-lucide="sparkles"></i>New</button><button type="button" role="tab" aria-selected="false" aria-controls="google-updates-list" data-google-view="all"><i data-lucide="layers-3"></i>All</button></div></div>
+        </div>
+
+        <div class="google-update-filters" role="search" aria-label="Filter Classroom updates">
+          <label class="google-filter-search"><i data-lucide="search"></i><input id="google-update-search" type="search" placeholder="Search updates" autocomplete="off"></label>
+          <select id="google-update-subject" aria-label="Filter by subject"><option value="all">All Subjects</option></select>
+          <select id="google-update-type" aria-label="Filter by update type"><option value="all">All Types</option><option value="announcement">Announcements</option><option value="assignment">Assignments</option><option value="material">New Materials</option><option value="email">Email</option></select>
+          <label class="google-filter-new"><input id="google-update-new" type="checkbox"><span>New only</span></label>
+          <button class="google-filter-reset" type="button" data-google-action="clear-filters" title="Clear update filters" aria-label="Clear update filters"><i data-lucide="rotate-ccw"></i></button>
+        </div>
+        <div id="google-offline-notice" class="google-offline-notice" hidden><i data-lucide="wifi-off"></i><span>Offline - showing last synced updates</span></div>
+        <div id="google-updates-list" class="google-updates-list"></div>
+      </section>
+
+      <section class="portal-card google-privacy">
+        <svg class="google-privacy-logo" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        <div>
+          <h3>Your Google data</h3>
+          <p>My-Schedule only uses the Google services you authorize for Classroom and notification features. Your Google password is never requested or stored.</p>
+          <div class="google-privacy-links">
+            <a href="privacy.html">Privacy Policy</a>
+            <span class="google-privacy-divider"></span>
+            <a href="terms.html">Terms of Service</a>
+          </div>
+        </div>
+      </section>
+    </main>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation"></nav>
+  </div>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="assets/js/google-integration.js?v=11"></script>
+  <script src="assets/js/app.js?v=42"></script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#005BAC">
+  <meta name="description" content="Tasks and notes for QCU Student Portal.">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Tasks &amp; Notes | QCU Portal</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
+  <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css?v=44">
+</head>
+<body data-page="workspace">
+  <div class="app-shell">
+    <header id="app-header" class="page-header"></header>
+
+    <main class="page-container section-stack workspace-page">
+      <section class="portal-card workspace-intro">
+        <div>
+          <p class="workspace-kicker">Personal workspace</p>
+          <h1 class="page-title">Tasks &amp; Notes</h1>
+          <p class="caption" style="margin-top:4px;">Keep action items and study notes together, then switch views when you need to focus.</p>
+        </div>
+        <div class="workspace-switch" role="tablist" aria-label="Workspace view">
+          <button type="button" role="tab" aria-selected="true" aria-controls="workspace-tasks-panel" class="workspace-switch-button is-active" data-workspace-view="tasks">
+            <i data-lucide="check-square"></i><span>Tasks</span>
+          </button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="workspace-notes-panel" class="workspace-switch-button" data-workspace-view="notes">
+            <i data-lucide="sticky-note"></i><span>Notes</span>
+          </button>
+        </div>
+      </section>
+
+      <section id="workspace-tasks-panel" data-workspace-panel="tasks" class="workspace-panel is-active" aria-label="Tasks">
+        <section class="portal-card">
+          <div class="task-toolbar">
+            <div class="task-search-wrap">
+              <i data-lucide="search" class="task-search-icon"></i>
+              <input id="task-search" class="task-search-input" type="text" placeholder="Search tasks">
+              <button type="button" class="task-search-clear" id="task-search-clear" aria-label="Clear search"><i data-lucide="x"></i></button>
+            </div>
+            <div class="task-filters">
+              <select id="task-filter-status" class="task-filter-select">
+                <option value="all">All Status</option><option value="pending">Pending</option><option value="done">Done</option>
+              </select>
+              <select id="task-filter-subject" class="task-filter-select"><option value="all">All Subjects</option></select>
+              <select id="task-sort" class="task-filter-select">
+                <option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="priority">Priority</option><option value="deadline">Deadline</option><option value="alpha">A to Z</option>
+              </select>
+            </div>
+          </div>
+        </section>
+        <section id="task-list" class="section-stack workspace-list" aria-live="polite"></section>
+      </section>
+
+      <section id="workspace-notes-panel" data-workspace-panel="notes" class="workspace-panel" aria-label="Notes" hidden>
+        <section class="portal-card">
+          <div class="task-toolbar">
+            <div class="task-search-wrap">
+              <i data-lucide="search" class="task-search-icon"></i>
+              <input id="note-search" class="task-search-input" type="text" placeholder="Search notes">
+              <button type="button" class="task-search-clear" id="note-search-clear" aria-label="Clear search"><i data-lucide="x"></i></button>
+            </div>
+            <div class="task-filters">
+              <select id="note-filter-subject" class="task-filter-select"><option value="all">All Subjects</option></select>
+              <select id="note-sort" class="task-filter-select"><option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="alpha">A to Z</option></select>
+            </div>
+          </div>
+        </section>
+        <section id="note-list" class="section-stack workspace-list" aria-live="polite"></section>
+      </section>
+    </main>
+
+    <div id="task-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Task form"><div id="task-modal-content" class="modal-card"></div></div>
+    <div id="note-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Note form"><div id="note-modal-content" class="modal-card"></div></div>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation"></nav>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="assets/js/app.js?v=41"></script>
+</body>
+</html>

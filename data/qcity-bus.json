@@ -1,0 +1,256 @@
+{
+  "meta": {
+    "lastVerified": "2026-08-30",
+    "sourceNote": "Compiled from the Quezon City Government's 2026 Quezon City Bus Augmentation Program Terms of Reference for Route 4 (Quezon City Hall to Gen. Luis and vice versa).",
+    "sources": [
+      {
+        "label": "Route 4 Terms of Reference (2026)",
+        "url": "https://quezoncity.gov.ph/wp-content/uploads/2025/11/2.-CAO-26-SERVICES-0096-TOR-3.pdf"
+      },
+      {
+        "label": "Quezon City Government",
+        "url": "https://quezoncity.gov.ph/"
+      }
+    ]
+  },
+  "program": {
+    "name": "QCity Bus",
+    "tagline": "Libreng Sakay",
+    "operator": "Quezon City Government",
+    "routeCount": 8,
+    "fare": "Free",
+    "ordinance": "City Ordinance No. SP-3184, S-2023",
+    "officialUrl": "https://quezoncity.gov.ph/",
+    "liveTracking": false,
+    "liveTrackingNote": "Trips are validated by trip ticket. GPS monitoring serves the City's own operations and is not published as a public feed.",
+    "amenities": {
+      "wifi": true,
+      "airConditioning": true,
+      "prioritySeating": "First four rows reserved for senior citizens, PWDs and pregnant women"
+    }
+  },
+  "route": {
+    "number": 4,
+    "officialName": "Quezon City Hall to Gen. Luis (and vice versa)",
+    "shortName": "QC Hall ↔ General Luis",
+    "distanceKm": 12.9,
+    "minimumBusUnits": 18,
+    "stopCount": 15,
+    "campusStop": {
+      "name": "QCU Main Campus / Novaliches District Hospital",
+      "sequenceOutbound": 10,
+      "sequenceInbound": 6
+    },
+    "termini": [
+      {
+        "label": "QC Hall",
+        "coords": [
+          121.05173,
+          14.64964
+        ]
+      },
+      {
+        "label": "General Luis",
+        "coords": [
+          121.0198,
+          14.7202
+        ]
+      }
+    ],
+    "stops": [
+      {
+        "seq": 1,
+        "name": "QC Hall (NHA) Interchange",
+        "kind": "Terminus",
+        "coords": [
+          121.05173,
+          14.64964
+        ]
+      },
+      {
+        "seq": 2,
+        "name": "North Ave. – Veterans Hospital / Vertis North",
+        "kind": "Bus stop",
+        "coords": [
+          121.0369,
+          14.65423
+        ]
+      },
+      {
+        "seq": 3,
+        "name": "Mindanao Ave. cor. Road 1",
+        "kind": "Bus stop",
+        "coords": [
+          121.03542,
+          14.6554
+        ]
+      },
+      {
+        "seq": 4,
+        "name": "Mindanao Ave. Tullahan Bridge",
+        "kind": "Bus stop",
+        "coords": null
+      },
+      {
+        "seq": 5,
+        "name": "Mindanao Ave. cor. Congressional Ave.",
+        "kind": "Bus stop",
+        "coords": [
+          121.03406,
+          14.66795
+        ]
+      },
+      {
+        "seq": 6,
+        "name": "Mindanao Ave. cor. Tandang Sora Ave.",
+        "kind": "Bus stop",
+        "coords": [
+          121.03223,
+          14.67704
+        ]
+      },
+      {
+        "seq": 7,
+        "name": "Mindanao Ave. cor. D. Muñoz St.",
+        "kind": "Bus stop",
+        "coords": [
+          121.03205,
+          14.68293
+        ]
+      },
+      {
+        "seq": 8,
+        "name": "Mindanao Ave. cor. Old Sauyo Rd.",
+        "kind": "Bus stop",
+        "coords": [
+          121.03115,
+          14.68796
+        ]
+      },
+      {
+        "seq": 9,
+        "name": "Mindanao Ave. cor. Quirino Highway",
+        "kind": "Bus stop",
+        "coords": [
+          121.0281,
+          14.69061
+        ]
+      },
+      {
+        "seq": 10,
+        "name": "QCU Main Campus / Novaliches District Hospital",
+        "kind": "QCU campus stop",
+        "coords": [
+          121.03462,
+          14.70028
+        ]
+      },
+      {
+        "seq": 11,
+        "name": "Quirino Highway · SM Novaliches",
+        "kind": "Bus stop",
+        "coords": [
+          121.03871,
+          14.70721
+        ]
+      },
+      {
+        "seq": 12,
+        "name": "Quirino Highway cor. Forest Hills Drive",
+        "kind": "Bus stop",
+        "coords": [
+          121.04038,
+          14.71623
+        ]
+      },
+      {
+        "seq": 13,
+        "name": "Gen. Luis · Nova Bayan",
+        "kind": "Bus stop",
+        "coords": [
+          121.03952,
+          14.7218
+        ]
+      },
+      {
+        "seq": 14,
+        "name": "Gen. Luis cor. Banahaw St.",
+        "kind": "Bus stop",
+        "coords": [
+          121.02814,
+          14.72049
+        ]
+      },
+      {
+        "seq": 15,
+        "name": "Gen. Luis cor. SB Road",
+        "kind": "Terminus",
+        "coords": [
+          121.0198,
+          14.7202
+        ]
+      }
+    ]
+  },
+  "service": {
+    "weekdays": {
+      "operates": true,
+      "directions": [
+        {
+          "label": "QC Hall → Gen. Luis",
+          "firstTrip": "05:00",
+          "lastTrip": "21:00",
+          "headwayPeakMins": 10,
+          "headwayOffPeakMins": 30,
+          "note": "Stops at QCU — stop 10 of 15"
+        },
+        {
+          "label": "Gen. Luis → QC Hall",
+          "firstTrip": "05:10",
+          "lastTrip": "20:00",
+          "headwayPeakMins": 10,
+          "headwayOffPeakMins": 30,
+          "note": "Stops at QCU — stop 6 of 15"
+        }
+      ]
+    },
+    "saturday": {
+      "operates": true,
+      "directions": [
+        {
+          "label": "QC Hall → Gen. Luis",
+          "firstTrip": "06:30",
+          "lastTrip": "20:30",
+          "headwayMins": 30,
+          "note": "Stops at QCU — stop 10 of 15"
+        },
+        {
+          "label": "Gen. Luis → QC Hall",
+          "firstTrip": "06:30",
+          "lastTrip": "20:00",
+          "headwayMins": 30,
+          "note": "Stops at QCU — stop 6 of 15"
+        }
+      ]
+    },
+    "sunday": {
+      "operates": true,
+      "directions": [
+        {
+          "label": "QC Hall → Gen. Luis",
+          "firstTrip": "08:00",
+          "lastTrip": "20:00",
+          "headwayMins": 60,
+          "note": "Stops at QCU — stop 10 of 15"
+        },
+        {
+          "label": "Gen. Luis → QC Hall",
+          "firstTrip": "08:00",
+          "lastTrip": "20:00",
+          "headwayMins": 60,
+          "note": "Stops at QCU — stop 6 of 15"
+        }
+      ]
+    }
+  }
+}

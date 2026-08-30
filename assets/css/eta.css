@@ -1,0 +1,1001 @@
+/* ============================================================
+   QCU Student Portal — eta.css
+   QCity Bus · Libreng Sakay panel (Route 4) + reference map
+
+   Design language inherited from the flood-advisory component in
+   styles.css: flat surfaces, hairline (1px) dividers, 3px top rail
+   for section identity, 4px radii, uppercase 800-weight micro-labels,
+   key-left / value-right metric rows, tabular numerals on all times.
+   No gradients. No live/real-time claims anywhere in this file.
+   ============================================================ */
+
+/* Screen-reader-only text. The route plate carries "4" visually; the
+   heading needs the full name for assistive technology. */
+.bus-sr {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Page header: bus mark + title + free-ride badge ── */
+.bus-page-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.bus-page-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 1px solid var(--blue-mid);
+  border-radius: var(--radius-sm);
+  background: var(--blue-soft);
+  color: var(--blue);
+}
+
+.bus-page-mark i,
+.bus-page-mark svg { width: 22px; height: 22px; stroke-width: 2; }
+
+.bus-page-headings { min-width: 0; flex: 1 1 auto; }
+
+.bus-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Fact badge — outlined, not filled: only alerts earn filled colour. */
+.bus-free-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--blue-mid);
+  border-radius: 3px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.bus-free-badge i,
+.bus-free-badge svg { width: 11px; height: 11px; stroke-width: 2.4; }
+
+/* ── Shared section shell: 3px top rail, squared, flat ── */
+.bus-panel {
+  min-width: 0;
+  padding: 13px 14px 12px;
+  border: 1px solid var(--divider);
+  border-top: 3px solid var(--blue);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+
+.bus-panel--muted { border-top-color: var(--fn-slate); background: var(--bg); }
+
+.bus-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.bus-panel-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.bus-panel-icon {
+  width: 16px; height: 16px; flex-shrink: 0;
+  color: var(--blue); stroke-width: 2;
+}
+
+.bus-panel--muted .bus-panel-icon { color: var(--fn-slate); }
+
+.bus-panel-title {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+/* ── Route card: number plate + corridor summary ── */
+.bus-route-ident {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+/* Route number reads as a plate, not a pill: squared, solid, tabular. */
+.bus-route-no {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.bus-route-ident-text { min-width: 0; }
+
+.bus-route-corridor {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.bus-route-anchor {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--blue);
+  overflow-wrap: anywhere;
+}
+
+.bus-route-note {
+  margin-top: 9px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.bus-route-note strong { font-weight: 800; color: var(--text); }
+
+/* ── Key/value fact rows ── */
+.bus-facts {
+  margin-top: 11px;
+  padding-top: 8px;
+  border-top: 1px solid var(--divider);
+}
+
+.bus-fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--divider);
+}
+
+.bus-fact:last-child { border-bottom: none; }
+
+.bus-fact-k {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.bus-fact-v {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.bus-fact-v--free { color: var(--fn-green); letter-spacing: 0.04em; }
+.bus-fact-v--muted { color: var(--muted); font-weight: 700; font-size: 12px; }
+.bus-fact-v--unknown { color: var(--fn-slate); font-weight: 700; font-size: 12px; font-style: italic; }
+
+/* ── Advisory block — matches .flood-guidance accent bar ── */
+.bus-advisory {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  margin-top: 12px;
+  padding: 8px 0 8px 10px;
+  border-left: 3px solid var(--fn-slate);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.bus-advisory-icon {
+  width: 15px; height: 15px; flex-shrink: 0;
+  stroke-width: 2; margin-top: 1px;
+  color: var(--fn-slate);
+}
+
+.bus-advisory strong { font-weight: 800; }
+.bus-advisory p { margin: 0; overflow-wrap: anywhere; }
+.bus-advisory p + p { margin-top: 3px; color: var(--muted); }
+
+/* ============================================================
+   MAP — kept as the primary visual element of this page
+   ============================================================ */
+
+.eta-map-wrapper {
+  position: relative;
+  width: 100%;
+  height: clamp(320px, 56vh, 560px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  overflow: hidden;
+}
+
+#eta-map { width: 100%; height: 100%; }
+
+/* ── Route plate overlay (top-left) ── */
+.map-route-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  max-width: min(272px, calc(100% - 20px));
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--blue);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 2px 6px rgba(10, 61, 110, 0.14);
+}
+
+.map-route-overlay-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.map-route-overlay-no {
+  display: inline-grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-route-overlay-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.map-route-overlay-sub {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--divider);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* ── Legend (bottom-left) ── */
+.map-legend {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 10;
+  max-width: calc(100% - 20px);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 2px 6px rgba(10, 61, 110, 0.14);
+}
+
+.map-legend-title {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+
+.map-legend-list {
+  display: grid;
+  gap: 5px;
+  list-style: none;
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Legend keys are drawn to match the actual map marks, 1:1. */
+.map-legend-key { flex-shrink: 0; display: block; }
+
+.map-legend-key--campus {
+  width: 11px; height: 11px;
+  border: 3px solid var(--blue);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: #fff;
+}
+
+.map-legend-key--terminus {
+  width: 11px; height: 11px;
+  border: 3px solid var(--navy);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: #fff;
+}
+
+.map-legend-key--route {
+  width: 16px; height: 4px;
+  border-radius: 1px;
+  background: var(--blue);
+}
+
+.map-legend-key--stop {
+  width: 9px; height: 9px;
+  border: 2px solid var(--blue);
+  border-radius: 50%;
+  background: #fff;
+}
+
+/* ── Map markers ── */
+.qcu-marker-container,
+.terminus-marker-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: default;
+  user-select: none;
+}
+
+.qcu-marker-pin,
+.terminus-marker-pin {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: #fff;
+  border: 3px solid var(--blue);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(10, 61, 110, 0.32);
+}
+
+.qcu-marker-pin::after,
+.terminus-marker-pin::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  background: var(--blue);
+  border-radius: 50%;
+  transform: rotate(45deg);
+}
+
+.terminus-marker-pin { border-color: var(--navy); }
+.terminus-marker-pin::after { background: var(--navy); }
+
+.qcu-marker-label,
+.terminus-marker-label {
+  margin-top: 5px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: var(--blue);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+
+.terminus-marker-label { background: var(--navy); }
+
+/* Stop dots are drawn as a MapLibre circle layer; this styles their popups. */
+.maplibregl-popup-content {
+  padding: 7px 10px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 2px 8px rgba(10, 61, 110, 0.18) !important;
+  font-family: inherit;
+}
+
+.map-stop-popup-name {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.map-stop-popup-kind {
+  margin-top: 2px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.maplibregl-popup-close-button {
+  width: 22px; height: 22px;
+  font-size: 15px;
+  color: var(--muted);
+  border-radius: 2px;
+}
+.maplibregl-popup-close-button:hover { background: var(--bg-soft); color: var(--text); }
+
+/* ── MapLibre chrome, themed to the app ── */
+.maplibregl-ctrl-bottom-right { bottom: 10px !important; right: 10px !important; }
+
+.maplibregl-ctrl-group {
+  border: 1px solid var(--border) !important;
+  border-radius: 3px !important;
+  box-shadow: var(--shadow) !important;
+  overflow: hidden;
+}
+
+.maplibregl-ctrl-group button { width: 32px !important; height: 32px !important; }
+.maplibregl-ctrl-group button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; box-shadow: none !important; }
+.maplibregl-ctrl-attrib { font-size: 10px; }
+.maplibregl-ctrl-attrib a { color: var(--muted); }
+
+/* Map fallback when tiles or WebGL are unavailable. */
+.map-unavailable {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  padding: 20px;
+  text-align: center;
+  background: var(--bg-soft);
+}
+
+.map-unavailable i, .map-unavailable svg {
+  width: 22px; height: 22px; color: var(--muted); stroke-width: 2;
+}
+
+.map-unavailable-title { font-size: 13px; font-weight: 800; color: var(--text); }
+.map-unavailable-desc { font-size: 11.5px; font-weight: 600; color: var(--muted); max-width: 34ch; line-height: 1.5; }
+
+/* ============================================================
+   SCHEDULE CARD — tabs + scheduled-departure list
+   ============================================================ */
+
+.bus-sched-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 11px;
+  border-top: 1px solid var(--divider);
+  border-bottom: 1px solid var(--divider);
+}
+
+.bus-sched-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 4px 8px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--muted);
+  text-align: center;
+  min-width: 0;
+  transition: color var(--transition), background-color var(--transition), border-color var(--transition);
+}
+
+.bus-sched-tab-name {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.bus-sched-tab-meta {
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.bus-sched-tab:hover { background: var(--bg-soft); color: var(--text); }
+.bus-sched-tab:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+
+.bus-sched-tab[aria-selected="true"] {
+  color: var(--blue);
+  background: var(--blue-soft);
+  border-bottom-color: var(--blue);
+}
+
+.bus-sched-tab[aria-selected="true"] .bus-sched-tab-meta { color: var(--blue); }
+
+.bus-sched-tab[disabled] { color: var(--fn-slate); opacity: 0.55; cursor: default; }
+.bus-sched-tab[disabled]:hover { background: none; color: var(--fn-slate); }
+
+/* ── Panel body ── */
+.bus-sched-body { padding-top: 10px; }
+
+.bus-sched-list-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+
+.bus-sched-list-count { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+
+/* Scroll container — hairline framed, own scrollbar theming. */
+.bus-sched-scroll {
+  max-height: 208px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--divider);
+  border-radius: 3px;
+  background: var(--bg);
+  scrollbar-width: thin;
+  scrollbar-color: var(--blue-mid) transparent;
+}
+
+.bus-sched-scroll::-webkit-scrollbar { width: 9px; }
+.bus-sched-scroll::-webkit-scrollbar-track { background: transparent; }
+.bus-sched-scroll::-webkit-scrollbar-thumb {
+  background: var(--blue-mid);
+  border: 3px solid var(--bg);
+  border-radius: 5px;
+}
+.bus-sched-scroll::-webkit-scrollbar-thumb:hover { background: var(--blue); }
+
+.bus-sched-rows { list-style: none; }
+
+.bus-sched-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--divider);
+  min-width: 0;
+}
+
+.bus-sched-row:last-child { border-bottom: none; }
+
+.bus-sched-seq {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 2ch;
+  flex-shrink: 0;
+}
+
+.bus-sched-time {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+}
+
+.bus-sched-dir {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.bus-sched-foot {
+  margin-top: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* ── Direction rows: what QC actually publishes per direction ── */
+.bus-sched-dirrow {
+  padding: 10px 11px;
+  border-bottom: 1px solid var(--divider);
+  min-width: 0;
+}
+
+.bus-sched-dirrow:last-child { border-bottom: none; }
+
+.bus-sched-dirrow-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--blue);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.bus-sched-dirrow-times {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  margin-top: 7px;
+}
+
+.bus-sched-dirrow-slot { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+.bus-sched-dirrow-k {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.bus-sched-dirrow-v {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.bus-sched-dirrow-rule { width: 1px; background: var(--divider); flex-shrink: 0; }
+
+.bus-sched-dirrow-headway {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid var(--divider);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.bus-sched-dirrow-note {
+  margin-top: 2px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* Badge falls back to neutral when the schedule state is not a known one. */
+.bus-free-badge--muted {
+  border-color: var(--border);
+  background: var(--bg-soft);
+  color: var(--fn-slate);
+}
+
+/* ── Operating-window state: QC publishes hours + interval, not clock times ── */
+.bus-window {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--divider);
+  border-radius: 3px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.bus-window-cell {
+  padding: 9px 11px;
+  min-width: 0;
+  border-bottom: 1px solid var(--divider);
+}
+
+.bus-window-cell:nth-child(odd) { border-right: 1px solid var(--divider); }
+.bus-window-cell:nth-last-child(-n+2) { border-bottom: none; }
+
+.bus-window-k {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.bus-window-v {
+  margin-top: 3px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.bus-window-v--sm { font-size: 12.5px; font-weight: 700; }
+.bus-window-v--unknown { font-size: 12.5px; font-weight: 700; color: var(--fn-slate); font-style: italic; }
+
+/* ── Empty / unavailable states ── */
+.bus-sched-empty {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 22px 16px;
+  text-align: center;
+  border: 1px solid var(--divider);
+  border-radius: 3px;
+  background: var(--bg);
+}
+
+.bus-sched-empty i, .bus-sched-empty svg {
+  width: 20px; height: 20px; color: var(--fn-slate); stroke-width: 2;
+}
+
+.bus-sched-empty-title { font-size: 13px; font-weight: 800; color: var(--text); }
+.bus-sched-empty-desc { font-size: 11.5px; font-weight: 600; color: var(--muted); max-width: 38ch; line-height: 1.5; }
+
+/* ── Loading skeleton ── */
+.bus-skeleton {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid var(--divider);
+  border-radius: 3px;
+  background: var(--bg);
+}
+
+.bus-skeleton-bar {
+  height: 12px;
+  border-radius: 2px;
+  background: var(--bg-soft);
+  animation: busSkeleton 1.4s ease-in-out infinite;
+}
+
+.bus-skeleton-bar:nth-child(2) { width: 78%; animation-delay: 0.12s; }
+.bus-skeleton-bar:nth-child(3) { width: 56%; animation-delay: 0.24s; }
+
+@keyframes busSkeleton {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* ============================================================
+   ABOUT CARD
+   ============================================================ */
+
+.bus-about-lead {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--divider);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.bus-about-list {
+  display: grid;
+  gap: 0;
+  margin-top: 10px;
+  list-style: none;
+  border: 1px solid var(--divider);
+  border-radius: 3px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.bus-about-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--divider);
+  min-width: 0;
+}
+
+.bus-about-item:last-child { border-bottom: none; }
+
+.bus-about-item i, .bus-about-item svg {
+  width: 15px; height: 15px; flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--blue);
+  stroke-width: 2;
+}
+
+.bus-about-item-text { min-width: 0; }
+
+.bus-about-item-k {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.bus-about-item-d {
+  margin-top: 1px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* ── Source / official link footer ── */
+.bus-source {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--divider);
+}
+
+.bus-source-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bus-source-note i, .bus-source-note svg { width: 12px; height: 12px; stroke-width: 2; flex-shrink: 0; }
+.bus-source-note time { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+.bus-official-link { border-radius: 3px; }
+
+/* ============================================================
+   MOTION — one authored moment: the schedule panel changing day.
+   Rows arrive on an exponential ease-out from an already-visible
+   default, so a no-JS or reduced-motion render is fully legible.
+   ============================================================ */
+
+@media (prefers-reduced-motion: no-preference) {
+  .bus-sched-body[data-enter] > * {
+    animation: busPanelIn 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .bus-sched-body[data-enter] .bus-sched-row,
+  .bus-sched-body[data-enter] .bus-sched-dirrow {
+    animation: busRowIn 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--i, 0) * 22ms);
+  }
+
+  @keyframes busPanelIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  @keyframes busRowIn {
+    from { opacity: 0; transform: translateY(6px); filter: blur(1.5px); }
+    to   { opacity: 1; transform: none; filter: none; }
+  }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (min-width: 720px) {
+  .eta-map-wrapper { height: 520px; }
+  .bus-sched-scroll { max-height: 268px; }
+  .bus-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 22px; }
+  .bus-facts .bus-fact:nth-last-child(-n+2) { border-bottom: none; }
+  .bus-about-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bus-about-item:nth-child(odd) { border-right: 1px solid var(--divider); }
+  .bus-about-item:nth-child(4) { border-bottom: none; }
+  .bus-about-item:nth-child(5) { grid-column: 1 / -1; border-right: none; }
+  .bus-official-link { width: auto; }
+}
+
+@media (max-width: 719px) {
+  .bus-official-link { width: 100%; justify-content: center; }
+}
+
+@media (max-width: 480px) {
+  .eta-map-wrapper { height: clamp(300px, 48vh, 440px); }
+  .bus-panel { padding: 11px 12px 10px; }
+  .bus-page-mark { width: 36px; height: 36px; }
+  .bus-page-mark i, .bus-page-mark svg { width: 20px; height: 20px; }
+  .bus-route-corridor { font-size: 13px; }
+  .bus-sched-scroll { max-height: 192px; }
+  /* Strips, not floating cards: the corridor is a tall ribbon on a portrait
+     map, so the chrome moves out of its way instead of sitting beside it. */
+  .map-route-overlay { left: 8px; right: 8px; top: 8px; max-width: none; padding: 7px 9px; }
+  .map-legend { left: 8px; right: 50px; bottom: 8px; max-width: none; padding: 7px 9px; }
+  .map-legend-list { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; row-gap: 4px; }
+  .maplibregl-ctrl-bottom-right { bottom: 8px !important; right: 8px !important; }
+}
+
+@media (max-width: 390px) {
+  .bus-fact-k { font-size: 10px; }
+  .bus-fact-v { font-size: 12px; }
+  .bus-route-no { width: 34px; height: 34px; font-size: 17px; }
+  .bus-window-v { font-size: 14px; }
+  .bus-sched-tab-name { font-size: 10px; }
+  .bus-about-item-k { font-size: 12px; }
+}
+
+@media (max-width: 340px) {
+  .eta-map-wrapper { height: 268px; }
+  .bus-window { grid-template-columns: minmax(0, 1fr); }
+  .bus-window-cell:nth-child(odd) { border-right: none; }
+  .bus-window-cell:nth-last-child(-n+2) { border-bottom: 1px solid var(--divider); }
+  .bus-window-cell:last-child { border-bottom: none; }
+  .bus-fact { flex-direction: column; align-items: flex-start; gap: 1px; }
+  .bus-fact-v { text-align: left; }
+  .map-legend-list { grid-template-columns: minmax(0, 1fr); }
+  .map-legend { max-width: calc(100% - 16px); }
+  .bus-sched-dir { display: none; }
+  .bus-sched-dirrow-v { font-size: 15px; }
+}
+
+/* ── Print: the schedule is the thing worth carrying offline ── */
+@media print {
+  .eta-map-wrapper, .bus-official-link { display: none; }
+  .bus-sched-scroll { max-height: none; overflow: visible; }
+  .bus-panel { border-top-width: 2px; break-inside: avoid; }
+}
