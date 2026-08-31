@@ -4,30 +4,15 @@
    Light mode only. No dark mode.
    ============================================================ */
 
-const QCU_DEFAULTS = {
-  schedule: [
-    { day: "Monday",    start: "11:00", end: "14:00", subject: "Mathematics in the Modern World",       course: "MATH 1", building: "New Academic Building",                       code: "IL", room: "IL502A",    floor: "5th Floor",    units: 3 },
-    { day: "Monday",    start: "15:00", end: "17:00", subject: "Fundamentals of Programming (Lecture)", course: "CC102",  building: "New Academic Building",                       code: "IL", room: "IL601A",    floor: "6th Floor",    units: 3 },
-    { day: "Monday",    start: "18:00", end: "21:00", subject: "Fundamentals of Programming (Laboratory)", course: "CC102", building: "Bautista Building",                     code: "IK", room: "IK603 F1", floor: "6th Floor",    units: 0 },
-    { day: "Tuesday",   noClasses: true },
-    { day: "Wednesday", start: "10:00", end: "13:00", subject: "National Service Training Program 1",   course: "NSTP 1", building: "Belmonte Hall",                               code: "SB", room: "SB OG",     floor: "Ground Floor", units: 3 },
-    { day: "Wednesday", start: "14:30", end: "17:30", subject: "Introduction to Computing (Laboratory)",course: "CC101",  building: "Bautista Building",                     code: "IK", room: "IK603 F1",  floor: "6th Floor",    units: 0 },
-    { day: "Wednesday", start: "19:00", end: "21:00", subject: "Introduction to Computing (Lecture)",   course: "CC101",  building: "New Academic Building",                       code: "IL", room: "IL601A",    floor: "6th Floor",    units: 3 },
-    { day: "Thursday",  start: "08:00", end: "11:00", subject: "People and the Earth's Ecosystems",     course: "GEE 2",  building: "New Academic Building",                       code: "IL", room: "IL606A",    floor: "6th Floor",    units: 3 },
-    { day: "Thursday",  start: "14:30", end: "17:30", subject: "Gender and Society",                    course: "GEE 1",  building: "New Academic Building",                       code: "IL", room: "IL606A",    floor: "6th Floor",    units: 3 },
-    { day: "Friday",    start: "07:00", end: "10:00", subject: "College Algebra",                        course: "MATH 2", building: "New Academic Building",                       code: "IL", room: "IL502A",    floor: "5th Floor",    units: 3 },
-    { day: "Friday",    start: "11:30", end: "13:30", subject: "Physical Fitness and Wellness",          course: "PE 1",   building: "Belmonte Hall",                               code: "SB", room: "SB OG",     floor: "Ground Floor", units: 2 }
-  ],
-  buildings: [
-    { code: "IL", name: "New Academic Building",                    image: "New Academic building(1).jpg",   description: "Lecture rooms used for mathematics, programming lectures, computing, and general education courses.", rooms: ["IL502A","IL601A","IL606A"], floors: "5th–6th Floor" },
-    { code: "IK", name: "Bautista Building",                      image: "QCU-BUILDING-1024x683-1.jpg",    description: "Laboratory building used for hands-on programming and computing classes.",                             rooms: ["IK603 F1"],              floors: "6th Floor" },
-    { code: "SB", name: "Belmonte Hall",                            image: "Belmonte Building 2.jpg",        description: "Campus hall used for NSTP and physical wellness classes at the open ground area.",                     rooms: ["SB OG"],                   floors: "Ground Floor" },
-  ]
-};
-
 const state = {
-  schedule: [...QCU_DEFAULTS.schedule],
-  buildings: [...QCU_DEFAULTS.buildings],
+  schedule: [],
+  buildings: [],
+  academic: null,  // Academic context from dashboard endpoint
+  profile: null,   // Student profile (from dashboard endpoint)
+  enrollment: null,
+  dashboard: null, // Full dashboard response
+  loading: true,
+  error: null,
   settings: {
     notifications: localStorage.getItem("qcu-notifications") === "true"
   }
@@ -167,8 +152,45 @@ function setInnerHTML(el, html) {
 function buildingByCode(code) { return state.buildings.find(b => b.code === code); }
 
 function buildingLabel(item) {
+  // Prefer direct buildingName (from dashboard), fall back to lookup by code
+  if (item.buildingName) return item.buildingName;
   const b = buildingByCode(item.code);
-  return b ? b.name : item.building;
+  return b ? b.name : item.building || "";
+}
+
+function formatBrandSub() {
+  const a = state.academic;
+  if (!a) return "Student Portal";
+  const parts = [];
+  if (a.program) parts.push(a.program.abbrev || a.program.name);
+  else if (a.department) parts.push(a.department.name);
+  if (a.campus) parts.push(a.campus.shortName || a.campus.name);
+  return parts.length ? parts.join(" · ") : "Student Portal";
+}
+
+/** Map a dashboard entry to the schedule item shape expected by the UI. */
+function mapEntryToSchedule(entry) {
+  return {
+    day: entry.day,
+    start: entry.start,
+    end: entry.end,
+    subject: entry.title || entry.course || "",
+    course: entry.code || "",
+    building: entry.buildingName || "",
+    buildingName: entry.buildingName || "",
+    code: entry.buildingCode || "",
+    room: entry.roomCode || "",
+    floor: entry.floor != null ? String(entry.floor) : "—",
+    units: entry.units || 0,
+    instructor: entry.instructor || "",
+    notes: entry.notes || "",
+    entryId: entry.entryId,
+    buildingId: entry.buildingId,
+    roomId: entry.roomId,
+    enrollmentSubjectId: entry.enrollmentSubjectId,
+    originType: entry.originType || "COR_IMPORT",
+    modality: entry.modality || "ONSITE",
+  };
 }
 
 function classesForBuilding(code) {
@@ -240,13 +262,14 @@ function renderShell() {
 
   const header = document.getElementById("app-header");
   if (header) {
+    const brandSub = formatBrandSub();
     header.innerHTML = `
       <div class="header-inner">
         <a href="index.html" class="header-brand">
            <img class="brand-logo" src="assets/images/QCU college of computer studies logo.jpg" alt="QCU Logo">
           <div class="brand-text">
             <p id="greeting" class="brand-name">QCU Student Portal</p>
-            <p class="brand-sub">BS Computer Science · San Bartolome</p>
+            <p class="brand-sub">${brandSub}</p>
           </div>
         </a>
         <div class="header-right">
@@ -274,6 +297,17 @@ function renderShell() {
   }
 }
 
+/* ── Provenance Badge ──────────────────────────────── */
+function provenanceBadge(originType) {
+  if (originType === "STUDENT_MANUAL") {
+    return `<span class="provenance-badge provenance-manual" title="Added by you">✦ You</span>`;
+  }
+  if (originType === "COR_IMPORT") {
+    return `<span class="provenance-badge provenance-cor" title="Imported from COR">📋 COR</span>`;
+  }
+  return "";
+}
+
 /* ── Class Card Template ─────────────────────────────── */
 function cardTemplate(item) {
   if (item.noClasses) return emptyTemplate("No Classes Scheduled");
@@ -281,11 +315,13 @@ function cardTemplate(item) {
   const status = getStatus(item, now);
   const cd     = countdownFor(item, now);
   const bname  = buildingLabel(item);
+  const prov   = provenanceBadge(item.originType);
 
   return `
-    <article class="portal-card class-card ${status}-card">
+    <article class="portal-card class-card ${status}-card" ${item.entryId ? `data-entry-id="${esc(item.entryId)}"` : ""}>
       <div class="class-card-top">
         <span class="status-pill ${statusClass(status)}">${statusLabel(status)}</span>
+        ${prov}
         <span class="class-card-time">${formatTime(item.start)} – ${formatTime(item.end)}</span>
       </div>
       <div>
@@ -298,6 +334,12 @@ function cardTemplate(item) {
         </div>
         <p style="margin-top:12px; font-size:13px; font-weight:700; color:var(--blue);"><i data-lucide="timer" style="display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:4px;stroke-width:2.2;"></i>${cd}</p>
       </div>
+      ${item.entryId ? `
+      <div class="class-card-actions">
+        <button class="icon-btn icon-btn--sm" data-action="edit-entry" data-entry-id="${esc(item.entryId)}" aria-label="Edit class" title="Edit class">
+          <i data-lucide="pencil"></i>
+        </button>
+      </div>` : ""}
     </article>`;
 }
 
@@ -507,7 +549,7 @@ function renderHome() {
   const currentLabel = current ? "In session" : "No class right now";
   const nextLabel = next ? "Coming up next" : (todaysClasses.length ? "No more classes today" : "No classes today");
 
-  setText("home-greeting", `${greeting}, Habib`);
+  setText("home-greeting", `${greeting}, ${state.profile?.name || "Student"}`);
   setText("hero-class-count", `${todaysClasses.length}`);
   setText("hero-today-date", QCU_TIME.dateLabel(now));
 
@@ -660,8 +702,16 @@ function dayShort(day) {
 }
 
 function buildingShort(item) {
+  // Prefer direct buildingName from dashboard entries
+  if (item.buildingName) {
+    const name = item.buildingName;
+    if (name.includes("New Academic")) return "New Acad Bldg";
+    if (name.includes("Bautista"))     return "Bautista Bldg";
+    if (name.includes("Belmonte"))     return "Belmonte Hall";
+    return name;
+  }
   const b = buildingByCode(item.code);
-  if (!b) return item.building;
+  if (!b) return item.building || "";
   const name = b.name;
   if (name.includes("New Academic")) return "New Acad Bldg";
   if (name.includes("Bautista"))     return "Bautista Bldg";
@@ -721,17 +771,21 @@ function renderSchedule() {
     } else {
       const bname = buildingShort(item);
       const loc = `${bname} · ${floorShort(item.floor)} · ${item.room}`;
+      const prov = provenanceBadge(item.originType);
+      const editBtn = item.entryId
+        ? `<button class="icon-btn icon-btn--sm" data-action="edit-entry" data-entry-id="${esc(item.entryId)}" aria-label="Edit class" title="Edit class"><i data-lucide="pencil"></i></button>`
+        : "";
       html.push(`
-        <tr class="${rowClass}">
+        <tr class="${rowClass}" ${item.entryId ? `data-entry-id="${esc(item.entryId)}"` : ""}>
           <td data-label="Time" class="time-cell">
             <span class="day-abbr">${dayShort(item.day)}</span>
             <span class="time-range">${formatTime(item.start)} – ${formatTime(item.end)}</span>
           </td>
-          <td data-label="Subject" class="subject-cell">${item.subject}</td>
+          <td data-label="Subject" class="subject-cell">${item.subject} ${prov}</td>
           <td data-label="Code"><span class="code-cell">${item.course || "—"}</span></td>
           <td data-label="Location" class="location-cell">${loc}</td>
           <td data-label="Units"><span class="units-chip">${item.units > 0 ? item.units : "Lab"}</span></td>
-          <td data-label="Status"><span class="status-dot status-dot-${status}" title="${statusLabel(status)}"></span></td>
+          <td data-label="Status"><span class="status-dot status-dot-${status}" title="${statusLabel(status)}"></span> ${editBtn}</td>
         </tr>`);
       lastDay = item.day;
       lastEnd = parseMinutes(item.end);
@@ -900,7 +954,7 @@ function updateClock() {
   setText("live-time", new Intl.DateTimeFormat([], { timeZone: QCU_TIME.zone, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true }).format(now));
   setText("live-day",  QCU_TIME.weekday());
   setText("live-date", QCU_TIME.dateLabel(now));
-  setText("greeting",  `${greeting}, Habib`);
+  setText("greeting",  `${greeting}, ${state.profile?.name || "Student"}`);
 }
 
 /* ── Subjects (full names + color map) ───────────────── */
@@ -945,61 +999,91 @@ function subjectColor(code) {
 
 function allSubjects() {
   const seen = new Set();
-  QCU_DEFAULTS.schedule.forEach(x => {
+  state.schedule.forEach(x => {
     if (!x.noClasses && x.course) seen.add(x.course);
   });
   return [...seen].sort();
 }
 
-/* ── Task Manager ───────────────────────────────────── */
+/* ── Task Manager (API-backed) ────────────────────────── */
 const TASKS_KEY = "qcu-tasks";
+let _tasksCache = null;
+let _tasksFetching = false;
 
-function loadTasks() {
+async function fetchTasksFromApi() {
+  if (_tasksFetching) return _tasksCache || [];
+  _tasksFetching = true;
   try {
-    const raw = localStorage.getItem(TASKS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(t => t && typeof t === "object").map(t => ({
-      id: String(t.id || newTaskId()),
-      title: String(t.title || "").slice(0, 300),
-      description: String(t.description || "").slice(0, 4000),
-      subject: String(t.subject || ""),
-      priority: ["high", "medium", "low"].includes(t.priority) ? t.priority : "medium",
-      deadline: /^\\d{4}-\\d{2}-\\d{2}$/.test(String(t.deadline || "")) ? String(t.deadline) : "",
-      done: Boolean(t.done),
-      createdAt: Number.isFinite(Number(t.createdAt)) ? Number(t.createdAt) : Date.now()
-    }));
-  } catch { return []; }
+    const r = await fetch("/api/v1/tasks", { credentials: "include", cache: "no-store" });
+    if (!r.ok) return _tasksCache || [];
+    const d = await r.json();
+    _tasksCache = Array.isArray(d.data) ? d.data : [];
+    return _tasksCache;
+  } catch { return _tasksCache || []; }
+  finally { _tasksFetching = false; }
 }
 
-function saveTasks(tasks) {
-  localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+async function loadTasks() {
+  return await fetchTasksFromApi();
 }
 
-function newTaskId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+async function addTask(data) {
+  try {
+    const r = await fetch("/api/v1/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        title: data.title,
+        description: data.description || "",
+        priority: (data.priority || "medium").toUpperCase(),
+        subjectId: data.subjectId || null,
+        dueDate: data.deadline || null,
+      }),
+    });
+    if (r.ok) { _tasksCache = null; }
+  } catch {}
 }
 
-function addTask(data) {
-  const tasks = loadTasks();
-  tasks.unshift({ id: newTaskId(), ...data, done: false, createdAt: Date.now() });
-  saveTasks(tasks);
+async function updateTask(id, data) {
+  try {
+    const payload = {};
+    if (data.title !== undefined) payload.title = data.title;
+    if (data.description !== undefined) payload.description = data.description;
+    if (data.priority !== undefined) payload.priority = data.priority.toUpperCase();
+    if (data.deadline !== undefined) payload.dueDate = data.deadline || null;
+    if (data.subjectId !== undefined) payload.subjectId = data.subjectId || null;
+    const r = await fetch(`/api/v1/tasks/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+    if (r.ok) { _tasksCache = null; }
+  } catch {}
 }
 
-function updateTask(id, data) {
-  const tasks = loadTasks();
-  const idx = tasks.findIndex(t => t.id === id);
-  if (idx !== -1) { Object.assign(tasks[idx], data); saveTasks(tasks); }
+async function deleteTask(id) {
+  try {
+    const r = await fetch(`/api/v1/tasks/${id}`, { method: "DELETE", credentials: "include" });
+    if (r.ok) { _tasksCache = null; }
+  } catch {}
 }
 
-function deleteTask(id) {
-  saveTasks(loadTasks().filter(t => t.id !== id));
-}
-
-function toggleTask(id) {
-  const tasks = loadTasks();
-  const t = tasks.find(x => x.id === id);
-  if (t) { t.done = !t.done; saveTasks(tasks); }
+async function toggleTask(id) {
+  try {
+    const tasks = _tasksCache || await fetchTasksFromApi();
+    const task = tasks.find(t => (t.taskId || t.id) === id);
+    if (!task) return;
+    const newStatus = task.status === "COMPLETED" ? "OPEN" : "COMPLETED";
+    const r = await fetch(`/api/v1/tasks/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (r.ok) { _tasksCache = null; }
+  } catch {}
 }
 
 const PRIORITY_META = {
@@ -1022,7 +1106,7 @@ function filteredTasks() {
   const subject = document.getElementById("task-filter-subject")?.value || "all";
   const sort = document.getElementById("task-sort")?.value || "newest";
 
-  let tasks = loadTasks();
+  let tasks = _tasksCache || [];
 
   if (search) {
     tasks = tasks.filter(t =>
@@ -1030,17 +1114,19 @@ function filteredTasks() {
       (t.description || "").toLowerCase().includes(search)
     );
   }
-  if (status === "pending") tasks = tasks.filter(t => !t.done);
-  if (status === "done") tasks = tasks.filter(t => t.done);
-  if (subject !== "all") tasks = tasks.filter(t => t.subject === subject);
+  if (status === "pending") tasks = tasks.filter(t => t.status !== "COMPLETED");
+  if (status === "done") tasks = tasks.filter(t => t.status === "COMPLETED");
+  if (subject !== "all") tasks = tasks.filter(t =>
+    (t.subjectCode || "").toLowerCase() === subject.toLowerCase()
+  );
 
-  if (sort === "newest") tasks.sort((a, b) => b.createdAt - a.createdAt);
-  if (sort === "oldest") tasks.sort((a, b) => a.createdAt - b.createdAt);
-  if (sort === "deadline") tasks.sort((a, b) => (a.deadline || "zzz").localeCompare(b.deadline || "zzz"));
+  if (sort === "newest") tasks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  if (sort === "oldest") tasks.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  if (sort === "deadline") tasks.sort((a, b) => (a.dueDate || "zzz").localeCompare(b.dueDate || "zzz"));
   if (sort === "priority") tasks.sort((a, b) => {
-    const order = { high: 0, medium: 1, low: 2 };
-    const aVal = a.priority != null ? (order[a.priority] ?? 3) : 3;
-    const bVal = b.priority != null ? (order[b.priority] ?? 3) : 3;
+    const order = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+    const aVal = order[a.priority] ?? 3;
+    const bVal = order[b.priority] ?? 3;
     return aVal - bVal;
   });
   if (sort === "alpha") tasks.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
@@ -1049,24 +1135,26 @@ function filteredTasks() {
 }
 
 function taskCardTemplate(t) {
-  const doneClass = t.done ? " completed" : "";
-  const priorityClass = t.priority ? ` task-card--priority-${t.priority}` : "";
-  const sc = subjectColor(t.subject);
-  const deadline = t.deadline ? `<span class="task-meta"><i data-lucide="calendar"></i>${t.deadline}</span>` : "";
-  const subject = t.subject
-    ? `<span class="subject-chip" style="background:${sc.bg};color:${sc.fg};border-color:${sc.border};">${subjectDisplayName(t.subject)}</span>`
+  const done = t.status === "COMPLETED";
+  const doneClass = done ? " completed" : "";
+  const priorityClass = t.priority ? ` task-card--priority-${t.priority.toLowerCase()}` : "";
+  const sc = subjectColor(t.subjectCode || t.subject || "");
+  const deadline = t.dueDate ? `<span class="task-meta"><i data-lucide="calendar"></i>${t.dueDate}</span>` : "";
+  const subject = t.subjectCode
+    ? `<span class="subject-chip" style="background:${sc.bg};color:${sc.fg};border-color:${sc.border};">${subjectDisplayName(t.subjectCode)}</span>`
     : "";
-  const priority = t.priority ? priorityBadge(t.priority) : "";
+  const priority = t.priority ? priorityBadge(t.priority.toLowerCase()) : "";
+  const taskId = t.taskId || t.id;
 
   return `
-    <article class="task-card${doneClass}${priorityClass}" data-task-id="${esc(t.id)}">
-      <button class="task-check-btn${t.done ? " checked" : ""}" data-action="toggle" data-id="${esc(t.id)}" aria-label="Toggle done"></button>
+    <article class="task-card${doneClass}${priorityClass}" data-task-id="${esc(taskId)}">
+      <button class="task-check-btn${done ? " checked" : ""}" data-action="toggle" data-id="${esc(taskId)}" aria-label="Toggle done"></button>
       <div class="task-card-content">
         <div class="task-card-header">
-          <h3 class="task-card-title${t.done ? " done" : ""}">${esc(t.title || "Untitled task")}</h3>
+          <h3 class="task-card-title${done ? " done" : ""}">${esc(t.title || "Untitled task")}</h3>
           <div class="task-card-actions">
-            <button class="icon-btn" data-action="edit" data-id="${esc(t.id)}" aria-label="Edit"><i data-lucide="pencil"></i></button>
-            <button class="icon-btn icon-btn--danger" data-action="delete" data-id="${esc(t.id)}" aria-label="Delete"><i data-lucide="trash-2"></i></button>
+            <button class="icon-btn" data-action="edit" data-id="${esc(taskId)}" aria-label="Edit"><i data-lucide="pencil"></i></button>
+            <button class="icon-btn icon-btn--danger" data-action="delete" data-id="${esc(taskId)}" aria-label="Delete"><i data-lucide="trash-2"></i></button>
           </div>
         </div>
         ${t.description ? `<p class="task-card-desc">${esc(t.description)}</p>` : ""}
@@ -1115,13 +1203,15 @@ function openTaskModal(task) {
 
   const isEdit = !!task;
   const subjects = allSubjects();
+  const taskSubjectCode = task ? (task.subjectCode || task.subject || "") : "";
   const subjectOptions = subjects.map(s =>
-    `<option value="${s}" ${task && task.subject === s ? "selected" : ""}>${subjectDisplayName(s)}</option>`
+    `<option value="${s}" ${task && taskSubjectCode.toUpperCase() === s.toUpperCase() ? "selected" : ""}>${subjectDisplayName(s)}</option>`
   ).join("");
-  const curPriority = (task && task.priority) || "medium";
+  const curPriority = (task && task.priority ? task.priority.toLowerCase() : "medium");
   const priorityOptions = Object.entries(PRIORITY_META).map(([k, v]) =>
     `<option value="${k}" ${k === curPriority ? "selected" : ""}>${v.label}</option>`
   ).join("");
+  const taskId = task ? (task.taskId || task.id) : "";
 
   content.innerHTML = `
     <div class="modal-drag-handle"></div>
@@ -1157,7 +1247,7 @@ function openTaskModal(task) {
         </div>
         <label class="form-field">
           <span class="form-label">Deadline</span>
-          <input type="date" id="tf-deadline" value="${isEdit && task.deadline ? task.deadline : ""}">
+          <input type="date" id="tf-deadline" value="${isEdit && task.dueDate ? task.dueDate : ""}">
         </label>
         <button type="submit" class="action-button">
           <i data-lucide="${isEdit ? "save" : "plus"}"></i>
@@ -1170,7 +1260,7 @@ function openTaskModal(task) {
   document.body.classList.add("modal-open");
   iconify();
 
-  document.getElementById("task-form").addEventListener("submit", e => {
+  document.getElementById("task-form").addEventListener("submit", async e => {
     e.preventDefault();
     const data = {
       title: document.getElementById("tf-title").value.trim(),
@@ -1180,8 +1270,9 @@ function openTaskModal(task) {
       deadline: document.getElementById("tf-deadline").value
     };
     if (!data.title) return;
-    if (isEdit) updateTask(task.id, data);
-    else addTask(data);
+    if (isEdit) await updateTask(taskId, { title: data.title, description: data.description, subjectId: data.subject || null, priority: data.priority, deadline: data.deadline || null });
+    else await addTask({ title: data.title, description: data.description, subjectId: data.subject || null, priority: data.priority, deadline: data.deadline || null });
+    _tasksCache = null;
     closeTaskModal();
     renderTasks();
   });
@@ -1193,46 +1284,64 @@ function closeTaskModal() {
   document.body.classList.remove("modal-open");
 }
 
-/* ── Notes ──────────────────────────────────────────── */
-const NOTES_KEY = "qcu-notes";
+/* ── Notes (API-backed) ──────────────────────────────── */
+let _notesCache = null;
+let _notesFetching = false;
 
-function loadNotes() {
+async function fetchNotesFromApi() {
+  if (_notesFetching) return _notesCache || [];
+  _notesFetching = true;
   try {
-    const raw = localStorage.getItem(NOTES_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(n => n && typeof n === "object").map(n => ({
-      id: String(n.id || newNoteId()),
-      title: String(n.title || "").slice(0, 300),
-      subject: String(n.subject || ""),
-      body: String(n.body || "").slice(0, 12000),
-      createdAt: Number.isFinite(Number(n.createdAt)) ? Number(n.createdAt) : Date.now()
-    }));
-  } catch { return []; }
+    const r = await fetch("/api/v1/notes", { credentials: "include", cache: "no-store" });
+    if (!r.ok) return _notesCache || [];
+    const d = await r.json();
+    _notesCache = Array.isArray(d.data) ? d.data : [];
+    return _notesCache;
+  } catch { return _notesCache || []; }
+  finally { _notesFetching = false; }
 }
 
-function saveNotes(notes) {
-  localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+async function loadNotes() {
+  return await fetchNotesFromApi();
 }
 
-function newNoteId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+async function addNote(data) {
+  try {
+    const r = await fetch("/api/v1/notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        title: data.title,
+        body: data.body || "",
+        subjectId: data.subjectId || null,
+      }),
+    });
+    if (r.ok) { _notesCache = null; }
+  } catch {}
 }
 
-function addNote(data) {
-  const notes = loadNotes();
-  notes.unshift({ id: newNoteId(), ...data, createdAt: Date.now() });
-  saveNotes(notes);
+async function updateNote(id, data) {
+  try {
+    const payload = {};
+    if (data.title !== undefined) payload.title = data.title;
+    if (data.body !== undefined) payload.body = data.body;
+    if (data.subjectId !== undefined) payload.subjectId = data.subjectId || null;
+    const r = await fetch(`/api/v1/notes/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+    if (r.ok) { _notesCache = null; }
+  } catch {}
 }
 
-function updateNote(id, data) {
-  const notes = loadNotes();
-  const idx = notes.findIndex(n => n.id === id);
-  if (idx !== -1) { Object.assign(notes[idx], data); saveNotes(notes); }
-}
-
-function deleteNote(id) {
-  saveNotes(loadNotes().filter(n => n.id !== id));
+async function deleteNote(id) {
+  try {
+    const r = await fetch(`/api/v1/notes/${id}`, { method: "DELETE", credentials: "include" });
+    if (r.ok) { _notesCache = null; }
+  } catch {}
 }
 
 function filteredNotes() {
@@ -1240,7 +1349,7 @@ function filteredNotes() {
   const subject = document.getElementById("note-filter-subject")?.value || "all";
   const sort = document.getElementById("note-sort")?.value || "newest";
 
-  let notes = loadNotes();
+  let notes = _notesCache || [];
 
   if (search) {
     notes = notes.filter(n =>
@@ -1248,31 +1357,34 @@ function filteredNotes() {
       (n.body || "").toLowerCase().includes(search)
     );
   }
-  if (subject !== "all") notes = notes.filter(n => n.subject === subject);
+  if (subject !== "all") notes = notes.filter(n =>
+    (n.subjectCode || "").toLowerCase() === subject.toLowerCase()
+  );
 
-  if (sort === "newest") notes.sort((a, b) => b.createdAt - a.createdAt);
-  if (sort === "oldest") notes.sort((a, b) => a.createdAt - b.createdAt);
+  if (sort === "newest") notes.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  if (sort === "oldest") notes.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   if (sort === "alpha") notes.sort((a, b) => (a.title || "").localeCompare(b.title || ""));
 
   return notes;
 }
 
 function noteCardTemplate(n) {
-  const sc = subjectColor(n.subject);
-  const subject = n.subject
-    ? `<span class="subject-chip" style="background:${sc.bg};color:${sc.fg};border-color:${sc.border};">${subjectDisplayName(n.subject)}</span>`
+  const sc = subjectColor(n.subjectCode || n.subject || "");
+  const subject = n.subjectCode
+    ? `<span class="subject-chip" style="background:${sc.bg};color:${sc.fg};border-color:${sc.border};">${subjectDisplayName(n.subjectCode)}</span>`
     : "";
   const date = n.createdAt ? `<span class="task-meta"><i data-lucide="clock"></i>${QCU_TIME.dateLabel(new Date(n.createdAt), { month: "short", day: "numeric" })}</span>` : "";
   const bodyPreview = (n.body || "").length > 140 ? (n.body || "").slice(0, 140) + "…" : (n.body || "");
+  const noteId = n.noteId || n.id;
 
   return `
-    <article class="note-card" data-note-id="${esc(n.id)}" style="border-left:3px solid ${sc.border || 'var(--blue)'};">
+    <article class="note-card" data-note-id="${esc(noteId)}" style="border-left:3px solid ${sc.border || 'var(--blue)'};">
       <div class="note-card-inner">
         <div class="note-card-header">
           <h3 class="note-card-title">${esc(n.title || "Untitled note")}</h3>
           <div class="task-card-actions">
-            <button class="icon-btn" data-action="edit-note" data-id="${esc(n.id)}" aria-label="Edit"><i data-lucide="pencil"></i></button>
-            <button class="icon-btn icon-btn--danger" data-action="delete-note" data-id="${esc(n.id)}" aria-label="Delete"><i data-lucide="trash-2"></i></button>
+            <button class="icon-btn" data-action="edit-note" data-id="${esc(noteId)}" aria-label="Edit"><i data-lucide="pencil"></i></button>
+            <button class="icon-btn icon-btn--danger" data-action="delete-note" data-id="${esc(noteId)}" aria-label="Delete"><i data-lucide="trash-2"></i></button>
           </div>
         </div>
         ${bodyPreview ? `<p class="note-card-body">${esc(bodyPreview)}</p>` : ""}
@@ -1319,9 +1431,11 @@ function openNoteModal(note) {
 
   const isEdit = !!note;
   const subjects = allSubjects();
+  const noteSubjectCode = note ? (note.subjectCode || note.subject || "") : "";
   const subjectOptions = subjects.map(s =>
-    `<option value="${s}" ${note && note.subject === s ? "selected" : ""}>${subjectDisplayName(s)}</option>`
+    `<option value="${s}" ${note && noteSubjectCode.toUpperCase() === s.toUpperCase() ? "selected" : ""}>${subjectDisplayName(s)}</option>`
   ).join("");
+  const noteId = note ? (note.noteId || note.id) : "";
 
   content.innerHTML = `
     <div class="modal-drag-handle"></div>
@@ -1360,7 +1474,7 @@ function openNoteModal(note) {
   document.body.classList.add("modal-open");
   iconify();
 
-  document.getElementById("note-form").addEventListener("submit", e => {
+  document.getElementById("note-form").addEventListener("submit", async e => {
     e.preventDefault();
     const data = {
       title: document.getElementById("nf-title").value.trim(),
@@ -1368,8 +1482,9 @@ function openNoteModal(note) {
       body: document.getElementById("nf-body").value.trim()
     };
     if (!data.title) return;
-    if (isEdit) updateNote(note.id, data);
-    else addNote(data);
+    if (isEdit) await updateNote(noteId, { title: data.title, body: data.body, subjectId: data.subject || null });
+    else await addNote({ title: data.title, body: data.body, subjectId: data.subject || null });
+    _notesCache = null;
     closeNoteModal();
     renderNotes();
   });
@@ -1393,12 +1508,459 @@ function tick() {
   // campus-eta page uses its own loop in eta.js
 }
 
+/* ── Schedule CRUD API ─────────────────────────────── */
+async function fetchScheduleFromApi() {
+  const resp = await fetch("/api/v1/schedule", { credentials: "include" });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return await resp.json();
+}
+
+async function createScheduleEntry(payload) {
+  const resp = await fetch("/api/v1/schedule/entries", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  return await resp.json();
+}
+
+async function updateScheduleEntry(entryId, payload) {
+  const resp = await fetch(`/api/v1/schedule/entries/${entryId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  return await resp.json();
+}
+
+async function deleteScheduleEntryApi(entryId) {
+  const resp = await fetch(`/api/v1/schedule/entries/${entryId}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  return await resp.json();
+}
+
+function mapApiEntry(item) {
+  return {
+    day: item.dayOfWeek,
+    start: item.startTime,
+    end: item.endTime,
+    subject: item.title || "",
+    course: item.code || "",
+    building: item.buildingName || "",
+    buildingName: item.buildingName || "",
+    code: item.buildingCode || "",
+    room: item.roomCode || "",
+    floor: item.floor != null ? String(item.floor) : "—",
+    units: item.units || 0,
+    instructor: "",
+    notes: "",
+    entryId: item.entryId,
+    buildingId: item.buildingId,
+    roomId: item.roomId,
+    enrollmentSubjectId: item.enrollmentSubjectId,
+    originType: item.originType || "COR_IMPORT",
+    modality: item.modality || "ONSITE",
+  };
+}
+
+/* ── Schedule CRUD Modal ──────────────────────────── */
+const CRUD_DAY_MAP = {
+  "Mon": "MONDAY", "Tue": "TUESDAY", "Wed": "WEDNESDAY",
+  "Thu": "THURSDAY", "Fri": "FRIDAY", "Sat": "SATURDAY", "Sun": "SUNDAY",
+};
+const CRUD_DAY_REVERSE = Object.fromEntries(Object.entries(CRUD_DAY_MAP).map(([k, v]) => [v, k]));
+
+let _crudEditingEntry = null;
+let _crudEnrollmentSubjects = [];
+
+function openCrudModal(entry = null) {
+  _crudEditingEntry = entry;
+  const modal = document.getElementById("crud-modal");
+  const content = document.getElementById("crud-modal-content");
+  if (!modal || !content) return;
+
+  const isEdit = !!entry;
+  const title = isEdit ? "Edit Class" : "Add Class";
+
+  const dayOptions = Object.entries(CRUD_DAY_MAP).map(([abbr, full]) =>
+    `<option value="${full}" ${entry?.day === full ? "selected" : ""}>${abbr} (${full})</option>`
+  ).join("");
+
+  const buildingOptions = (state.buildings || []).map(b =>
+    `<option value="${b.buildingId}" ${entry?.buildingId === b.buildingId ? "selected" : ""}>${esc(b.name)}</option>`
+  ).join("");
+
+  content.innerHTML = `
+    <div class="modal-drag-handle"></div>
+    <div class="modal-inner">
+      <div class="modal-head">
+        <div>
+          <span class="chip chip-blue" style="margin-bottom:8px;display:inline-flex;">${isEdit ? "EDIT" : "ADD"}</span>
+          <h2 class="modal-title">${title}</h2>
+        </div>
+        <button class="modal-close-btn" data-close-crud-modal aria-label="Close">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <form id="crud-form" class="crud-form">
+        <div class="crud-field">
+          <label for="crud-subject">Subject</label>
+          <select id="crud-subject" required>
+            <option value="">Select subject…</option>
+          </select>
+        </div>
+
+        <div class="crud-row">
+          <div class="crud-field">
+            <label for="crud-day">Day</label>
+            <select id="crud-day" required>${dayOptions}</select>
+          </div>
+          <div class="crud-field">
+            <label for="crud-modality">Modality</label>
+            <select id="crud-modality">
+              <option value="ONSITE" ${entry?.modality === "ONSITE" || !entry ? "selected" : ""}>On-site</option>
+              <option value="ONLINE" ${entry?.modality === "ONLINE" ? "selected" : ""}>Online</option>
+              <option value="HYBRID" ${entry?.modality === "HYBRID" ? "selected" : ""}>Hybrid</option>
+              <option value="TBA" ${entry?.modality === "TBA" ? "selected" : ""}>TBA</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="crud-row">
+          <div class="crud-field">
+            <label for="crud-start">Start Time</label>
+            <input type="time" id="crud-start" required value="${entry?.start || ""}">
+          </div>
+          <div class="crud-field">
+            <label for="crud-end">End Time</label>
+            <input type="time" id="crud-end" required value="${entry?.end || ""}">
+          </div>
+        </div>
+
+        <div class="crud-row">
+          <div class="crud-field">
+            <label for="crud-building">Building</label>
+            <select id="crud-building">
+              <option value="">None</option>
+              ${buildingOptions}
+            </select>
+          </div>
+          <div class="crud-field">
+            <label for="crud-room">Room</label>
+            <select id="crud-room">
+              <option value="">None</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="crud-field" id="crud-location-field">
+          <label for="crud-location">Location Note</label>
+          <input type="text" id="crud-location" placeholder="e.g. Online via Zoom" value="${esc(entry?.locationText || "")}">
+        </div>
+
+        <div class="crud-actions">
+          ${isEdit ? `<button type="button" class="btn btn-danger" id="crud-delete-btn"><i data-lucide="trash-2"></i> Delete</button>` : ""}
+          <div class="crud-actions-right">
+            <button type="button" class="btn btn-secondary" data-close-crud-modal>Cancel</button>
+            <button type="submit" class="btn btn-primary" id="crud-save-btn">${isEdit ? "Save Changes" : "Add Class"}</button>
+          </div>
+        </div>
+
+        <p id="crud-error" class="crud-error" style="display:none;"></p>
+      </form>
+    </div>`;
+
+  modal.classList.add("open");
+  document.body.classList.add("modal-open");
+  iconify();
+
+  // Populate subjects dropdown
+  populateSubjectDropdown(entry);
+
+  // Set up cascading building → room
+  const buildingSelect = document.getElementById("crud-building");
+  const roomSelect = document.getElementById("crud-room");
+  if (buildingSelect && roomSelect) {
+    buildingSelect.addEventListener("change", () => {
+      populateRoomDropdown(buildingSelect.value, entry?.roomId);
+    });
+    // Trigger initial room population
+    if (buildingSelect.value) {
+      populateRoomDropdown(buildingSelect.value, entry?.roomId);
+    }
+  }
+
+  // Delete handler
+  const deleteBtn = document.getElementById("crud-delete-btn");
+  if (deleteBtn && entry) {
+    deleteBtn.addEventListener("click", () => {
+      confirmDeleteEntry(entry);
+    });
+  }
+
+  // Form submit handler
+  const form = document.getElementById("crud-form");
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await handleCrudSubmit(entry);
+    });
+  }
+}
+
+function populateSubjectDropdown(entry) {
+  const select = document.getElementById("crud-subject");
+  if (!select) return;
+
+  // Load enrollment subjects from academic catalog
+  if (state.academic?.enrollmentSubjects?.length) {
+    _crudEnrollmentSubjects = state.academic.enrollmentSubjects;
+  }
+
+  // Fallback: use known subjects from current schedule if no enrollment subjects available
+  if (!_crudEnrollmentSubjects.length && state.schedule.length) {
+    const seen = new Set();
+    state.schedule.forEach(s => {
+      if (s.course && !seen.has(s.course)) {
+        seen.add(s.course);
+        _crudEnrollmentSubjects.push({
+          enrollmentSubjectId: null,
+          subjectCode: s.course,
+          title: s.subject,
+        });
+      }
+    });
+  }
+
+  _crudEnrollmentSubjects.forEach(es => {
+    const opt = document.createElement("option");
+    opt.value = es.enrollmentSubjectId || es.subjectCode || "";
+    opt.textContent = es.title
+      ? `${es.title} (${es.subjectCode || "?"})`
+      : es.subjectCode || "";
+    if (entry?.enrollmentSubjectId && es.enrollmentSubjectId === entry.enrollmentSubjectId) {
+      opt.selected = true;
+    } else if (entry?.course && es.subjectCode === entry.course) {
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  });
+}
+
+function populateRoomDropdown(buildingId, selectedRoomId) {
+  const roomSelect = document.getElementById("crud-room");
+  if (!roomSelect) return;
+
+  roomSelect.innerHTML = '<option value="">None</option>';
+
+  if (!buildingId) return;
+
+  // Load rooms from catalog
+  const allRooms = state.buildingsRooms || [];
+  const filtered = allRooms.filter(r => r.buildingId === buildingId);
+
+  filtered.forEach(room => {
+    const opt = document.createElement("option");
+    opt.value = room.roomId;
+    opt.textContent = room.roomCode || room.roomId;
+    if (room.roomId === selectedRoomId) opt.selected = true;
+    roomSelect.appendChild(opt);
+  });
+}
+
+async function handleCrudSubmit(existingEntry) {
+  const errorEl = document.getElementById("crud-error");
+  const saveBtn = document.getElementById("crud-save-btn");
+  if (errorEl) { errorEl.style.display = "none"; errorEl.textContent = ""; }
+  if (saveBtn) saveBtn.disabled = true;
+
+  try {
+    const subjectVal = document.getElementById("crud-subject")?.value || "";
+    const dayVal = document.getElementById("crud-day")?.value || "";
+    const startVal = document.getElementById("crud-start")?.value || "";
+    const endVal = document.getElementById("crud-end")?.value || "";
+    const modalityVal = document.getElementById("crud-modality")?.value || "ONSITE";
+    const buildingVal = document.getElementById("crud-building")?.value || "";
+    const roomVal = document.getElementById("crud-room")?.value || "";
+    const locationVal = document.getElementById("crud-location")?.value || "";
+
+    // Basic validation
+    if (!subjectVal) throw new Error("Please select a subject.");
+    if (!dayVal) throw new Error("Please select a day.");
+    if (!startVal || !endVal) throw new Error("Please enter start and end times.");
+    if (startVal >= endVal) throw new Error("End time must be after start time.");
+
+    // Check for enrollmentSubjectId vs subjectCode
+    const es = _crudEnrollmentSubjects.find(s =>
+      s.enrollmentSubjectId === subjectVal || s.subjectCode === subjectVal
+    );
+
+    const payload = {
+      enrollmentSubjectId: es?.enrollmentSubjectId || subjectVal,
+      dayOfWeek: dayVal,
+      startTime: startVal,
+      endTime: endVal,
+      modality: modalityVal,
+      buildingId: buildingVal || null,
+      roomId: roomVal || null,
+      locationText: locationVal || null,
+    };
+
+    let result;
+    if (existingEntry?.entryId) {
+      result = await updateScheduleEntry(existingEntry.entryId, payload);
+    } else {
+      result = await createScheduleEntry(payload);
+    }
+
+    if (!result?.ok) {
+      const msg = result?.error?.message || result?.error || "Failed to save entry.";
+      throw new Error(msg);
+    }
+
+    // Success — close modal, reload schedule
+    const modal = document.getElementById("crud-modal");
+    if (modal) modal.classList.remove("open");
+    document.body.classList.remove("modal-open");
+
+    // Reload schedule from API and re-render
+    await reloadSchedule();
+  } catch (err) {
+    if (errorEl) {
+      errorEl.textContent = err.message || "An error occurred.";
+      errorEl.style.display = "block";
+    }
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+function confirmDeleteEntry(entry) {
+  if (!entry?.entryId) return;
+  const confirmed = window.confirm(
+    `Delete "${entry.subject || entry.course || "this class"}" on ${entry.day}?`
+  );
+  if (!confirmed) return;
+
+  performDeleteEntry(entry);
+}
+
+async function performDeleteEntry(entry) {
+  const errorEl = document.getElementById("crud-error");
+  if (errorEl) { errorEl.style.display = "none"; }
+
+  try {
+    const result = await deleteScheduleEntryApi(entry.entryId);
+    if (!result?.ok) {
+      throw new Error(result?.error || "Failed to delete entry.");
+    }
+
+    // Close modal, reload
+    const modal = document.getElementById("crud-modal");
+    if (modal) modal.classList.remove("open");
+    document.body.classList.remove("modal-open");
+
+    await reloadSchedule();
+  } catch (err) {
+    if (errorEl) {
+      errorEl.textContent = err.message || "Failed to delete entry.";
+      errorEl.style.display = "block";
+    }
+  }
+}
+
+async function reloadSchedule() {
+  try {
+    const data = await fetchScheduleFromApi();
+    if (data?.ok && data.data?.entries) {
+      state.schedule = data.data.entries.map(mapApiEntry);
+    }
+  } catch (e) {
+    console.warn("Schedule reload failed:", e);
+  }
+  // Re-render all schedule views
+  if (page === "home") renderHome();
+  if (page === "schedule") renderSchedule();
+  if (page === "today") renderToday();
+  iconify();
+}
+
+/* ── Schedule CRUD Modal Close Handler ────────────── */
+function closeCrudModal() {
+  const modal = document.getElementById("crud-modal");
+  if (modal) modal.classList.remove("open");
+  document.body.classList.remove("modal-open");
+  _crudEditingEntry = null;
+}
+
 /* ── Init ────────────────────────────────────────────── */
 async function init() {
   if (window.__QCU_INIT_STARTED) return;
   window.__QCU_INIT_STARTED = true;
-  state.schedule  = await loadJson("data/schedule.json",  QCU_DEFAULTS.schedule);
-  state.buildings = await loadJson("data/buildings.json", QCU_DEFAULTS.buildings);
+
+  // Fetch authenticated dashboard data (single endpoint)
+  try {
+    const resp = await fetch("/api/v1/dashboard", { credentials: "include" });
+    const data = await resp.json();
+
+    if (data.status === "UNAUTHENTICATED") {
+      // Not logged in — show shell with defaults, no schedule
+      state.loading = false;
+      renderShell();
+      tick();
+      return;
+    }
+
+    if (data.status === "INCOMPLETE") {
+      // Logged in but not yet onboarded
+      state.loading = false;
+      renderShell();
+      tick();
+      return;
+    }
+
+    if (data.status === "DEACTIVATED") {
+      state.loading = false;
+      renderShell();
+      tick();
+      return;
+    }
+
+    if (data.status === "OK") {
+      state.dashboard = data;
+      state.profile = data.profile || null;
+      state.enrollment = data.enrollment || null;
+      state.academic = data.academic || null;
+      state.buildings = (data.buildings || []).map(b => ({
+        code: b.code,
+        name: b.name,
+        shortName: b.shortName,
+        buildingId: b.buildingId,
+        campusId: b.campusId,
+        floors: b.floors,
+        lat: b.lat,
+        lng: b.lng,
+      }));
+      // Map dashboard entries to schedule item format expected by UI
+      state.schedule = (data.entries || []).map(mapEntryToSchedule);
+      // Seed task/note caches from dashboard response
+      if (Array.isArray(data.tasks)) _tasksCache = data.tasks;
+      if (Array.isArray(data.notes)) _notesCache = data.notes;
+    }
+  } catch (e) {
+    console.warn("Dashboard load failed:", e);
+    state.error = "Failed to load schedule data";
+    // Fall back to empty state
+    state.schedule = [];
+    state.buildings = [];
+  }
+
+  state.loading = false;
 
   renderShell();
   tick();
@@ -1408,18 +1970,36 @@ async function init() {
   if (page === "google")    window.QCUGoogleIntegration?.init();
 
   /* ── Modal close handlers ─────────────────────────── */
-  ["building-modal", "day-modal", "task-modal", "note-modal"].forEach(id => {
+  ["building-modal", "day-modal", "task-modal", "note-modal", "crud-modal"].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener("click", e => {
         if (e.target.id === id || e.target.closest("[data-close-modal]") ||
-            e.target.closest("[data-close-task-modal]") || e.target.closest("[data-close-note-modal]")) {
+            e.target.closest("[data-close-task-modal]") || e.target.closest("[data-close-note-modal]") ||
+            e.target.closest("[data-close-crud-modal]")) {
           closeModal();
           closeTaskModal();
           closeNoteModal();
+          closeCrudModal();
         }
       });
     }
+  });
+
+  /* ── Schedule Add FAB handler ─────────────────────── */
+  const scheduleAddBtn = document.getElementById("schedule-add-btn");
+  if (scheduleAddBtn) {
+    scheduleAddBtn.addEventListener("click", () => openCrudModal(null));
+  }
+
+  /* ── Schedule Edit button delegation ─────────────── */
+  document.addEventListener("click", e => {
+    const btn = e.target.closest("[data-action='edit-entry']");
+    if (!btn) return;
+    const entryId = btn.dataset.entryId;
+    if (!entryId) return;
+    const entry = state.schedule.find(s => s.entryId === entryId);
+    if (entry) openCrudModal(entry);
   });
 
   document.getElementById("home-week-strip")?.addEventListener("click", e => {
@@ -1430,18 +2010,17 @@ async function init() {
   /* ── Task page event listeners ────────────────────── */
   const taskList = document.getElementById("task-list");
   if (taskList) {
-    taskList.addEventListener("click", e => {
+    taskList.addEventListener("click", async e => {
       const btn = e.target.closest("[data-action]");
       if (!btn) return;
       const action = btn.dataset.action;
       const id = btn.dataset.id;
-      if (action === "toggle") toggleTask(id);
+      if (action === "toggle") { await toggleTask(id); _tasksCache = null; renderTasks(); }
       if (action === "edit") {
-        const task = loadTasks().find(t => t.id === id);
+        const task = (_tasksCache || []).find(t => (t.taskId || t.id) === id);
         if (task) openTaskModal(task);
       }
-      if (action === "delete") { deleteTask(id); }
-      renderTasks();
+      if (action === "delete") { await deleteTask(id); _tasksCache = null; renderTasks(); }
     });
   }
 
@@ -1481,16 +2060,16 @@ async function init() {
   /* ── Notes page event listeners ───────────────────── */
   const noteList = document.getElementById("note-list");
   if (noteList) {
-    noteList.addEventListener("click", e => {
+    noteList.addEventListener("click", async e => {
       const btn = e.target.closest("[data-action]");
       if (!btn) return;
       const action = btn.dataset.action;
       const id = btn.dataset.id;
       if (action === "edit-note") {
-        const note = loadNotes().find(n => n.id === id);
+        const note = (_notesCache || []).find(n => (n.noteId || n.id) === id);
         if (note) openNoteModal(note);
       }
-      if (action === "delete-note") { deleteNote(id); renderNotes(); }
+      if (action === "delete-note") { await deleteNote(id); _notesCache = null; renderNotes(); }
     });
   }
 
@@ -1507,7 +2086,7 @@ async function init() {
     const workspace = document.querySelector("[data-page=workspace]");
     const buttons = workspace?.querySelectorAll("[data-workspace-view]") || [];
     const panels = workspace?.querySelectorAll("[data-workspace-panel]") || [];
-    const setWorkspaceView = (view, updateUrl = true) => {
+    const setWorkspaceView = async (view, updateUrl = true) => {
       buttons.forEach(button => {
         const active = button.dataset.workspaceView === view;
         button.classList.toggle("is-active", active);
@@ -1519,6 +2098,7 @@ async function init() {
         panel.classList.toggle("is-active", active);
       });
       if (updateUrl) history.replaceState({}, "", `${location.pathname}#${view}`);
+      await Promise.all([fetchTasksFromApi(), fetchNotesFromApi()]);
       renderTasks();
       renderNotes();
       iconify();
@@ -1552,7 +2132,7 @@ async function init() {
     if (e.key === "Escape") { closeModal(); closeTaskModal(); closeNoteModal(); }
   });
 
-  if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  if ("serviceWorker" in navigator && location.protocol !== "file:" && location.hostname !== "127.0.0.1" && location.hostname !== "localhost") {
     // Remember whether a worker was already in control BEFORE we register.
     // On a first-ever visit there is no controller, so the controllerchange
     // that clients.claim() fires is expected and must NOT trigger a reload.

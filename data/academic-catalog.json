@@ -1,0 +1,256 @@
+{
+  "version": 1,
+  "generatedAt": "2026-08-31T00:00:00Z",
+  "note": "Synthetic QCU academic catalog for development. Not real institutional data.",
+  "campuses": [
+    {
+      "campusId": "cam_sb",
+      "campusCode": "QCU-SB",
+      "name": "QCU San Bartolome Campus",
+      "shortName": "San Bartolome",
+      "timeZone": "Asia/Manila",
+      "status": "ACTIVE"
+    }
+  ],
+  "departments": [
+    {
+      "departmentId": "dep_ccs",
+      "departmentCode": "CCS",
+      "name": "College of Computer Studies",
+      "shortName": "CCS",
+      "unitType": "COLLEGE",
+      "status": "ACTIVE"
+    },
+    {
+      "departmentId": "dep_cba",
+      "departmentCode": "CBA",
+      "name": "College of Business Administration",
+      "shortName": "CBA",
+      "unitType": "COLLEGE",
+      "status": "ACTIVE"
+    },
+    {
+      "departmentId": "dep_coe",
+      "departmentCode": "COE",
+      "name": "College of Engineering",
+      "shortName": "COE",
+      "unitType": "COLLEGE",
+      "status": "ACTIVE"
+    },
+    {
+      "departmentId": "dep_cos",
+      "departmentCode": "COS",
+      "name": "College of Science",
+      "shortName": "COS",
+      "unitType": "COLLEGE",
+      "status": "ACTIVE"
+    },
+    {
+      "departmentId": "dep_alsa",
+      "departmentCode": "ALSA",
+      "name": "College of Arts, Letters, and Social Sciences",
+      "shortName": "ALSA",
+      "unitType": "COLLEGE",
+      "status": "ACTIVE"
+    },
+    {
+      "departmentId": "dep_chrs",
+      "departmentCode": "CHRS",
+      "name": "College of Hospitality and Restaurant Services",
+      "shortName": "CHRS",
+      "unitType": "COLLEGE",
+      "status": "ACTIVE"
+    },
+    {
+      "departmentId": "dep_cte",
+      "departmentCode": "CTE",
+      "name": "College of Teacher Education",
+      "shortName": "CTE",
+      "unitType": "COLLEGE",
+      "status": "ACTIVE"
+    }
+  ],
+  "programs": [
+    {
+      "programId": "prg_bscs",
+      "departmentId": "dep_ccs",
+      "programCode": "BSCS",
+      "name": "Bachelor of Science in Computer Science",
+      "shortName": "BSCS",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_bsis",
+      "departmentId": "dep_ccs",
+      "programCode": "BSIS",
+      "name": "Bachelor of Science in Information Systems",
+      "shortName": "BSIS",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_bsit",
+      "departmentId": "dep_ccs",
+      "programCode": "BSIT",
+      "name": "Bachelor of Science in Information Technology",
+      "shortName": "BSIT",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_bsba",
+      "departmentId": "dep_cba",
+      "programCode": "BSBA",
+      "name": "Bachelor of Science in Business Administration",
+      "shortName": "BSBA",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_bsmm",
+      "departmentId": "dep_cba",
+      "programCode": "BSMM",
+      "name": "Bachelor of Science in Marketing Management",
+      "shortName": "BSMM",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_bsce",
+      "departmentId": "dep_coe",
+      "programCode": "BSCE",
+      "name": "Bachelor of Science in Civil Engineering",
+      "shortName": "BSCE",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_bsee",
+      "departmentId": "dep_coe",
+      "programCode": "BSEE",
+      "name": "Bachelor of Science in Electrical Engineering",
+      "shortName": "BSEE",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_bsece",
+      "departmentId": "dep_coe",
+      "programCode": "BSECE",
+      "name": "Bachelor of Science in Electronics Engineering",
+      "shortName": "BSECE",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_bsmbt",
+      "departmentId": "dep_cos",
+      "programCode": "BSMBT",
+      "name": "Bachelor of Science in Medical Biotechnology",
+      "shortName": "BSMBT",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_abpoly",
+      "departmentId": "dep_alsa",
+      "programCode": "ABPOLY",
+      "name": "Bachelor of Arts in Political Science",
+      "shortName": "ABPOLY",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_bshtm",
+      "departmentId": "dep_chrs",
+      "programCode": "BSHTM",
+      "name": "Bachelor of Science in Hospitality and Tourism Management",
+      "shortName": "BSHTM",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_bsed",
+      "departmentId": "dep_cte",
+      "programCode": "BSED",
+      "name": "Bachelor of Secondary Education",
+      "shortName": "BSED",
+      "status": "ACTIVE"
+    },
+    {
+      "programId": "prg_beed",
+      "departmentId": "dep_cte",
+      "programCode": "BEED",
+      "name": "Bachelor of Elementary Education",
+      "shortName": "BEED",
+      "status": "ACTIVE"
+    }
+  ],
+  "subjects": [
+    { "subjectId": "sub_cc101", "subjectCode": "CC 101", "name": "Introduction to Computer Science", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc102", "subjectCode": "CC 102", "name": "Computer Programming 1", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc103", "subjectCode": "CC 103", "name": "Computer Programming 2", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc104", "subjectCode": "CC 104", "name": "Data Structures and Algorithms", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc105", "subjectCode": "CC 105", "name": "Discrete Mathematics", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc106", "subjectCode": "CC 106", "name": "Object-Oriented Programming", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc107", "subjectCode": "CC 107", "name": "Database Management Systems", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc108", "subjectCode": "CC 108", "name": "Operating Systems", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc109", "subjectCode": "CC 109", "name": "Software Engineering", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc110", "subjectCode": "CC 110", "name": "Web Development", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc111", "subjectCode": "CC 111", "name": "Networks and Communications", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc112", "subjectCode": "CC 112", "name": "Artificial Intelligence", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_cc113", "subjectCode": "CC 113", "name": "Machine Learning", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_is101", "subjectCode": "IS 101", "name": "Introduction to Information Systems", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_is102", "subjectCode": "IS 102", "name": "Systems Analysis and Design", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_is103", "subjectCode": "IS 103", "name": "Enterprise Architecture", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_is104", "subjectCode": "IS 104", "name": "IT Project Management", "units": 3, "departmentId": "dep_ccs", "status": "ACTIVE" },
+    { "subjectId": "sub_math101", "subjectCode": "MATH 101", "name": "College Algebra", "units": 3, "departmentId": "dep_cos", "status": "ACTIVE" },
+    { "subjectId": "sub_math102", "subjectCode": "MATH 102", "name": "Plane and Spherical Trigonometry", "units": 3, "departmentId": "dep_cos", "status": "ACTIVE" },
+    { "subjectId": "sub_math103", "subjectCode": "MATH 103", "name": "Solid Mensuration", "units": 3, "departmentId": "dep_cos", "status": "ACTIVE" },
+    { "subjectId": "sub_math104", "subjectCode": "MATH 104", "name": "Calculus 1", "units": 5, "departmentId": "dep_cos", "status": "ACTIVE" },
+    { "subjectId": "sub_math105", "subjectCode": "MATH 105", "name": "Calculus 2", "units": 5, "departmentId": "dep_cos", "status": "ACTIVE" },
+    { "subjectId": "sub_eng101", "subjectCode": "ENG 101", "name": "Communication Arts 1", "units": 3, "departmentId": "dep_alsa", "status": "ACTIVE" },
+    { "subjectId": "sub_eng102", "subjectCode": "ENG 102", "name": "Communication Arts 2", "units": 3, "departmentId": "dep_alsa", "status": "ACTIVE" },
+    { "subjectId": "sub_nsc101", "subjectCode": "NSC 101", "name": "Natural Science 1", "units": 3, "departmentId": "dep_cos", "status": "ACTIVE" },
+    { "subjectId": "sub_nsc102", "subjectCode": "NSC 102", "name": "Natural Science 2", "units": 3, "departmentId": "dep_cos", "status": "ACTIVE" },
+    { "subjectId": "sub_pe101", "subjectCode": "PE 101", "name": "Physical Education 1", "units": 2, "departmentId": "dep_cos", "status": "ACTIVE" },
+    { "subjectId": "sub_pe102", "subjectCode": "PE 102", "name": "Physical Education 2", "units": 2, "departmentId": "dep_cos", "status": "ACTIVE" },
+    { "subjectId": "sub_rotc101", "subjectCode": "ROTC 101", "name": "Reserved Officers Training Corps 1", "units": 3, "departmentId": "dep_cos", "status": "ACTIVE" },
+    { "subjectId": "sub_fil101", "subjectCode": "FIL 101", "name": "Komunikasyon sa Akademikong Filipino", "units": 3, "departmentId": "dep_alsa", "status": "ACTIVE" },
+    { "subjectId": "sub_soc101", "subjectCode": "SOC 101", "name": "Introduction to Sociology", "units": 3, "departmentId": "dep_alsa", "status": "ACTIVE" },
+    { "subjectId": "sub_ged101", "subjectCode": "GED 101", "name": "Understanding the Self", "units": 3, "departmentId": "dep_alsa", "status": "ACTIVE" },
+    { "subjectId": "sub_ged102", "subjectCode": "GED 102", "name": "Readings in Philippine History", "units": 3, "departmentId": "dep_alsa", "status": "ACTIVE" },
+    { "subjectId": "sub_ged103", "subjectCode": "GED 103", "name": "The Contemporary World", "units": 3, "departmentId": "dep_alsa", "status": "ACTIVE" },
+    { "subjectId": "sub_ged104", "subjectCode": "GED 104", "name": "Ethics", "units": 3, "departmentId": "dep_alsa", "status": "ACTIVE" },
+    { "subjectId": "sub_ged105", "subjectCode": "GED 105", "name": "Art Appreciation", "units": 3, "departmentId": "dep_alsa", "status": "ACTIVE" },
+    { "subjectId": "sub_ged106", "subjectCode": "GED 106", "name": "Science, Technology, and Society", "units": 3, "departmentId": "dep_cos", "status": "ACTIVE" },
+    { "subjectId": "sub_ged107", "subjectCode": "GED 107", "name": "Environmental Science", "units": 3, "departmentId": "dep_cos", "status": "ACTIVE" }
+  ],
+  "terms": [
+    {
+      "termId": "trm_2026_1",
+      "academicYearStart": 2026,
+      "academicYearLabel": "2026-2027",
+      "termCode": "FIRST_SEMESTER",
+      "name": "First Semester AY 2026-2027",
+      "startsOn": "2026-08-16",
+      "endsOn": "2026-12-20",
+      "status": "ACTIVE"
+    },
+    {
+      "termId": "trm_2026_2",
+      "academicYearStart": 2026,
+      "academicYearLabel": "2026-2027",
+      "termCode": "SECOND_SEMESTER",
+      "name": "Second Semester AY 2026-2027",
+      "startsOn": "2027-01-10",
+      "endsOn": "2027-05-30",
+      "status": "PLANNED"
+    }
+  ],
+  "buildings": [
+    { "buildingId": "bldg_new_academic", "buildingCode": "NAB", "name": "New Academic Building", "campusId": "cam_sb", "status": "ACTIVE" },
+    { "buildingId": "bldg_bautista", "buildingCode": "BB", "name": "Bautista Building", "campusId": "cam_sb", "status": "ACTIVE" },
+    { "buildingId": "bldg_belmonte", "buildingCode": "BH", "name": "Belmonte Hall", "campusId": "cam_sb", "status": "ACTIVE" },
+    { "buildingId": "bldg_techboc", "buildingCode": "TB", "name": "Techboc Building", "campusId": "cam_sb", "status": "ACTIVE" }
+  ],
+  "rooms": [
+    { "roomId": "rm_il502a", "buildingId": "bldg_new_academic", "roomCode": "IL502A", "name": "IL502A", "status": "ACTIVE" },
+    { "roomId": "rm_il601a", "buildingId": "bldg_new_academic", "roomCode": "IL601A", "name": "IL601A", "status": "ACTIVE" },
+    { "roomId": "rm_il606a", "buildingId": "bldg_new_academic", "roomCode": "IL606A", "name": "IL606A", "status": "ACTIVE" },
+    { "roomId": "rm_ik603f1", "buildingId": "bldg_bautista", "roomCode": "IK603 F1", "name": "IK603 F1", "status": "ACTIVE" },
+    { "roomId": "rm_sbog", "buildingId": "bldg_belmonte", "roomCode": "SB OG", "name": "SB OG", "status": "ACTIVE" },
+    { "roomId": "rm_tb_201", "buildingId": "bldg_techboc", "roomCode": "TB 201", "name": "TB 201", "status": "ACTIVE" },
+    { "roomId": "rm_tb_301", "buildingId": "bldg_techboc", "roomCode": "TB 301", "name": "TB 301", "status": "ACTIVE" }
+  ]
+}

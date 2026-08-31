@@ -1,4 +1,4 @@
-const CACHE_NAME = "qcu-schedule-v51";
+const CACHE_NAME = "qcu-schedule-v54";
 const STATIC_ASSETS = [
   "./",
   "index.html",
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
   "workspace.html",
   "google.html",
   "offline.html",
+  "onboarding.html",
   "manifest.json",
   "assets/css/styles.css",
   "assets/css/eta.css",
@@ -19,6 +20,7 @@ const STATIC_ASSETS = [
   "assets/js/google-integration.js",
   "assets/js/eta.js",
   "assets/js/status.js",
+  "assets/js/onboarding.js",
   "assets/images/QCU college of computer studies logo.jpg",
   "assets/images/Quezon_City_Government.png",
   "assets/images/QCU-BUILDING-1024x683-1.jpg",
@@ -38,7 +40,9 @@ const NO_CACHE_PATHS = [
   "/api/suspensions",
   "/api/flood",
   "/api/weather-alerts",
-  "/api/google/"
+  "/api/google/",
+  "/api/auth/",
+  "/api/v1/"
 ];
 
 function isNoCachePath(url) {
@@ -61,6 +65,9 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
   const requestUrl = new URL(event.request.url);
+
+  // Skip interception on localhost — no caching needed, and it breaks OAuth
+  if (requestUrl.hostname === "127.0.0.1" || requestUrl.hostname === "localhost") return;
 
   // Browser extensions and third-party resources are outside this PWA's
   // cache. Cache.put only supports http(s), and cross-origin responses do not

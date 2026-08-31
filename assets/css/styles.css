@@ -2663,3 +2663,59 @@ body[data-page="workspace"] .section-stack > * { min-width: 0; }
   .day-modal-course { grid-column: 1; }
   .notif-item { grid-template-columns: 30px minmax(0, 1fr); gap: 9px; padding: 11px; }
 }
+
+/* ── Schedule CRUD Modal ──────────────────────────── */
+.crud-form { display: flex; flex-direction: column; gap: 14px; }
+.crud-field { display: flex; flex-direction: column; gap: 5px; }
+.crud-field label {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--muted);
+}
+.crud-field select,
+.crud-field input[type="time"],
+.crud-field input[type="text"] {
+  padding: 10px 12px; border-radius: 10px;
+  border: 1.5px solid var(--border); background: var(--bg);
+  font-size: 14px; font-weight: 600; color: var(--text);
+  width: 100%; box-sizing: border-box;
+}
+.crud-field select:focus,
+.crud-field input:focus {
+  border-color: var(--blue); outline: none;
+  box-shadow: 0 0 0 3px rgba(0,91,172,.12);
+}
+.crud-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.crud-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 8px; }
+.crud-actions-right { display: flex; gap: 8px; margin-left: auto; }
+.crud-error {
+  padding: 10px 12px; border-radius: 8px;
+  background: #FEE2E2; color: #991B1B; font-size: 13px; font-weight: 600;
+}
+.btn-danger {
+  background: #FEE2E2; color: #991B1B; border: 1.5px solid #FECACA;
+  padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-danger:hover { background: #FECACA; }
+.btn-danger i { width: 14px; height: 14px; }
+
+/* ── Provenance Badges ────────────────────────────── */
+.provenance-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px; border-radius: 6px; font-size: 10px; font-weight: 700;
+  letter-spacing: .02em; white-space: nowrap;
+}
+.provenance-cor { background: #EEF1F5; color: #5F6368; }
+.provenance-manual { background: #DBEAFE; color: #1E40AF; }
+
+/* ── Edit Button on Cards / Rows ──────────────────── */
+.class-card-actions { padding: 0 18px 14px; display: flex; justify-content: flex-end; }
+.icon-btn--sm { width: 32px; height: 32px; padding: 0; }
+.icon-btn--sm i { width: 14px; height: 14px; }
+
+@media (max-width: 640px) {
+  .crud-row { grid-template-columns: 1fr; }
+  .crud-actions { flex-direction: column; }
+  .crud-actions-right { width: 100%; }
+  .crud-actions-right .btn { flex: 1; }
+}

@@ -9,7 +9,7 @@ compatibility_date = "2024-11-01"
 [vars]
 # OAuth client IDs are public identifiers. The matching client secret must
 # remain configured as a protected Cloudflare runtime secret.
-GOOGLE_CLIENT_ID = "538685955362-pv7smi77dsjsp8suqrnejs0fj6ppdajf.apps.googleusercontent.com"
+GOOGLE_CLIENT_ID = "747356241506-5u5litl4u4dp00t46grmabmdo573ct6k.apps.googleusercontent.com"
 
 # Google compares `redirect_uri` byte-for-byte against the Authorized redirect
 # URIs on the OAuth client and accepts no wildcards, while Cloudflare Pages

@@ -18,7 +18,63 @@
 <link rel="stylesheet" href="assets/css/styles.css?v=43">
 </head>
 <body data-page="home">
-  <div class="app-shell">
+
+  <!-- PUBLIC LANDING: shown when not authenticated -->
+  <div id="auth-landing" class="app-shell" style="display:none;">
+    <header class="page-header">
+      <div class="page-header-inner" style="display:flex;align-items:center;justify-content:space-between;max-width:960px;margin:0 auto;padding:0 20px;height:56px;">
+        <span style="font-weight:700;font-size:15px;color:var(--navy,#0B2341);">My-Schedule</span>
+        <nav style="display:flex;gap:16px;font-size:13px;">
+          <a href="privacy.html" style="color:var(--navy,#0B2341);text-decoration:none;">Privacy</a>
+          <a href="terms.html" style="color:var(--navy,#0B2341);text-decoration:none;">Terms</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page-container" style="max-width:640px;margin:0 auto;padding:40px 20px;text-align:center;">
+      <div style="margin-bottom:24px;">
+        <img src="assets/images/QCU college of computer studies logo.jpg" alt="QCU" style="width:72px;height:72px;border-radius:12px;object-fit:cover;">
+      </div>
+      <h1 style="font-size:28px;font-weight:800;color:var(--navy,#0B2341);margin:0 0 8px;">My-Schedule</h1>
+      <p style="font-size:17px;color:#374151;margin:0 0 32px;">Your QCU schedule, organized.</p>
+
+      <a id="google-login-btn" href="/api/auth/google/start" style="
+        display:inline-flex;align-items:center;gap:10px;
+        background:#005BAC;color:#fff;font-weight:600;font-size:15px;
+        padding:12px 28px;border-radius:8px;text-decoration:none;
+        border:none;cursor:pointer;transition:background 0.15s;
+      ">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#fff"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#fff"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#fff"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#fff"/></svg>
+        Continue with Google
+      </a>
+
+      <p id="auth-error-msg" style="color:#dc2626;font-size:13px;margin-top:16px;display:none;"></p>
+
+      <section style="margin-top:48px;text-align:left;">
+        <div style="display:grid;gap:20px;">
+          <div style="padding:16px;border:1px solid #e5e7eb;border-radius:8px;">
+            <strong style="font-size:14px;color:var(--navy,#0B2341);">Schedule organizer</strong>
+            <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">See your classes for today and the full week at a glance.</p>
+          </div>
+          <div style="padding:16px;border:1px solid #e5e7eb;border-radius:8px;">
+            <strong style="font-size:14px;color:var(--navy,#0B2341);">COR import</strong>
+            <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Upload your COR and review your schedule before confirming.</p>
+          </div>
+          <div style="padding:16px;border:1px solid #e5e7eb;border-radius:8px;">
+            <strong style="font-size:14px;color:var(--navy,#0B2341);">Tasks and notes</strong>
+            <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Keep your to-do list and class notes in your personal workspace.</p>
+          </div>
+        </div>
+      </section>
+
+      <footer style="margin-top:48px;padding:16px 0;font-size:12px;color:#9ca3af;">
+        QCU Schedule &middot; <a href="privacy.html" style="color:#6b7280;">Privacy</a> &middot; <a href="terms.html" style="color:#6b7280;">Terms</a>
+      </footer>
+    </main>
+  </div>
+
+  <!-- AUTHENTICATED DASHBOARD: shown after login -->
+  <div id="auth-dashboard" class="app-shell" style="display:none;">
     <header id="app-header" class="page-header"></header>
 
     <main class="page-container home-layout">
@@ -101,13 +157,99 @@
     <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation"></nav>
   </div>
 
+  <!-- AUTH CHECK LOADING STATE -->
+  <div id="auth-loading" class="app-shell" style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
+    <p style="font-size:14px;color:#6b7280;">Loading&hellip;</p>
+  </div>
+
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-<script src="assets/js/app.js?v=40"></script>
+<script src="assets/js/academic.js?v=41"></script>
+<script src="assets/js/app.js?v=44"></script>
   <script>
     // Optional overrides for the Home status panel (all keyless/optional).
     // Open-Meteo needs NO API key, so nothing sensitive is ever hardcoded here.
     window.QCU_STATUS_CONFIG = {};
   </script>
   <script src="assets/js/status.js?v=40"></script>
+  <script>
+    // CHUNK 23: Auth-aware routing
+    (function () {
+      var landing = document.getElementById("auth-landing");
+      var dashboard = document.getElementById("auth-dashboard");
+      var loading = document.getElementById("auth-loading");
+      var errorEl = document.getElementById("auth-error-msg");
+
+      // Check URL params for auth result
+      var params = new URLSearchParams(window.location.search);
+      var authResult = params.get("auth");
+
+      if (authResult === "denied") {
+        showError("Sign-in was cancelled. Please try again.");
+        showLanding();
+      } else if (authResult === "failed") {
+        showError("Sign-in failed. Please try again.");
+        showLanding();
+      } else if (authResult === "onboarding") {
+        window.location.href = "/onboarding.html";
+      } else if (authResult === "dashboard") {
+        showDashboard();
+      } else {
+        // No auth result in URL — check session
+        checkSession();
+      }
+
+      function showError(msg) {
+        if (errorEl) {
+          errorEl.textContent = msg;
+          errorEl.style.display = "block";
+        }
+        // Clear URL params
+        if (window.history.replaceState) {
+          window.history.replaceState({}, document.title, "/");
+        }
+      }
+
+      function showLanding() {
+        landing.style.display = "";
+        dashboard.style.display = "none";
+        loading.style.display = "none";
+      }
+
+      function showDashboard() {
+        landing.style.display = "none";
+        dashboard.style.display = "";
+        loading.style.display = "none";
+        // Clear URL params
+        if (window.history.replaceState) {
+          window.history.replaceState({}, document.title, "/");
+        }
+      }
+
+      function checkSession() {
+        fetch("/api/v1/bootstrap", { credentials: "include" })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (!data.authenticated) {
+              showLanding();
+              return;
+            }
+            switch (data.routing) {
+              case "onboarding":
+                window.location.href = "/onboarding.html";
+                break;
+              case "dashboard":
+                showDashboard();
+                break;
+              default:
+                showLanding();
+            }
+          })
+          .catch(function () {
+            // Network error or API unavailable — show landing
+            showLanding();
+          });
+      }
+    })();
+  </script>
 </body>
 </html>

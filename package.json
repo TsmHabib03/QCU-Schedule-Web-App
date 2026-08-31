@@ -13,5 +13,8 @@
   },
   "devDependencies": {
     "wrangler": "^4.125.0"
+  },
+  "dependencies": {
+    "tesseract.js": "^7.0.0"
   }
 }
