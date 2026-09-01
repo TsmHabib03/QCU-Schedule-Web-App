@@ -79,9 +79,16 @@ export async function onRequestGet(context) {
 
     // ── Resolve entry details (subject, building, room) ─────────────────
     const entries = rawEntries.map((e) => {
-      const subject = e.enrollmentSubjectId
-        ? Subjects.getById(e.enrollmentSubjectId)
+      // enrollmentSubjectId is an ens_... ID (from EnrollmentSubjects), not a subject_... ID
+      const ens = e.enrollmentSubjectId
+        ? EnrollmentSubjects.getById(e.enrollmentSubjectId)
         : null;
+      // Also try catalog Subjects for matching subjectId
+      const catalogSubject = ens?.matchedSubjectId
+        ? Subjects.getById(ens.matchedSubjectId)
+        : null;
+      const subjectCode = ens?.subjectCodeSnapshot || catalogSubject?.subjectCode || "";
+      const subjectTitle = ens?.subjectTitleSnapshot || catalogSubject?.title || "";
       const building = e.buildingId
         ? CatalogBuildings.getById(e.buildingId)
         : null;
@@ -106,10 +113,10 @@ export async function onRequestGet(context) {
       return {
         entryId: e.smeId,
         scheduleId: e.scheduleId,
-        code: subject?.subjectCode || "",
-        course: subject?.subjectCode || "",
-        title: subject?.title || "",
-        units: subject?.units || 0,
+        code: subjectCode,
+        course: subjectCode,
+        title: subjectTitle,
+        units: ens?.units || 0,
         type: e.modality || "ONSITE",
         section: "",
         day: normalizedDay,
