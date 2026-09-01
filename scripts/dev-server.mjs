@@ -25,6 +25,7 @@ import { onRequestPost as corProcess } from "../functions/api/v1/cor/process.js"
 import { onRequestGet as corResult } from "../functions/api/v1/cor/result.js";
 import { onRequestPost as corReview } from "../functions/api/v1/cor/review.js";
 import { onRequestPost as corConfirm } from "../functions/api/v1/cor/confirm.js";
+import { onRequestGet as corTestGemini } from "../functions/api/v1/cor/test-gemini.js";
 
 import { onRequestGet as onboardingStatus } from "../functions/api/v1/onboarding/status.js";
 
@@ -81,6 +82,7 @@ const API_ROUTES = new Map([
   ["GET /api/v1/cor/result", corResult],
   ["POST /api/v1/cor/review", corReview],
   ["POST /api/v1/cor/confirm", corConfirm],
+  ["GET /api/v1/cor/test-gemini", corTestGemini],
   ["GET /api/v1/onboarding/status", onboardingStatus],
   ["GET /api/v1/academic/campuses", academicCampuses],
   ["GET /api/v1/academic/departments", academicDepartments],

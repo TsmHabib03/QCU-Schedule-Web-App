@@ -9,7 +9,7 @@ import {
 } from "../../auth/_lib.js";
 import { CorRecords, CorDrafts, CorFiles } from "../../repo/index.js";
 
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent";
+const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.1-flash-lite"];
 
 async function extractWithGemini(imageBytes, mimeType, apiKey) {
   const base64 = Buffer.from(imageBytes).toString("base64");
@@ -77,31 +77,45 @@ Rules:
 - If a field is not readable, use null
 - If same subject has multiple rows (lecture + lab), include BOTH
 - Return ONLY the JSON, no markdown`;
+  let lastError = null;
+  for (const model of GEMINI_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    try {
+      const response = await fetch(`${url}?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { text: prompt },
+            { inline_data: { mime_type: mimeType, data: base64 } }
+          ]}],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
 
-  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [
-        { text: prompt },
-        { inline_data: { mime_type: mimeType, data: base64 } }
-      ]}],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
-    }),
-    signal: AbortSignal.timeout(30000),
-  });
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`Gemini ${model} HTTP ${response.status}:`, errText.slice(0, 300));
+        lastError = `${model}: HTTP ${response.status} - ${errText.slice(0, 100)}`;
+        continue;
+      }
 
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error("Gemini HTTP", response.status, ":", errText.slice(0, 500));
-    throw new Error(`Gemini API error ${response.status}: ${errText.slice(0, 200)}`);
+      const data = await response.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        lastError = `${model}: No JSON in response`;
+        continue;
+      }
+      console.log("Gemini model", model, "succeeded");
+      return JSON.parse(jsonMatch[0]);
+    } catch (err) {
+      console.error(`Gemini ${model} error:`, err.message);
+      lastError = `${model}: ${err.message}`;
+    }
   }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("No JSON in Gemini response");
-  return JSON.parse(jsonMatch[0]);
+  throw new Error(`All Gemini models failed. Last error: ${lastError}`);
 }
 
 function geminiResultToDraft(result) {
@@ -605,7 +619,7 @@ export async function onRequestPost(context) {
         console.log("Gemini OK:", extractionResult.subjects.length, "subjects,", extractionResult.studentInfo.firstName?.value, extractionResult.studentInfo.lastName?.value);
       } catch (geminiError) {
         console.error("Gemini FAILED:", geminiError.message);
-        extractionResult = null;
+        return json({ status: "ERROR", error: `Gemini error: ${geminiError.message}` }, 500);
       }
     } else {
       console.log("No GEMINI_API_KEY found, skipping Gemini");
@@ -614,7 +628,7 @@ export async function onRequestPost(context) {
     if (!extractionResult) {
       const msg = !geminiKey
         ? "No GEMINI_API_KEY set. COR processing requires a valid Gemini API key from https://aistudio.google.com/apikey"
-        : "Gemini extraction failed. Your GEMINI_API_KEY may be invalid. Get a key from https://aistudio.google.com/apikey";
+        : `Gemini extraction failed. Your key starts with: ${geminiKey.slice(0, 6)}... Error: Check Cloudflare Functions logs.`;
       return json({ status: "ERROR", error: msg }, 500);
     }
 
