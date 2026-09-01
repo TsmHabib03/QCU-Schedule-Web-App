@@ -200,7 +200,7 @@
       const data = await resp.json();
       progressFill.style.width = "60%";
 
-      if (data.status !== "OK" && data.status !== "ACCEPTED") {
+      if (data.status !== "OK" && data.status !== "ACCEPTED" && data.status !== "EXTRACTED") {
         showError(data.error || "Upload failed. Please try again.");
         uploadBtn.disabled = false;
         progress.classList.remove("visible");

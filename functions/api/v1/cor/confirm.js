@@ -7,6 +7,7 @@ import {
   resolveUser,
   refreshSession,
   json,
+  compactDraft,
 } from "../../auth/_lib.js";
 import {
   CorRecords,
@@ -36,23 +37,33 @@ const DAY_MAP = {
 };
 
 // ---------------------------------------------------------------------------
+// Helpers — extract value from either full ({ value, sourceText, confidence })
+// or compact (plain value) draft formats.
+// ---------------------------------------------------------------------------
+function val(v) {
+  if (v === null || v === undefined) return v;
+  if (typeof v === "object" && !Array.isArray(v) && "value" in v) return v.value;
+  return v;
+}
+
+// ---------------------------------------------------------------------------
 // Final validation
 // ---------------------------------------------------------------------------
 function validateDraft(draft, catalog) {
   const issues = [];
 
   // Student info validation
-  if (!draft.studentInfo?.firstName?.value) issues.push({ field: "studentInfo.firstName", message: "First name is required." });
-  if (!draft.studentInfo?.lastName?.value) issues.push({ field: "studentInfo.lastName", message: "Last name is required." });
-  if (!draft.studentInfo?.studentNumber?.value) issues.push({ field: "studentInfo.studentNumber", message: "Student number is required." });
+  if (!val(draft.studentInfo?.firstName)) issues.push({ field: "studentInfo.firstName", message: "First name is required." });
+  if (!val(draft.studentInfo?.lastName)) issues.push({ field: "studentInfo.lastName", message: "Last name is required." });
+  if (!val(draft.studentInfo?.studentNumber)) issues.push({ field: "studentInfo.studentNumber", message: "Student number is required." });
 
   // Enrollment validation
-  if (!draft.enrollmentInfo?.program?.value) issues.push({ field: "enrollmentInfo.program", message: "Program is required." });
-  if (!draft.enrollmentInfo?.yearLevel?.value) issues.push({ field: "enrollmentInfo.yearLevel", message: "Year level is required." });
-  if (!draft.enrollmentInfo?.term?.value) issues.push({ field: "enrollmentInfo.term", message: "Term is required." });
+  if (!val(draft.enrollmentInfo?.program)) issues.push({ field: "enrollmentInfo.program", message: "Program is required." });
+  if (!val(draft.enrollmentInfo?.yearLevel)) issues.push({ field: "enrollmentInfo.yearLevel", message: "Year level is required." });
+  if (!val(draft.enrollmentInfo?.term)) issues.push({ field: "enrollmentInfo.term", message: "Term is required." });
 
   // Validate year level
-  const yearLevel = draft.enrollmentInfo?.yearLevel?.value;
+  const yearLevel = val(draft.enrollmentInfo?.yearLevel);
   if (yearLevel && (yearLevel < 1 || yearLevel > 5)) {
     issues.push({ field: "enrollmentInfo.yearLevel", message: "Year level must be between 1 and 5." });
   }
@@ -63,19 +74,22 @@ function validateDraft(draft, catalog) {
   } else {
     for (let i = 0; i < draft.subjects.length; i++) {
       const s = draft.subjects[i];
-      if (!s.subjectCode?.value) issues.push({ field: `subjects[${i}].subjectCode`, message: "Subject code is required." });
-      if (!s.subjectName?.value) issues.push({ field: `subjects[${i}].subjectName`, message: "Subject name is required." });
+      if (!val(s.subjectCode)) issues.push({ field: `subjects[${i}].subjectCode`, message: "Subject code is required." });
+      if (!val(s.subjectName)) issues.push({ field: `subjects[${i}].subjectName`, message: "Subject name is required." });
 
       // Validate schedule days
-      if (s.schedule) {
-        for (let j = 0; j < s.schedule.length; j++) {
-          const m = s.schedule[j];
-          if (m.day?.value && !(m.day.value in DAY_MAP)) {
-            issues.push({ field: `subjects[${i}].schedule[${j}].day`, message: `Invalid day: ${m.day.value}` });
+      const schedule = s.schedule || s.meetings;
+      if (schedule) {
+        for (let j = 0; j < schedule.length; j++) {
+          const m = schedule[j];
+          const dayVal = val(m.day) || val(m.dayOfWeek);
+          if (dayVal && !(dayVal in DAY_MAP)) {
+            issues.push({ field: `subjects[${i}].schedule[${j}].day`, message: `Invalid day: ${dayVal}` });
           }
-          if (m.time?.start && m.time?.end) {
-            // Validate time format HH:mm
-            if (!/^\d{2}:\d{2}$/.test(m.time.start) || !/^\d{2}:\d{2}$/.test(m.time.end)) {
+          const start = val(m.time?.start) || val(m.startTime);
+          const end = val(m.time?.end) || val(m.endTime);
+          if (start && end) {
+            if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) {
               issues.push({ field: `subjects[${i}].schedule[${j}].time`, message: "Invalid time format." });
             }
           }
@@ -88,19 +102,27 @@ function validateDraft(draft, catalog) {
   if (draft.subjects) {
     for (let i = 0; i < draft.subjects.length; i++) {
       const s1 = draft.subjects[i];
-      if (!s1.schedule) continue;
+      const sched1 = s1.schedule || s1.meetings;
+      if (!sched1) continue;
       for (let j = 0; j < draft.subjects.length; j++) {
         if (i >= j) continue;
         const s2 = draft.subjects[j];
-        if (!s2.schedule) continue;
-        for (const m1 of s1.schedule) {
-          for (const m2 of s2.schedule) {
-            if (m1.day?.value !== m2.day?.value) continue;
-            if (m1.time?.start && m1.time?.end && m2.time?.start && m2.time?.end) {
-              if (m1.time.start < m2.time.end && m2.time.start < m1.time.end) {
+        const sched2 = s2.schedule || s2.meetings;
+        if (!sched2) continue;
+        for (const m1 of sched1) {
+          for (const m2 of sched2) {
+            const d1 = val(m1.day) || val(m1.dayOfWeek);
+            const d2 = val(m2.day) || val(m2.dayOfWeek);
+            if (d1 !== d2) continue;
+            const s1t = val(m1.time?.start) || val(m1.startTime);
+            const e1 = val(m1.time?.end) || val(m1.endTime);
+            const s2t = val(m2.time?.start) || val(m2.startTime);
+            const e2 = val(m2.time?.end) || val(m2.endTime);
+            if (s1t && e1 && s2t && e2) {
+              if (s1t < e2 && s2t < e1) {
                 issues.push({
                   field: "schedule",
-                  message: `Schedule conflict: ${s1.subjectCode?.value} and ${s2.subjectCode?.value} on ${m1.day.value} (${m1.time.start}-${m1.time.end} vs ${m2.time.start}-${m2.time.end})`,
+                  message: `Schedule conflict: ${val(s1.subjectCode)} and ${val(s2.subjectCode)} on ${d1} (${s1t}-${e1} vs ${s2t}-${e2})`,
                 });
               }
             }
@@ -120,28 +142,28 @@ function commitRecords(user, draft, _catalog) {
   // 1. Create Student Profile
   const profile = Profiles.create({
     userId: user.userId,
-    studentNumber: draft.studentInfo.studentNumber.value,
-    firstName: draft.studentInfo.firstName.value,
-    middleName: draft.studentInfo.middleName?.value || null,
-    lastName: draft.studentInfo.lastName.value,
-    suffix: draft.studentInfo.suffix?.value || null,
+    studentNumber: val(draft.studentInfo.studentNumber),
+    firstName: val(draft.studentInfo.firstName),
+    middleName: val(draft.studentInfo.middleName) || null,
+    lastName: val(draft.studentInfo.lastName),
+    suffix: val(draft.studentInfo.suffix) || null,
     verificationStatus: "COR_REVIEWED",
     sourceCorRecordId: user.corRecordId,
   });
 
   // 2. Resolve program and campus from catalog (using repo modules)
-  const programCode = draft.enrollmentInfo.program.value;
-  const matchedProgram = draft.enrollmentInfo.program.matchedProgramId
+  const programCode = val(draft.enrollmentInfo.program);
+  const matchedProgram = draft.enrollmentInfo.program?.matchedProgramId
     ? Programs.getById(draft.enrollmentInfo.program.matchedProgramId)
     : Programs.getByCode(programCode);
 
-  const campusName = draft.enrollmentInfo.campus?.value;
+  const campusName = val(draft.enrollmentInfo.campus);
   const matchedCampus = draft.enrollmentInfo.campus?.matchedCampusId
     ? Campuses.getById(draft.enrollmentInfo.campus.matchedCampusId)
     : (campusName ? Campuses.getAll().find(c => c.name.includes(campusName)) : null);
 
-  const termLabel = draft.enrollmentInfo.term.value;
-  const matchedTerm = draft.enrollmentInfo.term.matchedTermId
+  const termLabel = val(draft.enrollmentInfo.term);
+  const matchedTerm = draft.enrollmentInfo.term?.matchedTermId
     ? Terms.getById(draft.enrollmentInfo.term.matchedTermId)
     : Terms.getAll().find(t => t.name.includes(termLabel));
 
@@ -152,9 +174,9 @@ function commitRecords(user, draft, _catalog) {
     termId: matchedTerm?.termId || null,
     programId: matchedProgram?.programId || null,
     campusId: matchedCampus?.campusId || null,
-    yearLevel: draft.enrollmentInfo.yearLevel.value,
-    sectionLabelSnapshot: draft.enrollmentInfo.section?.value || null,
-    adviserName: draft.enrollmentInfo.adviserName?.value || null,
+    yearLevel: val(draft.enrollmentInfo.yearLevel),
+    sectionLabelSnapshot: val(draft.enrollmentInfo.section) || null,
+    adviserName: val(draft.enrollmentInfo.adviserName) || null,
     sourceType: "COR_IMPORT",
     sourceCorRecordId: user.corRecordId,
   });
@@ -172,30 +194,34 @@ function commitRecords(user, draft, _catalog) {
     const enrollmentSubject = EnrollmentSubjects.create({
       enrollmentId: enrollment.enrollmentId,
       userId: user.userId,
-      subjectCodeSnapshot: subject.subjectCode.value,
-      subjectTitleSnapshot: subject.subjectName.value,
-      units: subject.units?.value || 0,
+      subjectCodeSnapshot: val(subject.subjectCode),
+      subjectTitleSnapshot: val(subject.subjectName),
+      units: val(subject.units) || 0,
       matchedSubjectId: subject.matchedSubjectId || null,
       matchedRoomId: subject.room?.matchedRoomId || null,
       matchedBuildingId: subject.room?.matchedBuildingId || null,
-      roomSnapshot: subject.room?.value || null,
+      roomSnapshot: val(subject.room) || null,
       sourceType: "COR_IMPORT",
     });
 
     // Create schedule entries for each meeting
-    if (subject.schedule) {
-      for (const meeting of subject.schedule) {
+    const schedule = subject.schedule || subject.meetings;
+    if (schedule) {
+      for (const meeting of schedule) {
         entryIndex++;
+        const dayVal = val(meeting.day) || val(meeting.dayOfWeek);
+        const startVal = val(meeting.time?.start) || val(meeting.startTime);
+        const endVal = val(meeting.time?.end) || val(meeting.endTime);
         ScheduleEntries.create({
           scheduleId: schedule.scheduleId,
           enrollmentId: enrollment.enrollmentId,
           userId: user.userId,
           enrollmentSubjectId: enrollmentSubject.ensId,
-          dayOfWeek: DAY_MAP[meeting.day?.value] ?? null,
-          dayLabel: meeting.day?.value || null,
-          startTime: meeting.time?.start || null,
-          endTime: meeting.time?.end || null,
-          locationText: subject.room?.value || null,
+          dayOfWeek: DAY_MAP[dayVal] ?? null,
+          dayLabel: dayVal || null,
+          startTime: startVal || null,
+          endTime: endVal || null,
+          locationText: val(subject.room) || null,
           buildingId: subject.room?.matchedBuildingId || null,
           roomId: subject.room?.matchedRoomId || null,
           sortOrder: entryIndex,
@@ -456,10 +482,13 @@ export async function onRequestPost(context) {
     };
 
     // Re-seal session cookie with ACTIVE state + dashboard snapshot
+    // Compact the draft (if present) to keep cookie under 4 KB.
+    const compacted = compactDraft(session.corDraft);
     const sessionCookie = await refreshSession(context, session, {
       state: "ACTIVE",
       profile: user.profile,
       name: user.name,
+      corDraft: compacted,
       dashboardSnapshot,
     });
 

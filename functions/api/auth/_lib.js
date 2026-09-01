@@ -129,6 +129,78 @@ export function clearAllAuthCookies(request) {
   ];
 }
 
+// ---------------------------------------------------------------------------
+// compactDraft — strip sourceText/confidence metadata from extraction drafts
+// to keep session cookie under the 4 KB browser limit.
+// Fields like { value, sourceText, confidence } → just their .value.
+// Handles nested arrays (subjects[].meetings[], subjects[].schedule[]).
+// ---------------------------------------------------------------------------
+
+function compactValue(v) {
+  if (v === null || v === undefined) return v;
+  if (typeof v === "object" && !Array.isArray(v) && "value" in v) return v.value;
+  return v;
+}
+
+function compactMeeting(m) {
+  if (!m || typeof m !== "object") return m;
+  const out = { ...m };
+  if (out.day && typeof out.day === "object" && "value" in out.day) out.day = out.day.value;
+  if (out.dayOfWeek && typeof out.dayOfWeek === "object" && "value" in out.dayOfWeek) out.dayOfWeek = out.dayOfWeek.value;
+  if (out.startTime && typeof out.startTime === "object" && "value" in out.startTime) out.startTime = out.startTime.value;
+  if (out.endTime && typeof out.endTime === "object" && "value" in out.endTime) out.endTime = out.endTime.value;
+  if (out.time && typeof out.time === "object") {
+    out.time = { ...out.time };
+    if (out.time.start && typeof out.time.start === "object" && "value" in out.time.start) out.time.start = out.time.start.value;
+    if (out.time.end && typeof out.time.end === "object" && "value" in out.time.end) out.time.end = out.time.end.value;
+  }
+  return out;
+}
+
+export function compactDraft(draft) {
+  if (!draft || typeof draft !== "object") return draft;
+  const out = { ...draft };
+
+  if (out.studentInfo && typeof out.studentInfo === "object") {
+    const si = { ...out.studentInfo };
+    for (const k of Object.keys(si)) {
+      if (k !== "suffix" || si[k] === null) si[k] = compactValue(si[k]);
+    }
+    out.studentInfo = si;
+  }
+
+  if (out.enrollmentInfo && typeof out.enrollmentInfo === "object") {
+    const ei = { ...out.enrollmentInfo };
+    for (const k of Object.keys(ei)) {
+      if (k !== "adviserName") ei[k] = compactValue(ei[k]);
+    }
+    out.enrollmentInfo = ei;
+  }
+
+  if (Array.isArray(out.subjects)) {
+    out.subjects = out.subjects.map((s) => {
+      if (!s || typeof s !== "object") return s;
+      const sub = { ...s };
+      for (const k of ["subjectCode", "subjectName", "units", "room", "roomNumber"]) {
+        if (sub[k]) sub[k] = compactValue(sub[k]);
+      }
+      const meetings = sub.meetings || sub.schedule;
+      if (Array.isArray(meetings)) {
+        const compacted = meetings.map(compactMeeting);
+        if (sub.meetings) sub.meetings = compacted;
+        if (sub.schedule) sub.schedule = compacted;
+      }
+      return sub;
+    });
+  }
+
+  // Drop large non-essential fields
+  delete out.rawText;
+  delete out.processingTime;
+
+  return out;
+}
+
 export function platformSessionHeader(context, session) {
   const secret = context.env.GOOGLE_SESSION_SECRET;
   if (!secret) throw new Error("GOOGLE_SESSION_SECRET is not configured");

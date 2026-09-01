@@ -6,6 +6,7 @@ import {
   resolveUser,
   refreshSession,
   json,
+  compactDraft,
 } from "../../auth/_lib.js";
 import { CorRecords, CorFiles, Concurrency } from "../../repo/index.js";
 import { extractWithGemini, geminiResultToDraft } from "./_gemini.js";
@@ -309,10 +310,11 @@ export async function onRequestPost(context) {
     }
 
     // Re-seal session cookie with ONBOARDING state, corRecordId, and draft
+    // Compact the draft to strip sourceText/confidence metadata (keeps cookie under 4 KB).
     const sessionCookie = await refreshSession(context, session, {
       state: user.state,
       corRecordId: corRecord.id,
-      corDraft,
+      corDraft: corDraft ? compactDraft(corDraft) : null,
     });
 
     const resp = json({
@@ -330,6 +332,7 @@ export async function onRequestPost(context) {
     return resp;
   } catch (error) {
     console.error("COR upload failed:", String(error?.message || error));
+    console.error("COR upload error stack:", error?.stack || "no stack");
     return json(
       { status: "ERROR", error: "Failed to process upload. Please try again." },
       500

@@ -6,6 +6,7 @@ import {
   resolveUser,
   refreshSession,
   json,
+  compactDraft,
 } from "../../auth/_lib.js";
 import { CorRecords, CorDrafts, CorFiles } from "../../repo/index.js";
 import { extractWithGemini, geminiResultToDraft, GEMINI_MODELS } from "./_gemini.js";
@@ -398,7 +399,7 @@ export async function onRequestPost(context) {
         totalUnits: user.corDraft.totalUnits,
       });
       const sessionCookie = await refreshSession(context, session, {
-        corDraft: user.corDraft,
+        corDraft: compactDraft(user.corDraft),
         corRecordStatus: "REVIEW_REQUIRED",
       });
       resp.headers.append("Set-Cookie", sessionCookie);

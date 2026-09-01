@@ -7,6 +7,7 @@ import {
   resolveUser,
   refreshSession,
   json,
+  compactDraft,
 } from "../../auth/_lib.js";
 import { CorRecords, CorDrafts } from "../../repo/index.js";
 
@@ -87,7 +88,7 @@ export async function onRequestPost(context) {
       studentInfo: body.studentInfo,
       enrollmentInfo: body.enrollmentInfo,
       subjects: body.subjects,
-      totalUnits: body.subjects.reduce((sum, s) => sum + (s.units?.value || 0), 0),
+      totalUnits: body.subjects.reduce((sum, s) => sum + (typeof s.units === "object" ? (s.units?.value || 0) : (s.units || 0)), 0),
       lastReviewedAt: new Date().toISOString(),
     };
 
@@ -97,6 +98,7 @@ export async function onRequestPost(context) {
     }
 
     // On CF Pages: save updated draft in session cookie
+    // Compact the draft to keep cookie under 4 KB.
     const resp = json({
       status: "OK",
       corRecordId: record?.id || user.corRecordId,
@@ -106,7 +108,7 @@ export async function onRequestPost(context) {
 
     if (!record) {
       const sessionCookie = await refreshSession(context, session, {
-        corDraft: updatedDraft,
+        corDraft: compactDraft(updatedDraft),
       });
       resp.headers.append("Set-Cookie", sessionCookie);
     }

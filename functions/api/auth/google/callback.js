@@ -13,6 +13,7 @@ import {
   resolveUserId,
   json,
   redirect,
+  compactDraft,
 } from "../_lib.js";
 
 function getCookie(request, name) {
@@ -135,8 +136,9 @@ export async function onRequestGet(context) {
       refreshToken: tokens.refresh_token || "",
       expiresAt: Date.now() + Number(tokens.expires_in || 3600) * 1000,
       // Carry forward data from previous session (CF Pages in-memory Maps are empty)
+      // Compact drafts to keep session cookie under 4 KB browser limit.
       corRecordId: existingSession?.corRecordId || null,
-      corDraft: existingSession?.corDraft || null,
+      corDraft: existingSession?.corDraft ? compactDraft(existingSession.corDraft) : null,
       profile: existingSession?.profile || null,
       dashboardSnapshot: existingSession?.dashboardSnapshot || null,
     };
