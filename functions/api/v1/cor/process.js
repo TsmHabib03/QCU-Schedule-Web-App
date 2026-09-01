@@ -12,7 +12,10 @@ import { CorRecords, CorDrafts, CorFiles } from "../../repo/index.js";
 const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.1-flash-lite"];
 
 async function extractWithGemini(imageBytes, mimeType, apiKey) {
-  const base64 = Buffer.from(imageBytes).toString("base64");
+  // Convert Uint8Array to base64 without Node.js Buffer (Cloudflare Workers compat)
+  let binary = "";
+  for (let i = 0; i < imageBytes.length; i++) binary += String.fromCharCode(imageBytes[i]);
+  const base64 = btoa(binary);
   
   const prompt = `Extract ALL information from this QCU (Quezon City University) Certificate of Registration from the San Bartolome campus. Return ONLY valid JSON.
 

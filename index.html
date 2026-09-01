@@ -188,7 +188,8 @@
         showError("Sign-in was cancelled. Please try again.");
         showLanding();
       } else if (authResult === "failed") {
-        showError("Sign-in failed. Please try again.");
+        var reason = params.get("reason") || "";
+        showError("Sign-in failed." + (reason ? " (" + reason + ")" : " Please try again."));
         showLanding();
       } else if (authResult === "onboarding") {
         window.location.href = "/onboarding.html";

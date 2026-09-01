@@ -80,8 +80,9 @@ export async function onRequestGet(context) {
     stateData.state !== url.searchParams.get("state") ||
     !url.searchParams.get("code")
   ) {
-    console.error("Callback state validation FAILED. stateData:", !!stateData, "urlState:", url.searchParams.get("state")?.substring(0, 20));
-    const failHeaders = new Headers({ "Location": "/?auth=failed", "Cache-Control": "no-store" });
+    const reason = !stateData ? "state_cookie_missing_or_expired" : "state_mismatch";
+    console.error("Callback state validation FAILED:", reason);
+    const failHeaders = new Headers({ "Location": "/?auth=failed&reason=" + encodeURIComponent(reason), "Cache-Control": "no-store" });
     failHeaders.append("Set-Cookie", clearState);
     return new Response(null, { status: 302, headers: failHeaders });
   }
@@ -142,7 +143,7 @@ export async function onRequestGet(context) {
     const message = String(error?.message || "Login failed").slice(0, 200);
     const stack = String(error?.stack || "").slice(0, 300);
     console.error("Auth callback FAILED:", message, stack);
-    const failHeaders = new Headers({ "Location": "/?auth=failed", "Cache-Control": "no-store" });
+    const failHeaders = new Headers({ "Location": "/?auth=failed&reason=" + encodeURIComponent(message.slice(0, 80)), "Cache-Control": "no-store" });
     failHeaders.append("Set-Cookie", clearState);
     return new Response(null, { status: 302, headers: failHeaders });
   }
