@@ -828,6 +828,19 @@ export const CatalogSeed = {
 };
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Auto-load embedded catalog on module init.
+// This ensures Cloudflare Pages Functions have access to academic data
+// (buildings, programs, terms, subjects) without needing filesystem access.
+// The dev-server also calls CatalogSeed.load() explicitly, but this covers
+// the production case where the dev-server script never runs.
+// ---------------------------------------------------------------------------
+import embeddedCatalog from "./catalog-seed.js";
+if (!CatalogSeed.isLoaded()) {
+  CatalogSeed.load(embeddedCatalog);
+}
+
+// ---------------------------------------------------------------------------
 // Migration / reset (dev only)
 // ---------------------------------------------------------------------------
 
