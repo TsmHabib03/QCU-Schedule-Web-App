@@ -1,4 +1,4 @@
-const CACHE_NAME = "qcu-schedule-v58";
+const CACHE_NAME = "qcu-schedule-v59";
 const STATIC_ASSETS = [
   "./",
   "index.html",
@@ -41,7 +41,6 @@ const NO_CACHE_PATHS = [
   "/api/flood",
   "/api/weather-alerts",
   "/api/google/",
-  "/api/auth/",
   "/api/v1/"
 ];
 
@@ -75,6 +74,13 @@ self.addEventListener("fetch", (event) => {
   if (!/^https?:$/.test(requestUrl.protocol) || requestUrl.origin !== self.location.origin) return;
 
   const url = requestUrl.href;
+
+  // Auth/OAuth callback navigation must NOT be intercepted by the service
+  // worker. The browser needs to follow the 302 redirect chain directly
+  // (Google -> callback -> session cookie set -> redirect to app).
+  // Intercepting navigation to /api/auth/ causes ERR_FAILED because the SW
+  // follows the redirect internally and returns HTML to a confused browser.
+  if (url.includes("/api/auth/")) return;
 
   // Google integration is network-only, but an offline failure must remain a
   // JSON error. Returning offline.html here would look like a successful empty
