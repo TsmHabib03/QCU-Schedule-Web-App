@@ -55,13 +55,14 @@ export async function onRequestGet(context) {
     const secure = new URL(context.request.url).protocol === "https:" ? "; Secure" : "";
     const cookieHeader = `qcu_oauth_state=${stateCookie}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${secure}`;
 
-    const html = `<!DOCTYPE html><html><head><title>Redirecting to Google...</title></head><body>` +
-      `<script>` +
-      `try{localStorage.setItem('qcu_oauth_state','${stateCookie}')}catch(e){}` +
-      `</script>` +
-      `<form id="f" method="GET" action="${authUrl.replace(/"/g, '&quot;')}">` +
-      `</form>` +
-      `<script>document.getElementById('f').submit()</script>` +
+    // Build the auth URL and use JavaScript redirect instead of form submit.
+    // The state cookie is set via HTTP Set-Cookie on this 200 response;
+    // the JS redirect fires after the browser processes Set-Cookie.
+    const html = `<!DOCTYPE html><html><head><title>Redirecting to Google...</title>` +
+      `<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#555}</style>` +
+      `</head><body>` +
+      `<p>Redirecting to Google Sign-In...</p>` +
+      `<script>window.location.replace(${JSON.stringify(authUrl)})</script>` +
       `</body></html>`;
 
     return new Response(html, {
