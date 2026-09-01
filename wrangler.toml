@@ -2,7 +2,7 @@
 # This project is a static site (HTML/CSS/JS). No framework build is required.
 # The build output is the repository root itself.
 
-name = "my-schedule-5hs"
+name = "qcu-schedule-web-app"
 pages_build_output_dir = "."
 compatibility_date = "2024-11-01"
 
@@ -15,10 +15,10 @@ GOOGLE_CLIENT_ID = "747356241506-5u5litl4u4dp00t46grmabmdo573ct6k.apps.googleuse
 # URIs on the OAuth client and accepts no wildcards, while Cloudflare Pages
 # gives every deployment its own hostname. Pinning the public origin keeps the
 # whole flow on the one host registered with Google:
-#   https://my-schedule-5hs.pages.dev/api/google/callback
+#   https://qcu-schedule-web-app.pages.dev/api/google/callback
 # Change this to the custom domain if one is ever attached, and register the
 # matching callback URL in Google Cloud Console before deploying.
-GOOGLE_PUBLIC_ORIGIN = "https://my-schedule-5hs.pages.dev"
+GOOGLE_PUBLIC_ORIGIN = "https://qcu-schedule-web-app.pages.dev"
 
 # This repository is deployed by Cloudflare Pages. Do not use `wrangler deploy`,
 # which is the Workers command and requires a Worker entry point.

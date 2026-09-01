@@ -16,7 +16,7 @@ Google Integration is available only from `Settings -> Google Integration`. It u
    add **both** of these to *Authorized redirect URIs*, exactly as written:
 
    ```
-   https://my-schedule-5hs.pages.dev/api/google/callback
+   https://qcu-schedule-web-app.pages.dev/api/google/callback
    http://127.0.0.1:8788/api/google/callback
    ```
 
@@ -26,7 +26,7 @@ Google Integration is available only from `Settings -> Google Integration`. It u
 Google matches `redirect_uri` byte-for-byte and accepts no wildcards, so a
 missing entry here is what produces `Error 400: redirect_uri_mismatch`. Because
 Cloudflare Pages gives every deployment its own hostname
-(`<hash>.my-schedule-5hs.pages.dev`), the production origin is pinned by
+(`<hash>.qcu-schedule-web-app.pages.dev`), the production origin is pinned by
 `GOOGLE_PUBLIC_ORIGIN` in `wrangler.toml`: OAuth started from a preview
 hostname is handed off to the canonical origin first, so only the one canonical
 callback URL ever needs to be registered. Update that variable and register the
