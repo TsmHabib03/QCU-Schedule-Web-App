@@ -2,8 +2,7 @@
 // Validates ownership chain, catalog references, time constraints, and conflicts.
 
 import {
-  readPlatformSession,
-  getUserByGoogleSub,
+  resolveUser,
   json,
 } from "../../../auth/_lib.js";
 import {
@@ -24,15 +23,12 @@ const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export async function onRequestPatch(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
-    }
+    const { user } = resolved;
 
     if (user.state !== "ACTIVE") {
       return json({ status: "FORBIDDEN", error: "Account not active" }, 403);
@@ -255,15 +251,12 @@ export async function onRequestPatch(context) {
 
 export async function onRequestDelete(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
-    }
+    const { user } = resolved;
 
     if (user.state !== "ACTIVE") {
       return json({ status: "FORBIDDEN", error: "Account not active" }, 403);

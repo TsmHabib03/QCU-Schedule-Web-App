@@ -3,8 +3,8 @@
 // Dev-only: stores file bytes in memory. Production uses private Google Drive.
 
 import {
-  readPlatformSession,
-  getUserByGoogleSub,
+  resolveUser,
+  refreshSession,
   json,
 } from "../../auth/_lib.js";
 import { CorRecords, CorFiles, Concurrency } from "../../repo/index.js";
@@ -187,15 +187,12 @@ function checkRateLimit(userId) {
 // ---------------------------------------------------------------------------
 export async function onRequestPost(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHORIZED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "NOT_FOUND", error: "User not found" }, 404);
-    }
+    const { user, session } = resolved;
 
     // Only AUTHENTICATED or ONBOARDING users may upload
     if (user.state !== "AUTHENTICATED" && user.state !== "ONBOARDING") {
@@ -289,7 +286,10 @@ export async function onRequestPost(context) {
     }
     user.corRecordId = corRecord.id;
 
-    return json({
+    // Re-seal session cookie with ONBOARDING state so bootstrap routes correctly
+    const sessionCookie = await refreshSession(context, session, { state: user.state });
+
+    const resp = json({
       status: "ACCEPTED",
       corRecordId: corRecord.id,
       filename: corRecord.filename,
@@ -297,6 +297,8 @@ export async function onRequestPost(context) {
       mimeType: corRecord.mimeType,
       message: "Upload complete. Preparing your COR.",
     }, 201);
+    resp.headers.append("Set-Cookie", sessionCookie);
+    return resp;
   } catch (error) {
     console.error("COR upload failed:", String(error?.message || error));
     return json(

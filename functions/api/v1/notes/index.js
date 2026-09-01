@@ -1,8 +1,7 @@
 // GET/POST /api/v1/notes — List or create notes for the authenticated user.
 
 import {
-  readPlatformSession,
-  getUserByGoogleSub,
+  resolveUser,
   json,
 } from "../../auth/_lib.js";
 import {
@@ -16,15 +15,12 @@ import {
 
 export async function onRequestGet(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
-    }
+    const { user } = resolved;
 
     if (user.state !== "ACTIVE") {
       return json({ status: "FORBIDDEN", error: "Account not active" }, 403);
@@ -66,21 +62,18 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
-    }
+    const { user } = resolved;
 
     if (user.state !== "ACTIVE") {
       return json({ status: "FORBIDDEN", error: "Account not active" }, 403);
     }
 
-    // ── Parse body ─────────────────────────────────────────────────────
+    // ── Parse body
     let body;
     try {
       body = await context.request.json();

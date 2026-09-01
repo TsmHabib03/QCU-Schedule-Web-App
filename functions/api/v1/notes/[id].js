@@ -1,8 +1,7 @@
 // PATCH/DELETE /api/v1/notes/[id] — Update or delete a note.
 
 import {
-  readPlatformSession,
-  getUserByGoogleSub,
+  resolveUser,
   json,
 } from "../../auth/_lib.js";
 import {
@@ -48,15 +47,12 @@ function formatNote(n) {
 
 export async function onRequestPatch(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
-    }
+    const { user } = resolved;
 
     if (user.state !== "ACTIVE") {
       return json({ status: "FORBIDDEN", error: "Account not active" }, 403);
@@ -146,15 +142,12 @@ export async function onRequestPatch(context) {
 
 export async function onRequestDelete(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
-    }
+    const { user } = resolved;
 
     if (user.state !== "ACTIVE") {
       return json({ status: "FORBIDDEN", error: "Account not active" }, 403);

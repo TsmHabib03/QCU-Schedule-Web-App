@@ -2,8 +2,7 @@
 // Returns all entries with resolved subject/building/room details.
 
 import {
-  readPlatformSession,
-  getUserByGoogleSub,
+  resolveUser,
   json,
 } from "../../auth/_lib.js";
 import {
@@ -17,15 +16,12 @@ import {
 
 export async function onRequestGet(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "UNAUTHENTICATED", error: "Not authenticated" }, 401);
-    }
+    const { user } = resolved;
 
     if (user.state === "DEACTIVATED") {
       return json({ status: "FORBIDDEN", error: "Account deactivated" }, 403);

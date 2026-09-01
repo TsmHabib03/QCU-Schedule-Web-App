@@ -8,6 +8,7 @@ import {
   exchangeCode,
   fetchGoogleUserInfo,
   platformSessionHeader,
+  readPlatformSession,
   upsertUser,
   resolveUserId,
   json,
@@ -107,6 +108,18 @@ export async function onRequestGet(context) {
       picture: profile.picture,
     });
 
+    // --- Determine user state ---
+    // On Cloudflare Pages each invocation is isolated, so upsertUser() always
+    // creates a fresh user with state "AUTHENTICATED".  To preserve progress
+    // across requests, read the existing session cookie first — its `state`
+    // field is the most up-to-date value we have for returning users.
+    const existingSession = await readPlatformSession(context);
+    const preservedState =
+      (existingSession && existingSession.googleSub === profile.sub && existingSession.state)
+        ? existingSession.state
+        : null;
+    const effectiveState = preservedState || user.state;
+
     // --- Create platform session ---
     const session = {
       userId: user.userId,
@@ -114,7 +127,7 @@ export async function onRequestGet(context) {
       email: profile.email || "",
       name: profile.name || "",
       picture: profile.picture || "",
-      state: user.state,
+      state: effectiveState,
       role: user.role,
       createdAt: user.createdAt,
       // Tokens for potential Classroom/Gmail integration upgrade later
@@ -126,7 +139,7 @@ export async function onRequestGet(context) {
     // --- Set session cookie and redirect ---
     const sessionCookie = await platformSessionHeader(context, session);
     const destination =
-      user.state === "NEW" || user.state === "AUTHENTICATED"
+      effectiveState === "NEW" || effectiveState === "AUTHENTICATED"
         ? "/?auth=onboarding"
         : "/?auth=dashboard";
 

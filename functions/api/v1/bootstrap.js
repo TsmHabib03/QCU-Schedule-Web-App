@@ -5,17 +5,16 @@
 // Now includes lightweight academic catalog metadata.
 
 import {
-  readPlatformSession,
-  getUserByGoogleSub,
+  resolveUser,
   json,
 } from "../auth/_lib.js";
 import { CatalogSeed, Terms, Enrollments, Profiles } from "../repo/index.js";
 
 export async function onRequestGet(context) {
   try {
-    const session = await readPlatformSession(context);
+    const resolved = await resolveUser(context);
 
-    if (!session) {
+    if (!resolved) {
       return json({
         status: "UNAUTHENTICATED",
         authenticated: false,
@@ -24,16 +23,7 @@ export async function onRequestGet(context) {
       });
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-
-    if (!user) {
-      return json({
-        status: "UNAUTHENTICATED",
-        authenticated: false,
-        routing: "login",
-        academic: CatalogSeed.isLoaded() ? CatalogSeed.meta() : null,
-      });
-    }
+    const { user } = resolved;
 
     let routing;
     switch (user.state) {

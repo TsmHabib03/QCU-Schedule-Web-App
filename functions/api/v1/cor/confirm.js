@@ -4,8 +4,8 @@
 // Transitions user to ACTIVE state.
 
 import {
-  readPlatformSession,
-  getUserByGoogleSub,
+  resolveUser,
+  refreshSession,
   json,
 } from "../../auth/_lib.js";
 import {
@@ -237,15 +237,12 @@ function commitRecords(user, draft, _catalog) {
 // ---------------------------------------------------------------------------
 export async function onRequestPost(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHORIZED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "NOT_FOUND", error: "User not found" }, 404);
-    }
+    const { user, session } = resolved;
 
     if (user.state !== "ONBOARDING" || !user.corRecordId) {
       return json(
@@ -304,7 +301,10 @@ export async function onRequestPost(context) {
     // Commit records
     const result = commitRecords(user, draft, catalogForValidation);
 
-    return json({
+    // Re-seal session cookie with ACTIVE state so bootstrap routes correctly
+    const sessionCookie = await refreshSession(context, session, { state: "ACTIVE" });
+
+    const resp = json({
       status: "COMPLETE",
       corRecordId: record.id,
       profileId: result.profileId,
@@ -314,6 +314,8 @@ export async function onRequestPost(context) {
       entryCount: result.entryCount,
       message: "Your student profile and schedule have been created.",
     });
+    resp.headers.append("Set-Cookie", sessionCookie);
+    return resp;
   } catch (error) {
     console.error("COR confirmation failed:", String(error?.message || error));
     return json(

@@ -2,23 +2,19 @@
 // Returns the extraction result (draft) for the authenticated user's active COR.
 
 import {
-  readPlatformSession,
-  getUserByGoogleSub,
+  resolveUser,
   json,
 } from "../../auth/_lib.js";
 import { CorRecords, CorDrafts } from "../../repo/index.js";
 
 export async function onRequestGet(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHORIZED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "NOT_FOUND", error: "User not found" }, 404);
-    }
+    const { user } = resolved;
 
     if (!user.corRecordId) {
       return json(

@@ -272,3 +272,53 @@ export function getUser(userId) {
 export function getAllUsers() {
   return Users.getAll();
 }
+
+// ---------------------------------------------------------------------------
+// resolveUser / refreshSession — session-cookie-backed identity
+// ---------------------------------------------------------------------------
+// On Cloudflare Pages every invocation is isolated: in-memory Maps are empty.
+// The session cookie is the only persistent store.  resolveUser() builds a
+// user object from session data when the in-memory lookup misses, so every
+// endpoint can rely on having a valid user without a cold-start crash.
+// refreshSession() re-seals the cookie after state transitions (ONBOARDING,
+// ACTIVE) so bootstrap can read the correct routing on the next page load.
+
+/**
+ * Read session, look up in-memory user, merge into a single object.
+ * Returns { user, session, sessionCookie } or null if unauthenticated.
+ * `sessionCookie` is only non-null when caller must set it on the response.
+ */
+export async function resolveUser(context) {
+  const session = await readPlatformSession(context);
+  if (!session || !session.googleSub) return null;
+
+  const memUser = getUserByGoogleSub(session.googleSub);
+  const ts = new Date().toISOString();
+
+  // Build a canonical user object — prefer in-memory data when available,
+  // fall back to session cookie fields.
+  const user = memUser || {
+    userId: session.userId || `user_${session.googleSub}`,
+    googleSub: session.googleSub,
+    email: session.email || "",
+    name: session.name || "",
+    picture: session.picture || "",
+    state: session.state || "AUTHENTICATED",
+    role: session.role || "student",
+    profile: null,
+    corRecordId: null,
+    createdAt: session.createdAt || ts,
+    updatedAt: ts,
+  };
+
+  return { user, session };
+}
+
+/**
+ * Re-seal the session cookie with updated fields (e.g. state after a
+ * transition) and return the Set-Cookie header value.
+ */
+export async function refreshSession(context, session, overrides) {
+  const updated = { ...session, ...overrides };
+  return platformSessionHeader(context, updated);
+}

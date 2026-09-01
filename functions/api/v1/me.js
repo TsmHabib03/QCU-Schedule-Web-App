@@ -2,22 +2,18 @@
 // PATCH /api/v1/me — Updates user profile (stub for CHUNK 24)
 
 import {
-  readPlatformSession,
-  getUserByGoogleSub,
+  resolveUser,
   json,
 } from "../auth/_lib.js";
 
 export async function onRequestGet(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHORIZED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "NOT_FOUND", error: "User not found" }, 404);
-    }
+    const { user } = resolved;
 
     return json({
       status: "OK",
@@ -41,15 +37,12 @@ export async function onRequestGet(context) {
 
 export async function onRequestPatch(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHORIZED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "NOT_FOUND", error: "User not found" }, 404);
-    }
+    const { user } = resolved;
 
     // Only allow state transitions that are valid
     const body = await context.request.json().catch(() => ({}));

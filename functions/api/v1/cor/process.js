@@ -3,8 +3,7 @@
 // Dev-only: runs a mock extraction that produces synthetic results.
 
 import {
-  readPlatformSession,
-  getUserByGoogleSub,
+  resolveUser,
   json,
 } from "../../auth/_lib.js";
 import { CorRecords, CorDrafts, CorFiles } from "../../repo/index.js";
@@ -565,15 +564,12 @@ function parseCorText(text, googleName) {
 // ---------------------------------------------------------------------------
 export async function onRequestPost(context) {
   try {
-    const session = await readPlatformSession(context);
-    if (!session) {
+    const resolved = await resolveUser(context);
+    if (!resolved) {
       return json({ status: "UNAUTHORIZED", error: "Not authenticated" }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "NOT_FOUND", error: "User not found" }, 404);
-    }
+    const { user } = resolved;
 
     // Must be in ONBOARDING with an active COR record
     if (user.state !== "ONBOARDING" || !user.corRecordId) {

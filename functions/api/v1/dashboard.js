@@ -3,8 +3,7 @@
 // schedule, entries, buildings, tasks, and notes.
 
 import {
-  readPlatformSession,
-  getUserByGoogleSub,
+  resolveUser,
   json,
 } from "../auth/_lib.js";
 import {
@@ -26,16 +25,13 @@ import {
 
 export async function onRequestGet(context) {
   try {
-    const session = await readPlatformSession(context);
+    const resolved = await resolveUser(context);
 
-    if (!session) {
+    if (!resolved) {
       return json({ status: "UNAUTHENTICATED", authenticated: false }, 401);
     }
 
-    const user = getUserByGoogleSub(session.googleSub);
-    if (!user) {
-      return json({ status: "UNAUTHENTICATED", authenticated: false }, 401);
-    }
+    const { user } = resolved;
 
     if (user.state === "DEACTIVATED") {
       return json({ status: "DEACTIVATED", error: "Account deactivated" }, 403);
