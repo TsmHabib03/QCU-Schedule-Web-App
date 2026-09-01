@@ -43,19 +43,35 @@ export async function onRequestGet(context) {
     const url = new URL(context.request.url);
     const returnTo = url.searchParams.get("returnTo") || "/";
 
-    const stateCookie = await seal(
-      { state, nonce, returnTo, createdAt: new Date().toISOString() },
-      config.sessionSecret
-    );
+    const stateData = { state, nonce, returnTo, createdAt: new Date().toISOString() };
+    const stateCookie = await seal(stateData, config.sessionSecret);
 
     const authUrl = buildAuthorizationUrl(config, state, nonce);
 
-    const headers = {
-      "Set-Cookie": makeCookie("qcu_oauth_state", stateCookie, context.request, 60 * 10),
-      "Cache-Control": "no-store",
-    };
+    // Return an auto-submitting HTML form instead of a 302 redirect.
+    // This ensures the state cookie is set on the page origin (same site)
+    // before the browser navigates to Google, fixing SameSite cookie loss
+    // that occurs with 302 redirects on some Cloudflare Pages deployments.
+    const secure = new URL(context.request.url).protocol === "https:" ? "; Secure" : "";
+    const cookieHeader = `qcu_oauth_state=${stateCookie}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600${secure}`;
 
-    return redirect(authUrl, headers);
+    const html = `<!DOCTYPE html><html><head><title>Redirecting to Google...</title></head><body>` +
+      `<script>` +
+      `try{localStorage.setItem('qcu_oauth_state','${stateCookie}')}catch(e){}` +
+      `</script>` +
+      `<form id="f" method="GET" action="${authUrl.replace(/"/g, '&quot;')}">` +
+      `</form>` +
+      `<script>document.getElementById('f').submit()</script>` +
+      `</body></html>`;
+
+    return new Response(html, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Set-Cookie": cookieHeader,
+        "Cache-Control": "no-store",
+      },
+    });
   } catch (error) {
     const message = String(error?.message || "Failed to start login");
     console.error("Auth start failed:", message);

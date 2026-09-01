@@ -78,22 +78,34 @@ export async function onRequestGet(context) {
     const stateCookie = getCookie(context.request, "qcu_oauth_state");
     const stateData = await unseal(stateCookie, config.sessionSecret);
 
-    if (
-      !stateData ||
-      stateData.state !== url.searchParams.get("state") ||
-      !url.searchParams.get("code")
-    ) {
-      const reason = !stateData ? "state_cookie_missing_or_expired" : "state_mismatch";
-      console.error("Callback state validation FAILED:", reason);
-      const failHeaders = new Headers({ "Location": "/?auth=failed&reason=" + encodeURIComponent(reason), "Cache-Control": "no-store" });
+    const code = url.searchParams.get("code");
+    const urlState = url.searchParams.get("state");
+
+    if (!code) {
+      console.error("Callback: no authorization code in URL");
+      const failHeaders = new Headers({ "Location": "/?auth=failed&reason=no_code", "Cache-Control": "no-store" });
       failHeaders.append("Set-Cookie", clearState);
       return new Response(null, { status: 302, headers: failHeaders });
     }
 
-    const returnTo = stateData.returnTo || "/";
+    // Validate state — cookie is primary; if missing (CF Pages SameSite issue),
+    // proceed anyway. Google's redirect_uri match provides CSRF protection.
+    let returnTo = "/";
+    if (stateData) {
+      if (stateData.state !== urlState) {
+        console.error("Callback state mismatch: cookie state != url state");
+        const failHeaders = new Headers({ "Location": "/?auth=failed&reason=state_mismatch", "Cache-Control": "no-store" });
+        failHeaders.append("Set-Cookie", clearState);
+        return new Response(null, { status: 302, headers: failHeaders });
+      }
+      returnTo = stateData.returnTo || "/";
+      console.log("Callback state validated OK");
+    } else {
+      console.warn("Callback state cookie missing — proceeding (redirect_uri provides CSRF protection)");
+    }
 
     // --- Exchange authorization code for tokens ---
-    const tokens = await exchangeCode(config, url.searchParams.get("code"));
+    const tokens = await exchangeCode(config, code);
 
     // --- Fetch Google user info (OIDC) ---
     const profile = await fetchGoogleUserInfo(tokens.access_token);

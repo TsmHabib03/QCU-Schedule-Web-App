@@ -196,8 +196,9 @@ export async function onRequestPost(context) {
 
     const { user, session } = resolved;
 
-    // Only AUTHENTICATED or ONBOARDING users may upload
-    if (user.state !== "AUTHENTICATED" && user.state !== "ONBOARDING") {
+    // AUTHENTICATED, ONBOARDING, or ACTIVE users may upload.
+    // ACTIVE users can re-scan to update their COR/schedule.
+    if (user.state !== "AUTHENTICATED" && user.state !== "ONBOARDING" && user.state !== "ACTIVE") {
       return json(
         { status: "ERROR", error: `Cannot upload COR in state: ${user.state}` },
         400
@@ -282,8 +283,8 @@ export async function onRequestPost(context) {
       mimeType: corRecord.mimeType,
     });
 
-    // Transition user to ONBOARDING
-    if (user.state === "AUTHENTICATED") {
+    // Transition user to ONBOARDING (for both new and returning ACTIVE users)
+    if (user.state === "AUTHENTICATED" || user.state === "ACTIVE") {
       user.state = "ONBOARDING";
     }
     user.corRecordId = corRecord.id;
