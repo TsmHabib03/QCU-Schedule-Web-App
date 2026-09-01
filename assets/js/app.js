@@ -1030,8 +1030,12 @@ function subjectFullName(code) {
 }
 
 function subjectDisplayName(code) {
-  const full = SUBJECT_NAMES[code];
-  return full ? `${full} (${code})` : code;
+  const hardcoded = SUBJECT_NAMES[code];
+  if (hardcoded) return `${hardcoded} (${code})`;
+  // Check enrollment subjects from dashboard for a real title
+  const es = state.academic?.enrollmentSubjects?.find(e => e.subjectCode === code);
+  if (es?.title) return `${es.title} (${code})`;
+  return code;
 }
 
 function subjectColor(code) {
@@ -1040,10 +1044,30 @@ function subjectColor(code) {
 
 function allSubjects() {
   const seen = new Set();
-  state.schedule.forEach(x => {
-    if (!x.noClasses && x.course) seen.add(x.course);
-  });
-  return [...seen].sort();
+  const result = [];
+
+  // 1. Primary source: enrollment subjects from the dashboard (richer data)
+  if (state.academic?.enrollmentSubjects?.length) {
+    state.academic.enrollmentSubjects.forEach(es => {
+      const code = es.subjectCode || "";
+      if (code && !seen.has(code)) {
+        seen.add(code);
+        result.push({ code, title: es.title || "", units: es.units || 0 });
+      }
+    });
+  }
+
+  // 2. Fallback: derive from schedule entries (course field)
+  if (!result.length) {
+    state.schedule.forEach(x => {
+      if (!x.noClasses && x.course && !seen.has(x.course)) {
+        seen.add(x.course);
+        result.push({ code: x.course, title: x.subject || "", units: 0 });
+      }
+    });
+  }
+
+  return result;
 }
 
 /* ── Task Manager (API-backed) ────────────────────────── */
@@ -1216,7 +1240,7 @@ function renderTasks() {
   if (subjectSelect && subjectSelect.children.length <= 1) {
     allSubjects().forEach(s => {
       const opt = document.createElement("option");
-      opt.value = s; opt.textContent = `${subjectFullName(s)} (${s})`;
+      opt.value = s.code; opt.textContent = `${subjectDisplayName(s.code)}`;
       subjectSelect.appendChild(opt);
     });
   }
@@ -1246,7 +1270,7 @@ function openTaskModal(task) {
   const subjects = allSubjects();
   const taskSubjectCode = task ? (task.subjectCode || task.subject || "") : "";
   const subjectOptions = subjects.map(s =>
-    `<option value="${s}" ${task && taskSubjectCode.toUpperCase() === s.toUpperCase() ? "selected" : ""}>${subjectDisplayName(s)}</option>`
+    `<option value="${s.code}" ${task && taskSubjectCode.toUpperCase() === s.code.toUpperCase() ? "selected" : ""}>${subjectDisplayName(s.code)}</option>`
   ).join("");
   const curPriority = (task && task.priority ? task.priority.toLowerCase() : "medium");
   const priorityOptions = Object.entries(PRIORITY_META).map(([k, v]) =>
@@ -1445,7 +1469,7 @@ function renderNotes() {
   if (subjectSelect && subjectSelect.children.length <= 1) {
     allSubjects().forEach(s => {
       const opt = document.createElement("option");
-      opt.value = s; opt.textContent = `${subjectFullName(s)} (${s})`;
+      opt.value = s.code; opt.textContent = `${subjectDisplayName(s.code)}`;
       subjectSelect.appendChild(opt);
     });
   }
@@ -1474,7 +1498,7 @@ function openNoteModal(note) {
   const subjects = allSubjects();
   const noteSubjectCode = note ? (note.subjectCode || note.subject || "") : "";
   const subjectOptions = subjects.map(s =>
-    `<option value="${s}" ${note && noteSubjectCode.toUpperCase() === s.toUpperCase() ? "selected" : ""}>${subjectDisplayName(s)}</option>`
+    `<option value="${s.code}" ${note && noteSubjectCode.toUpperCase() === s.code.toUpperCase() ? "selected" : ""}>${subjectDisplayName(s.code)}</option>`
   ).join("");
   const noteId = note ? (note.noteId || note.id) : "";
 
