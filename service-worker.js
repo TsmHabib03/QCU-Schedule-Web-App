@@ -1,4 +1,4 @@
-const CACHE_NAME = "qcu-schedule-v54";
+const CACHE_NAME = "qcu-schedule-v55";
 const STATIC_ASSETS = [
   "./",
   "index.html",

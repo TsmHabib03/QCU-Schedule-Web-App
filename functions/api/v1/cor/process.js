@@ -8,7 +8,6 @@ import {
   json,
 } from "../../auth/_lib.js";
 import { CorRecords, CorDrafts, CorFiles } from "../../repo/index.js";
-import Tesseract from "tesseract.js";
 
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent";
 
@@ -414,7 +413,7 @@ function parseCorText(text, googleName) {
       || null;
 
     subjects.push({
-      subjectCode: { value: rawCode, sourceText: rawCode, confidence: 0.90 },
+      subjectCode: { value: code, sourceText: code, confidence: 0.90 },
       subjectName: { value: subjectName, sourceText: subjectName, confidence: 0.85 },
       units: { value: units, sourceText: String(units ?? ''), confidence: units ? 0.90 : 0 },
       meetings,
@@ -612,9 +611,21 @@ export async function onRequestPost(context) {
     }
 
     if (!extractionResult) {
-      console.log("Using Tesseract OCR fallback...");
-      const { data } = await Tesseract.recognize(Buffer.from(fileData.bytes), "eng");
-      extractionResult = parseCorText(data.text, session.name || "");
+      console.log("No Gemini result, attempting Tesseract OCR fallback...");
+      try {
+        const Tesseract = (await import("tesseract.js")).default;
+        const { data } = await Tesseract.recognize(Buffer.from(fileData.bytes), "eng");
+        extractionResult = parseCorText(data.text, session.name || "");
+      } catch (tessErr) {
+        console.error("Tesseract unavailable:", tessErr.message);
+        return json(
+          {
+            status: "ERROR",
+            error: "OCR engine unavailable in production. Please set GEMINI_API_KEY environment variable for COR processing, or upload a clearer image.",
+          },
+          500
+        );
+      }
     }
 
     // Store draft

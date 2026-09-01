@@ -27,7 +27,7 @@ function getCookie(request, name) {
 function encodeBytes(bytes) {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/_/g, "_").replace(/=+$/g, "");
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 function decodeBytes(value) {
@@ -140,9 +140,10 @@ export async function onRequestGet(context) {
     return new Response(null, { status: 302, headers: respHeaders });
   } catch (error) {
     const message = String(error?.message || "Login failed").slice(0, 200);
-    console.error("Auth callback FAILED:", message);
-    const errHeaders = new Headers({ "Location": "/?auth=failed", "Cache-Control": "no-store" });
-    errHeaders.append("Set-Cookie", clearState);
-    return new Response(null, { status: 302, headers: errHeaders });
+    const stack = String(error?.stack || "").slice(0, 300);
+    console.error("Auth callback FAILED:", message, stack);
+    const failHeaders = new Headers({ "Location": "/?auth=failed", "Cache-Control": "no-store" });
+    failHeaders.append("Set-Cookie", clearState);
+    return new Response(null, { status: 302, headers: failHeaders });
   }
 }

@@ -15,6 +15,7 @@ export async function onRequestGet(context) {
       GOOGLE_CLIENT_SECRET: mask("GOOGLE_CLIENT_SECRET"),
       GOOGLE_SESSION_SECRET: mask("GOOGLE_SESSION_SECRET"),
       GOOGLE_PUBLIC_ORIGIN: env.GOOGLE_PUBLIC_ORIGIN || "MISSING",
+      GEMINI_API_KEY: has("GEMINI_API_KEY") ? "set" : "MISSING",
     },
     origin: new URL(context.request.url).origin,
     timestamp: new Date().toISOString(),
