@@ -143,6 +143,7 @@ export async function onRequestGet(context) {
         title: subjectTitle,
         units: ens?.units || 0,
         type: e.modality || "ONSITE",
+        modality: e.modality || "ONSITE",
         section: "",
         day: normalizedDay,
         dayLabel: normalizedDay,
@@ -159,6 +160,8 @@ export async function onRequestGet(context) {
         room: room?.roomCode || "",
         instructor: "",
         notes: e.locationText || "",
+        enrollmentSubjectId: e.enrollmentSubjectId || null,
+        originType: "COR_IMPORT",
       };
     });
 

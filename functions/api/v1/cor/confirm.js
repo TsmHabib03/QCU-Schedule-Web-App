@@ -8,6 +8,7 @@ import {
   refreshSession,
   json,
   compactDraft,
+  compactDashboardSnapshot,
 } from "../../auth/_lib.js";
 import {
   CorRecords,
@@ -379,6 +380,7 @@ export async function onRequestPost(context) {
         title: subjectTitle,
         units: ens?.units || 0,
         type: e.modality || "ONSITE",
+        modality: e.modality || "ONSITE",
         section: "",
         day: normalizedDay,
         dayLabel: normalizedDay,
@@ -395,6 +397,8 @@ export async function onRequestPost(context) {
         room: room?.roomCode || "",
         instructor: "",
         notes: e.locationText || "",
+        enrollmentSubjectId: e.enrollmentSubjectId || null,
+        originType: "COR_IMPORT",
       };
     });
 
@@ -482,14 +486,12 @@ export async function onRequestPost(context) {
     };
 
     // Re-seal session cookie with ACTIVE state + dashboard snapshot
-    // Compact the draft (if present) to keep cookie under 4 KB.
-    const compacted = compactDraft(session.corDraft);
+    // Drop corDraft (no longer needed) and compact snapshot to keep cookie under 4 KB.
     const sessionCookie = await refreshSession(context, session, {
       state: "ACTIVE",
       profile: user.profile,
       name: user.name,
-      corDraft: compacted,
-      dashboardSnapshot,
+      dashboardSnapshot: compactDashboardSnapshot(dashboardSnapshot),
     });
 
     const resp = json({

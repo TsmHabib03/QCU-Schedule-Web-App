@@ -333,7 +333,8 @@
   function setField(id, fieldObj) {
     const el = document.getElementById(id);
     if (!el || !fieldObj) return;
-    el.value = fieldObj.value || "";
+    // Handle both full ({value, ...}) and compact (plain value) draft formats
+    el.value = (typeof fieldObj === "object" && fieldObj !== null && "value" in fieldObj) ? (fieldObj.value || "") : (fieldObj || "");
   }
 
   function renderSubjectList(subjects) {
@@ -343,15 +344,18 @@
     container.innerHTML = "";
     countEl.textContent = subjects.length;
 
+    // Helper: extract value from full ({value, ...}) or compact (plain value) format
+    const fv = (v) => (v && typeof v === "object" && "value" in v) ? v.value : (v || "");
+
     subjects.forEach((s, idx) => {
       const card = document.createElement("div");
       card.className = "subject-card";
 
       const scheduleHtml = (s.schedule || []).map((m) => {
-        const day = m.day?.value || "";
-        const start = m.time?.start || "";
-        const end = m.time?.end || "";
-        const room = s.room?.value || "";
+        const day = fv(m.day);
+        const start = fv(m.time?.start) || m.startTime || "";
+        const end = fv(m.time?.end) || m.endTime || "";
+        const room = fv(s.room);
         return `<div class="subject-schedule-row">
           <span class="subject-day">${day}</span>
           <span>${start}${end ? " \u2013 " + end : ""}</span>
@@ -364,11 +368,11 @@
 
       card.innerHTML = `
         <div class="subject-header">
-          <span class="subject-code">${esc(s.subjectCode?.value || "")}</span>
+          <span class="subject-code">${esc(fv(s.subjectCode))}</span>
           <span class="review-confidence ${confClass}">${conf}</span>
-          ${s.units?.value ? `<span class="subject-units">${s.units.value} units</span>` : ""}
+          ${fv(s.units) ? `<span class="subject-units">${fv(s.units)} units</span>` : ""}
         </div>
-        <div class="subject-name">${esc(s.subjectName?.value || "")}</div>
+        <div class="subject-name">${esc(fv(s.subjectName))}</div>
         <div class="subject-schedule">${scheduleHtml || "<em>No schedule detected</em>"}</div>
       `;
       container.appendChild(card);
@@ -418,13 +422,16 @@
 
     // Subjects from draft (user can't edit individual subjects in this simplified version,
     // but we preserve the draft subjects so they can confirm them)
+    // Handle both full ({value, ...}) and compact (plain value) draft formats
+    const fv = (v) => (v && typeof v === "object" && "value" in v) ? v.value : (v || "");
+    const fc = (v) => (v && typeof v === "object" && "value" in v) ? (v.confidence || "high") : "high";
     const subjects = (draftResult?.subjects || []).map((s) => ({
-      subjectCode: { value: s.subjectCode?.value || "", confidence: s.subjectCode?.confidence || "high" },
-      subjectName: { value: s.subjectName?.value || "", confidence: s.subjectName?.confidence || "high" },
-      units: { value: s.units?.value || 0, confidence: s.units?.confidence || "high" },
-      schedule: (s.schedule || []).map((m) => ({
-        day: { value: m.day?.value || "", confidence: m.day?.confidence || "high" },
-        time: m.time || {},
+      subjectCode: { value: fv(s.subjectCode), confidence: fc(s.subjectCode) },
+      subjectName: { value: fv(s.subjectName), confidence: fc(s.subjectName) },
+      units: { value: fv(s.units), confidence: fc(s.units) },
+      schedule: (s.schedule || s.meetings || []).map((m) => ({
+        day: { value: fv(m.day) || fv(m.dayOfWeek), confidence: fc(m.day) },
+        time: m.time || { start: m.startTime, end: m.endTime },
       })),
       room: s.room || {},
       matchedSubjectId: s.matchedSubjectId || null,

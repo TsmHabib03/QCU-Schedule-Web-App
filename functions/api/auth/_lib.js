@@ -201,6 +201,70 @@ export function compactDraft(draft) {
   return out;
 }
 
+/**
+ * Compact a dashboard snapshot for session storage (keeps cookie under 4 KB).
+ * Strips redundant entry fields and trims building data.
+ */
+export function compactDashboardSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") return snapshot;
+  const out = {};
+
+  out.enrollment = snapshot.enrollment || null;
+  out.schedule = snapshot.schedule || null;
+
+  // Keep only the fields mapEntryToSchedule() in app.js actually uses.
+  // Drops: scheduleId, course (duplicate of code), dayLabel (duplicate of day),
+  //        section (always ""), room (duplicate of roomCode).
+  if (Array.isArray(snapshot.entries)) {
+    out.entries = snapshot.entries.map((e) => ({
+      entryId: e.entryId,
+      code: e.code,
+      title: e.title,
+      units: e.units,
+      type: e.type,
+      day: e.day,
+      start: e.start,
+      end: e.end,
+      startMinutes: e.startMinutes,
+      endMinutes: e.endMinutes,
+      buildingId: e.buildingId || null,
+      buildingCode: e.buildingCode || "",
+      buildingName: e.buildingName || "",
+      roomId: e.roomId || null,
+      roomCode: e.roomCode || "",
+      floor: e.floor != null ? e.floor : null,
+      instructor: e.instructor || "",
+      notes: e.notes || "",
+      enrollmentSubjectId: e.enrollmentSubjectId || null,
+      originType: e.originType || "COR_IMPORT",
+      modality: e.modality || "ONSITE",
+    }));
+  } else {
+    out.entries = [];
+  }
+
+  // Keep only display fields; drops rooms array, lat/lng (large).
+  if (Array.isArray(snapshot.buildings)) {
+    out.buildings = snapshot.buildings.map((b) => ({
+      buildingId: b.buildingId,
+      code: b.code,
+      name: b.name,
+      shortName: b.shortName || b.name,
+      campusId: b.campusId,
+      floors: b.floors || 1,
+    }));
+  } else {
+    out.buildings = [];
+  }
+
+  out.academic = snapshot.academic || null;
+  out.profile = snapshot.profile || null;
+  out.tasks = Array.isArray(snapshot.tasks) ? snapshot.tasks.slice(0, 20) : [];
+  out.notes = Array.isArray(snapshot.notes) ? snapshot.notes.slice(0, 20) : [];
+
+  return out;
+}
+
 export function platformSessionHeader(context, session) {
   const secret = context.env.GOOGLE_SESSION_SECRET;
   if (!secret) throw new Error("GOOGLE_SESSION_SECRET is not configured");

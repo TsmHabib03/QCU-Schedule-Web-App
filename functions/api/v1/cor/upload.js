@@ -312,7 +312,7 @@ export async function onRequestPost(context) {
     // Re-seal session cookie with ONBOARDING state, corRecordId, and draft
     // Compact the draft to strip sourceText/confidence metadata (keeps cookie under 4 KB).
     const sessionCookie = await refreshSession(context, session, {
-      state: user.state,
+      state: "ONBOARDING",
       corRecordId: corRecord.id,
       corDraft: corDraft ? compactDraft(corDraft) : null,
     });
