@@ -43,6 +43,8 @@ import { onRequestPost as notesPost } from "../functions/api/v1/notes/index.js";
 import { onRequestPatch as notePatch } from "../functions/api/v1/notes/[id].js";
 import { onRequestDelete as noteDelete } from "../functions/api/v1/notes/[id].js";
 
+import { onRequestGet as healthGet } from "../functions/api/v1/health.js";
+
 import { onRequestGet as academicCampuses } from "../functions/api/v1/academic/campuses.js";
 import { onRequestGet as academicDepartments } from "../functions/api/v1/academic/departments.js";
 import { onRequestGet as academicPrograms } from "../functions/api/v1/academic/programs.js";
@@ -93,6 +95,7 @@ const API_ROUTES = new Map([
   ["POST /api/v1/tasks", tasksPost],
   ["GET /api/v1/notes", notesGet],
   ["POST /api/v1/notes", notesPost],
+  ["GET /api/v1/health", healthGet],
 ]);
 
 const MIME = {

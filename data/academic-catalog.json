@@ -239,18 +239,32 @@
     }
   ],
   "buildings": [
-    { "buildingId": "bldg_new_academic", "buildingCode": "NAB", "name": "New Academic Building", "campusId": "cam_sb", "status": "ACTIVE" },
-    { "buildingId": "bldg_bautista", "buildingCode": "BB", "name": "Bautista Building", "campusId": "cam_sb", "status": "ACTIVE" },
-    { "buildingId": "bldg_belmonte", "buildingCode": "BH", "name": "Belmonte Hall", "campusId": "cam_sb", "status": "ACTIVE" },
-    { "buildingId": "bldg_techboc", "buildingCode": "TB", "name": "Techboc Building", "campusId": "cam_sb", "status": "ACTIVE" }
+    { "buildingId": "bldg_techvoc", "buildingCode": "IA", "name": "TechVoc", "shortName": "TechVoc", "campusId": "cam_sb", "floors": 3, "status": "ACTIVE" },
+    { "buildingId": "bldg_yellow", "buildingCode": "IB", "name": "Yellow Building (Old Academic)", "shortName": "Yellow Bldg", "campusId": "cam_sb", "floors": 4, "status": "ACTIVE" },
+    { "buildingId": "bldg_belmonte", "buildingCode": "IC", "name": "SB (Belmonte Hall)", "shortName": "Belmonte Hall", "campusId": "cam_sb", "floors": 3, "status": "ACTIVE" },
+    { "buildingId": "bldg_admin", "buildingCode": "ID", "name": "Admin Building", "shortName": "Admin", "campusId": "cam_sb", "floors": 3, "status": "ACTIVE" },
+    { "buildingId": "bldg_metal", "buildingCode": "IE", "name": "Metal Casting", "shortName": "Metal Casting", "campusId": "cam_sb", "floors": 2, "status": "ACTIVE" },
+    { "buildingId": "bldg_korphil", "buildingCode": "IF", "name": "KorPhil", "shortName": "KorPhil", "campusId": "cam_sb", "floors": 2, "status": "ACTIVE" },
+    { "buildingId": "bldg_philchi", "buildingCode": "IG", "name": "PhilChi", "shortName": "PhilChi", "campusId": "cam_sb", "floors": 2, "status": "ACTIVE" },
+    { "buildingId": "bldg_chemlab", "buildingCode": "IH", "name": "Chem Lab", "shortName": "Chem Lab", "campusId": "cam_sb", "floors": 2, "status": "ACTIVE" },
+    { "buildingId": "bldg_canteen", "buildingCode": "IJ", "name": "Canteen", "shortName": "Canteen", "campusId": "cam_sb", "floors": 1, "status": "ACTIVE" },
+    { "buildingId": "bldg_bautista", "buildingCode": "IK", "name": "Auditorium (Bautista Building)", "shortName": "Bautista", "campusId": "cam_sb", "floors": 6, "status": "ACTIVE" },
+    { "buildingId": "bldg_new_academic", "buildingCode": "IL", "name": "New Academic Building", "shortName": "New Academic", "campusId": "cam_sb", "floors": 6, "status": "ACTIVE" }
   ],
   "rooms": [
-    { "roomId": "rm_il502a", "buildingId": "bldg_new_academic", "roomCode": "IL502A", "name": "IL502A", "status": "ACTIVE" },
-    { "roomId": "rm_il601a", "buildingId": "bldg_new_academic", "roomCode": "IL601A", "name": "IL601A", "status": "ACTIVE" },
-    { "roomId": "rm_il606a", "buildingId": "bldg_new_academic", "roomCode": "IL606A", "name": "IL606A", "status": "ACTIVE" },
-    { "roomId": "rm_ik603f1", "buildingId": "bldg_bautista", "roomCode": "IK603 F1", "name": "IK603 F1", "status": "ACTIVE" },
-    { "roomId": "rm_sbog", "buildingId": "bldg_belmonte", "roomCode": "SB OG", "name": "SB OG", "status": "ACTIVE" },
-    { "roomId": "rm_tb_201", "buildingId": "bldg_techboc", "roomCode": "TB 201", "name": "TB 201", "status": "ACTIVE" },
-    { "roomId": "rm_tb_301", "buildingId": "bldg_techboc", "roomCode": "TB 301", "name": "TB 301", "status": "ACTIVE" }
+    { "roomId": "rm_ia203", "buildingId": "bldg_techvoc", "roomCode": "IA203", "name": "TechVoc 2nd Floor Room 03", "status": "ACTIVE" },
+    { "roomId": "rm_ib301", "buildingId": "bldg_yellow", "roomCode": "IB301", "name": "Yellow Bldg 3rd Floor Room 01", "status": "ACTIVE" },
+    { "roomId": "rm_ic101", "buildingId": "bldg_belmonte", "roomCode": "IC101", "name": "Belmonte Hall 1st Floor Room 01", "status": "ACTIVE" },
+    { "roomId": "rm_sbog", "buildingId": "bldg_belmonte", "roomCode": "SB OG", "name": "SB Open Grounds", "status": "ACTIVE" },
+    { "roomId": "rm_id201", "buildingId": "bldg_admin", "roomCode": "ID201", "name": "Admin 2nd Floor Room 01", "status": "ACTIVE" },
+    { "roomId": "rm_if201", "buildingId": "bldg_korphil", "roomCode": "IF201", "name": "KorPhil 2nd Floor Room 01", "status": "ACTIVE" },
+    { "roomId": "rm_ig101", "buildingId": "bldg_philchi", "roomCode": "IG101", "name": "PhilChi 1st Floor Room 01", "status": "ACTIVE" },
+    { "roomId": "rm_ih101", "buildingId": "bldg_chemlab", "roomCode": "IH101", "name": "Chem Lab 1st Floor Room 01", "status": "ACTIVE" },
+    { "roomId": "rm_ik501", "buildingId": "bldg_bautista", "roomCode": "IK501", "name": "Bautista 5th Floor Room 01", "status": "ACTIVE" },
+    { "roomId": "rm_ik603f1", "buildingId": "bldg_bautista", "roomCode": "IK603 F1", "name": "Bautista 6th Floor Room 03 F1", "status": "ACTIVE" },
+    { "roomId": "rm_il401", "buildingId": "bldg_new_academic", "roomCode": "IL401", "name": "New Academic 4th Floor Room 01", "status": "ACTIVE" },
+    { "roomId": "rm_il502a", "buildingId": "bldg_new_academic", "roomCode": "IL502A", "name": "New Academic 5th Floor Room 02A", "status": "ACTIVE" },
+    { "roomId": "rm_il601a", "buildingId": "bldg_new_academic", "roomCode": "IL601A", "name": "New Academic 6th Floor Room 01A", "status": "ACTIVE" },
+    { "roomId": "rm_il606a", "buildingId": "bldg_new_academic", "roomCode": "IL606A", "name": "New Academic 6th Floor Room 06A", "status": "ACTIVE" }
   ]
 }

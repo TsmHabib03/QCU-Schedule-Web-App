@@ -170,17 +170,42 @@ function formatBrandSub() {
 
 /** Map a dashboard entry to the schedule item shape expected by the UI. */
 function mapEntryToSchedule(entry) {
+  // Parse room code to extract building code if not provided
+  let buildingCode = entry.buildingCode || "";
+  let buildingName = entry.buildingName || "";
+  let roomCode = entry.roomCode || "";
+  let floorStr = entry.floor != null ? String(entry.floor) : "—";
+
+  // Fallback: parse room code like "IL502A" → building=IL, floor=5, room=02A
+  if (!buildingCode && entry.notes) {
+    const m = entry.notes.match(/^([A-Z]{2})/i);
+    if (m) buildingCode = m[1].toUpperCase();
+  }
+  if (!buildingName && buildingCode) {
+    const bMap = {
+      IA: "TechVoc", IB: "Yellow Bldg", IC: "Belmonte Hall",
+      ID: "Admin", IE: "Metal Casting", IF: "KorPhil",
+      IG: "PhilChi", IH: "Chem Lab", IJ: "Canteen",
+      IK: "Bautista Bldg", IL: "New Academic Bldg",
+    };
+    buildingName = bMap[buildingCode] || buildingCode;
+  }
+  if (floorStr === "—" && entry.notes) {
+    const fm = entry.notes.match(/^[A-Z]{2}(\d)/i);
+    if (fm) floorStr = fm[1] + "F";
+  }
+
   return {
     day: entry.day,
     start: entry.start,
     end: entry.end,
     subject: entry.title || entry.course || "",
     course: entry.code || "",
-    building: entry.buildingName || "",
-    buildingName: entry.buildingName || "",
-    code: entry.buildingCode || "",
-    room: entry.roomCode || "",
-    floor: entry.floor != null ? String(entry.floor) : "—",
+    building: buildingName,
+    buildingName,
+    code: buildingCode,
+    room: roomCode || entry.notes || "",
+    floor: floorStr,
     units: entry.units || 0,
     instructor: entry.instructor || "",
     notes: entry.notes || "",
@@ -708,6 +733,14 @@ function buildingShort(item) {
     if (name.includes("New Academic")) return "New Acad Bldg";
     if (name.includes("Bautista"))     return "Bautista Bldg";
     if (name.includes("Belmonte"))     return "Belmonte Hall";
+    if (name.includes("Yellow"))       return "Yellow Bldg";
+    if (name.includes("Admin"))        return "Admin";
+    if (name.includes("TechVoc"))      return "TechVoc";
+    if (name.includes("Metal"))        return "Metal Casting";
+    if (name.includes("KorPhil"))      return "KorPhil";
+    if (name.includes("PhilChi"))      return "PhilChi";
+    if (name.includes("Chem"))         return "Chem Lab";
+    if (name.includes("Canteen"))      return "Canteen";
     return name;
   }
   const b = buildingByCode(item.code);
@@ -716,6 +749,14 @@ function buildingShort(item) {
   if (name.includes("New Academic")) return "New Acad Bldg";
   if (name.includes("Bautista"))     return "Bautista Bldg";
   if (name.includes("Belmonte"))     return "Belmonte Hall";
+  if (name.includes("Yellow"))       return "Yellow Bldg";
+  if (name.includes("Admin"))        return "Admin";
+  if (name.includes("TechVoc"))      return "TechVoc";
+  if (name.includes("Metal"))        return "Metal Casting";
+  if (name.includes("KorPhil"))      return "KorPhil";
+  if (name.includes("PhilChi"))      return "PhilChi";
+  if (name.includes("Chem"))         return "Chem Lab";
+  if (name.includes("Canteen"))      return "Canteen";
   return name;
 }
 

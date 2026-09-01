@@ -89,12 +89,20 @@ export async function onRequestGet(context) {
         : null;
       const subjectCode = ens?.subjectCodeSnapshot || catalogSubject?.subjectCode || "";
       const subjectTitle = ens?.subjectTitleSnapshot || catalogSubject?.title || "";
-      const building = e.buildingId
+      let building = e.buildingId
         ? CatalogBuildings.getById(e.buildingId)
         : null;
-      const room = e.roomId
+      let room = e.roomId
         ? CatalogRooms.getById(e.roomId)
         : null;
+
+      // Fallback: parse room code to resolve building if not matched
+      if (!building && e.locationText) {
+        const codeMatch = e.locationText.match(/^([A-Z]{2})/i);
+        if (codeMatch) {
+          building = CatalogBuildings.getByCode(codeMatch[1].toUpperCase());
+        }
+      }
 
       // Parse time strings to get minutes for frontend sorting/filtering
       const startMinutes = timeToMinutes(e.startTime);
@@ -281,14 +289,21 @@ function buildAcademicContext(enrollment) {
 }
 
 function buildProfile(user) {
+  // Use COR-extracted name if available, fall back to Google account name
+  const profile = user.profile || null;
+  let displayName = user.name;
+  if (profile && profile.firstName) {
+    const parts = [profile.firstName, profile.middleName, profile.lastName].filter(Boolean);
+    displayName = parts.join(" ") || user.name;
+  }
   return {
     userId: user.userId,
     email: user.email,
-    name: user.name,
+    name: displayName,
     picture: user.picture,
     state: user.state,
     role: user.role,
-    profile: user.profile || null,
+    profile,
   };
 }
 

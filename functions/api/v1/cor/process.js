@@ -15,8 +15,28 @@ const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/
 async function extractWithGemini(imageBytes, mimeType, apiKey) {
   const base64 = Buffer.from(imageBytes).toString("base64");
   
-  const prompt = `Extract ALL information from this QCU (Quezon City University) Certificate of Registration. Return ONLY valid JSON with this exact structure:
+  const prompt = `Extract ALL information from this QCU (Quezon City University) Certificate of Registration from the San Bartolome campus. Return ONLY valid JSON.
 
+QCU SB Building Codes (use these to decode room codes):
+IA = TechVoc
+IB = Yellow Building (Old Academic Building)
+IC = SB (Belmonte Hall)
+ID = Admin Building
+IE = Metal Casting
+IF = KorPhil
+IG = PhilChi
+IH = Chem Lab
+IJ = Canteen
+IK = Auditorium (Bautista Building)
+IL = New Academic Building
+
+Room code format: BuildingCode + Floor + RoomNumber
+Examples: IL502A = New Academic Building, 5th Floor, Room 2A
+          IA203 = TechVoc, 2nd Floor, Room 03
+          IK603 F1 = Bautista, 6th Floor, Room 03, Lab F1
+          SB OG = SB Open Grounds
+
+Return this JSON structure:
 {
   "studentNumber": "string or null",
   "firstName": "string or null",
@@ -32,12 +52,16 @@ async function extractWithGemini(imageBytes, mimeType, apiKey) {
   "studentStatus": "Regular or Irregular or null",
   "subjects": [
     {
-      "code": "subject code like CC102, MATH 1",
+      "code": "subject code like CC102, MATH 1, PE 1",
       "name": "full subject name",
       "units": number,
-      "room": "room code like IL502a",
+      "room": "room code like IL502A",
+      "buildingCode": "2-letter code like IL, IA, IK",
+      "buildingName": "full building name like New Academic Building",
+      "floor": number or null,
+      "roomNumber": "room number like 02A",
       "days": "day codes like M, W, TH, F",
-      "startTime": "time like 08:00AM",
+      "startTime": "time like 8:00AM",
       "endTime": "time like 10:00AM",
       "section": "class section"
     }
@@ -48,6 +72,7 @@ async function extractWithGemini(imageBytes, mimeType, apiKey) {
 
 Rules:
 - Extract EXACTLY what you see in the image
+- For room codes, parse the building code and look up the building name from the list above
 - For days use single letters: M=Monday, T=Tuesday, W=Wednesday, TH=Thursday, F=Friday, S=Saturday
 - For times keep original format like 8:00AM
 - If a field is not readable, use null
@@ -115,12 +140,25 @@ function geminiResultToDraft(result) {
         }
       }
     }
+    // Use Gemini's parsed building info, or fall back to room code parsing
+    const buildingCode = s.buildingCode || null;
+    const buildingName = s.buildingName || null;
+    const floor = s.floor || null;
+    const roomNumber = s.roomNumber || null;
     return {
       subjectCode: { value: s.code || null, sourceText: s.code || "", confidence: s.code ? 0.90 : 0 },
       subjectName: { value: s.name || null, sourceText: s.name || "", confidence: s.name ? 0.85 : 0 },
       units: { value: s.units || null, sourceText: String(s.units || ""), confidence: s.units ? 0.90 : 0 },
       schedule,
-      room: s.room ? { value: s.room, sourceText: s.room, confidence: 0.80 } : null,
+      room: s.room ? {
+        value: s.room,
+        sourceText: s.room,
+        confidence: 0.80,
+        buildingCode,
+        buildingName,
+        floor,
+        roomNumber,
+      } : null,
     };
   });
 

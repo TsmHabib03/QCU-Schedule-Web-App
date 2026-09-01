@@ -2719,3 +2719,130 @@ body[data-page="workspace"] .section-stack > * { min-width: 0; }
   .crud-actions-right { width: 100%; }
   .crud-actions-right .btn { flex: 1; }
 }
+
+/* ── PWA Install Prompt ────────────────────────────── */
+.install-prompt {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateY(100%);
+  opacity: 0;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
+  pointer-events: none;
+}
+.install-prompt.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.install-prompt-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04);
+  max-width: 540px;
+  margin: 0 auto;
+}
+.install-prompt-icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #EBF3FF;
+  border-radius: 12px;
+  color: #005BAC;
+}
+.install-prompt-copy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.install-prompt-copy strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.install-prompt-copy span {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+.install-prompt-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.install-btn-primary {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 10px;
+  background: #005BAC;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.install-btn-primary:hover { background: #004a8f; }
+.install-btn-primary:active { background: #003d75; }
+.install-btn-secondary {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.install-btn-secondary:hover { color: #374151; }
+
+.install-instructions {
+  width: 100%;
+  padding: 10px 0 4px;
+}
+.install-instructions-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 6px;
+}
+.install-instructions-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.install-instructions-list li {
+  font-size: 12px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+.install-instructions-list li strong { color: #1a1a1a; }
+.install-btn-full { width: 100%; text-align: center; }
+
+@media (max-width: 420px) {
+  .install-prompt-inner {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+  .install-prompt-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+}

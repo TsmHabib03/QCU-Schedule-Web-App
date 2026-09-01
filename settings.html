@@ -27,6 +27,10 @@
         <a class="settings-item" href="buildings.html"><div class="settings-label-wrap"><p class="settings-label-title">Campus Buildings</p><p class="settings-label-sub">Browse the QCU building directory and locations.</p></div><i data-lucide="building-2" style="flex-shrink:0;color:var(--blue);"></i></a>
         <label class="settings-item"><div class="settings-label-wrap"><p class="settings-label-title">Class Notifications</p><p class="settings-label-sub">Receive browser reminders before class starts.</p></div><input id="notifications-toggle" type="checkbox"></label>
         <div class="settings-item"><div class="settings-label-wrap"><p class="settings-label-title">Offline Mode</p><p class="settings-label-sub">The app caches itself after first visit on a web server.</p></div><span class="chip chip-gray" style="flex-shrink:0;">PWA</span></div>
+        <button id="install-app-btn" class="settings-item" style="cursor:pointer;">
+          <div class="settings-label-wrap"><p class="settings-label-title">Install App</p><p class="settings-label-sub">Add QCU Schedule to your home screen for quick access.</p></div>
+          <i data-lucide="download" style="flex-shrink:0;color:var(--blue);"></i>
+        </button>
         <div class="settings-item" style="flex-direction:column;align-items:flex-start;gap:10px;"><div><p class="settings-label-title">App Version</p><p class="settings-label-sub">QCU Student Portal - v3 - Light mode</p></div></div>
         <button id="reset-data" class="action-button secondary" style="margin-top:4px;"><i data-lucide="rotate-ccw"></i>Reset All Preferences</button>
       </section>
@@ -36,5 +40,15 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script src="assets/js/academic.js?v=42"></script>
   <script src="assets/js/app.js?v=44"></script>
+  <script src="assets/js/install-prompt.js?v=2"></script>
+  <script>
+    document.getElementById("install-app-btn")?.addEventListener("click", () => {
+      window.QCUInstallPrompt?.trigger();
+    });
+    if (window.QCUInstallPrompt?.isInstalled()) {
+      const btn = document.getElementById("install-app-btn");
+      if (btn) btn.style.display = "none";
+    }
+  </script>
 </body>
 </html>

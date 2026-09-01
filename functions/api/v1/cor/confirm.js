@@ -210,11 +210,16 @@ function commitRecords(user, draft, _catalog) {
 
   // 6. Update user state
   user.state = "ACTIVE";
+  // Update user.name with COR-extracted name so it's used everywhere
+  const nameParts = [profile.firstName, profile.middleName, profile.lastName].filter(Boolean);
+  if (nameParts.length) user.name = nameParts.join(" ");
   user.profile = {
     profileId: profile.profileId,
     studentNumber: profile.studentNumber,
     firstName: profile.firstName,
+    middleName: profile.middleName,
     lastName: profile.lastName,
+    suffix: profile.suffix,
     verificationStatus: profile.verificationStatus,
   };
 
