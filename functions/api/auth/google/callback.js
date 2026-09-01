@@ -134,14 +134,19 @@ export async function onRequestGet(context) {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token || "",
       expiresAt: Date.now() + Number(tokens.expires_in || 3600) * 1000,
+      // Carry forward data from previous session (CF Pages in-memory Maps are empty)
+      corRecordId: existingSession?.corRecordId || null,
+      corDraft: existingSession?.corDraft || null,
+      profile: existingSession?.profile || null,
+      dashboardSnapshot: existingSession?.dashboardSnapshot || null,
     };
 
     // --- Set session cookie and redirect ---
     const sessionCookie = await platformSessionHeader(context, session);
     const destination =
-      effectiveState === "NEW" || effectiveState === "AUTHENTICATED"
-        ? "/?auth=onboarding"
-        : "/?auth=dashboard";
+      effectiveState === "ACTIVE"
+        ? "/?auth=dashboard"
+        : "/?auth=onboarding";
 
     console.log("Callback SUCCESS:", profile.email, "->", destination);
     // Use Headers.append() so each Set-Cookie is a separate header.

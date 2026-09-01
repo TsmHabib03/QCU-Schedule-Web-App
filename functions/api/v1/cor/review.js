@@ -1,9 +1,11 @@
 // POST /api/v1/cor/review
 // Saves student corrections to the extraction draft.
 // Body: { studentInfo, enrollmentInfo, subjects }
+// On CF Pages: updates draft in session cookie (in-memory Maps are empty).
 
 import {
   resolveUser,
+  refreshSession,
   json,
 } from "../../auth/_lib.js";
 import { CorRecords, CorDrafts } from "../../repo/index.js";
@@ -15,7 +17,7 @@ export async function onRequestPost(context) {
       return json({ status: "UNAUTHORIZED", error: "Not authenticated" }, 401);
     }
 
-    const { user } = resolved;
+    const { user, session } = resolved;
 
     if (!user.corRecordId) {
       return json(
@@ -24,15 +26,9 @@ export async function onRequestPost(context) {
       );
     }
 
+    // --- Get record and existing draft (Maps or session fallback) ---
     const record = CorRecords.getById(user.corRecordId);
-    if (!record) {
-      return json(
-        { status: "ERROR", error: "COR record not found." },
-        404
-      );
-    }
-
-    if (record.status !== "REVIEW_REQUIRED") {
+    if (record && record.status !== "REVIEW_REQUIRED") {
       return json(
         { status: "ERROR", error: `Cannot review COR in state: ${record.status}` },
         400
@@ -85,7 +81,7 @@ export async function onRequestPost(context) {
     }
 
     // Update draft with student corrections
-    const existingDraft = CorDrafts.get(record.id) || {};
+    const existingDraft = (record ? CorDrafts.get(record.id) : null) || user.corDraft || {};
     const updatedDraft = {
       ...existingDraft,
       studentInfo: body.studentInfo,
@@ -95,17 +91,27 @@ export async function onRequestPost(context) {
       lastReviewedAt: new Date().toISOString(),
     };
 
-    CorDrafts.set(record.id, updatedDraft);
+    if (record) {
+      CorDrafts.set(record.id, updatedDraft);
+      CorRecords.update(record, { draftVersion: (record.draftVersion || 0) + 1 });
+    }
 
-    // Bump draft version
-    CorRecords.update(record, { draftVersion: (record.draftVersion || 0) + 1 });
-
-    return json({
+    // On CF Pages: save updated draft in session cookie
+    const resp = json({
       status: "OK",
-      corRecordId: record.id,
-      draftVersion: record.draftVersion,
+      corRecordId: record?.id || user.corRecordId,
+      draftVersion: (record?.draftVersion || 0) + 1,
       message: "Corrections saved. Ready to confirm.",
     });
+
+    if (!record) {
+      const sessionCookie = await refreshSession(context, session, {
+        corDraft: updatedDraft,
+      });
+      resp.headers.append("Set-Cookie", sessionCookie);
+    }
+
+    return resp;
   } catch (error) {
     console.error("COR review save failed:", String(error?.message || error));
     return json(

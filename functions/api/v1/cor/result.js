@@ -23,7 +23,23 @@ export async function onRequestGet(context) {
       );
     }
 
+    // --- Get record and draft (Maps or session fallback) ---
     const record = CorRecords.getById(user.corRecordId);
+    let draft = record ? CorDrafts.get(record.id) : null;
+
+    // CF Pages: Maps empty, use draft from session
+    if (!draft && user.corDraft) {
+      draft = user.corDraft;
+      return json({
+        status: "OK",
+        corRecordId: user.corRecordId,
+        importStatus: "REVIEW_REQUIRED",
+        hasResult: true,
+        draftVersion: 1,
+        result: draft,
+      });
+    }
+
     if (!record) {
       return json(
         { status: "ERROR", error: "COR record not found." },
@@ -40,7 +56,6 @@ export async function onRequestGet(context) {
       });
     }
 
-    const draft = CorDrafts.get(record.id);
     if (!draft) {
       return json({
         status: "OK",

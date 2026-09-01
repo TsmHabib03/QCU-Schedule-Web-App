@@ -1,6 +1,6 @@
 // POST /api/v1/cor/upload
 // Accepts a COR file upload, validates it, stores in dev mock, creates COR record.
-// Dev-only: stores file bytes in memory. Production uses private Google Drive.
+// On CF Pages: immediately extracts COR data via Gemini and saves draft in session cookie.
 
 import {
   resolveUser,
@@ -8,6 +8,7 @@ import {
   json,
 } from "../../auth/_lib.js";
 import { CorRecords, CorFiles, Concurrency } from "../../repo/index.js";
+import { extractWithGemini, geminiResultToDraft } from "./_gemini.js";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MiB
 const ALLOWED_TYPES = {
@@ -286,16 +287,44 @@ export async function onRequestPost(context) {
     }
     user.corRecordId = corRecord.id;
 
-    // Re-seal session cookie with ONBOARDING state so bootstrap routes correctly
-    const sessionCookie = await refreshSession(context, session, { state: user.state });
+    // --- Immediately extract COR data via Gemini ---
+    // On CF Pages, in-memory Maps are empty on the next request, so process.js
+    // cannot find the file bytes.  Extract now and save the draft in the session.
+    let corDraft = null;
+    const geminiKey = (context.env || {}).GEMINI_API_KEY;
+    if (geminiKey) {
+      try {
+        console.log("Upload: running Gemini extraction for", corRecord.filename);
+        const geminiResult = await extractWithGemini(
+          new Uint8Array(filePart.data),
+          corRecord.mimeType,
+          geminiKey
+        );
+        corDraft = geminiResultToDraft(geminiResult);
+        console.log("Upload: Gemini OK,", corDraft.subjects.length, "subjects");
+      } catch (geminiError) {
+        console.error("Upload: Gemini extraction failed:", geminiError.message);
+        // Continue without draft — process.js will retry on next request
+      }
+    }
+
+    // Re-seal session cookie with ONBOARDING state, corRecordId, and draft
+    const sessionCookie = await refreshSession(context, session, {
+      state: user.state,
+      corRecordId: corRecord.id,
+      corDraft,
+    });
 
     const resp = json({
-      status: "ACCEPTED",
+      status: corDraft ? "EXTRACTED" : "ACCEPTED",
       corRecordId: corRecord.id,
       filename: corRecord.filename,
       sizeBytes: corRecord.sizeBytes,
       mimeType: corRecord.mimeType,
-      message: "Upload complete. Preparing your COR.",
+      subjectsFound: corDraft?.subjects?.length || 0,
+      message: corDraft
+        ? "Upload and extraction complete. Please review your information."
+        : "Upload complete. Preparing your COR.",
     }, 201);
     resp.headers.append("Set-Cookie", sessionCookie);
     return resp;

@@ -26,6 +26,7 @@ export async function onRequestGet(context) {
       stage = "COMPLETE";
       nextAction = null;
     } else if (user.corRecordId) {
+      // Try in-memory Map first (works locally)
       const record = CorRecords.getById(user.corRecordId);
       if (record) {
         corStatus = record.status;
@@ -64,9 +65,17 @@ export async function onRequestGet(context) {
             nextAction = "upload";
         }
       } else {
-        stage = "WELCOME";
-        nextAction = "upload";
-        corRecordId = null;
+        // CF Pages: Maps empty — infer stage from session data
+        // corDraft exists → user needs to review; otherwise → user needs to process
+        if (user.corDraft) {
+          stage = "REVIEW";
+          nextAction = "review";
+          corStatus = "REVIEW_REQUIRED";
+        } else {
+          stage = "UPLOAD";
+          nextAction = "process";
+          corStatus = "ACCEPTED";
+        }
       }
     } else {
       stage = "WELCOME";

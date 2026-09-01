@@ -305,8 +305,9 @@ export async function resolveUser(context) {
     picture: session.picture || "",
     state: session.state || "AUTHENTICATED",
     role: session.role || "student",
-    profile: null,
-    corRecordId: null,
+    profile: session.profile || null,
+    corRecordId: session.corRecordId || null,
+    corDraft: session.corDraft || null,
     createdAt: session.createdAt || ts,
     updatedAt: ts,
   };

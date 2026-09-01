@@ -260,22 +260,22 @@ export async function onRequestPost(context) {
       );
     }
 
+    // --- Get COR record (Maps or session fallback) ---
     const record = CorRecords.getById(user.corRecordId);
-    if (!record) {
-      return json(
-        { status: "ERROR", error: "COR record not found." },
-        404
-      );
-    }
-
-    if (record.status !== "REVIEW_REQUIRED") {
+    if (record && record.status !== "REVIEW_REQUIRED") {
       return json(
         { status: "ERROR", error: `Cannot confirm COR in state: ${record.status}` },
         400
       );
     }
 
-    const draft = CorDrafts.get(record.id);
+    // --- Get extraction draft (Maps or session fallback) ---
+    let draft = record ? CorDrafts.get(record.id) : null;
+    if (!draft && user.corDraft) {
+      // CF Pages: draft stored in session cookie during upload
+      console.log("Using draft from session cookie (CF Pages path)");
+      draft = user.corDraft;
+    }
     if (!draft) {
       return json(
         { status: "ERROR", error: "No extraction draft found." },
@@ -305,7 +305,7 @@ export async function onRequestPost(context) {
     }
 
     // Transition to COMMITTING
-    CorRecords.update(record, { status: "COMMITTING" });
+    if (record) CorRecords.update(record, { status: "COMMITTING" });
 
     // Commit records
     const result = commitRecords(user, draft, catalogForValidation);
@@ -465,7 +465,7 @@ export async function onRequestPost(context) {
 
     const resp = json({
       status: "COMPLETE",
-      corRecordId: record.id,
+      corRecordId: record?.id || user.corRecordId,
       profileId: result.profileId,
       enrollmentId: result.enrollmentId,
       scheduleId: result.scheduleId,

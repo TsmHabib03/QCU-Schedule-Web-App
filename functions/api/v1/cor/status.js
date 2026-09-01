@@ -16,7 +16,7 @@ export async function onRequestGet(context) {
 
     const { user } = resolved;
 
-    // Find user's active COR record
+    // Find user's active COR record (Maps or session fallback)
     const corRecordId = user.corRecordId;
     if (!corRecordId) {
       return json({
@@ -27,26 +27,43 @@ export async function onRequestGet(context) {
     }
 
     const record = CorRecords.getById(corRecordId);
-    if (!record) {
+    if (record) {
       return json({
         status: "OK",
-        hasImport: false,
-        importStatus: null,
+        hasImport: true,
+        corRecordId: record.id,
+        importStatus: record.status,
+        filename: record.filename,
+        sizeBytes: record.sizeBytes,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        failureCode: record.failureCode,
+        failureStage: record.failureStage,
+        draftVersion: record.draftVersion,
+      });
+    }
+
+    // CF Pages: Maps empty, infer status from session
+    if (user.corDraft) {
+      return json({
+        status: "OK",
+        hasImport: true,
+        corRecordId,
+        importStatus: "REVIEW_REQUIRED",
+        filename: user.corDraft.filename || "unknown.pdf",
+        sizeBytes: 0,
+        createdAt: null,
+        updatedAt: null,
+        failureCode: null,
+        failureStage: null,
+        draftVersion: 1,
       });
     }
 
     return json({
       status: "OK",
-      hasImport: true,
-      corRecordId: record.id,
-      importStatus: record.status,
-      filename: record.filename,
-      sizeBytes: record.sizeBytes,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-      failureCode: record.failureCode,
-      failureStage: record.failureStage,
-      draftVersion: record.draftVersion,
+      hasImport: false,
+      importStatus: null,
     });
   } catch (error) {
     console.error("COR status check failed:", String(error?.message || error));
