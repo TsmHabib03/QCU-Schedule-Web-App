@@ -70,26 +70,26 @@ export async function onRequestGet(context) {
     return new Response(null, { status: 302, headers: deniedHeaders });
   }
 
-  // --- Validate state ---
-  const config = oauthConfig(context);
-  const stateCookie = getCookie(context.request, "qcu_oauth_state");
-  const stateData = await unseal(stateCookie, config.sessionSecret);
-
-  if (
-    !stateData ||
-    stateData.state !== url.searchParams.get("state") ||
-    !url.searchParams.get("code")
-  ) {
-    const reason = !stateData ? "state_cookie_missing_or_expired" : "state_mismatch";
-    console.error("Callback state validation FAILED:", reason);
-    const failHeaders = new Headers({ "Location": "/?auth=failed&reason=" + encodeURIComponent(reason), "Cache-Control": "no-store" });
-    failHeaders.append("Set-Cookie", clearState);
-    return new Response(null, { status: 302, headers: failHeaders });
-  }
-
-  const returnTo = stateData.returnTo || "/";
-
   try {
+    // --- Validate state ---
+    const config = oauthConfig(context);
+    const stateCookie = getCookie(context.request, "qcu_oauth_state");
+    const stateData = await unseal(stateCookie, config.sessionSecret);
+
+    if (
+      !stateData ||
+      stateData.state !== url.searchParams.get("state") ||
+      !url.searchParams.get("code")
+    ) {
+      const reason = !stateData ? "state_cookie_missing_or_expired" : "state_mismatch";
+      console.error("Callback state validation FAILED:", reason);
+      const failHeaders = new Headers({ "Location": "/?auth=failed&reason=" + encodeURIComponent(reason), "Cache-Control": "no-store" });
+      failHeaders.append("Set-Cookie", clearState);
+      return new Response(null, { status: 302, headers: failHeaders });
+    }
+
+    const returnTo = stateData.returnTo || "/";
+
     // --- Exchange authorization code for tokens ---
     const tokens = await exchangeCode(config, url.searchParams.get("code"));
 
@@ -131,10 +131,7 @@ export async function onRequestGet(context) {
         : "/?auth=dashboard";
 
     console.log("Callback SUCCESS:", profile.email, "->", destination);
-    console.log("Session cookie starts:", sessionCookie.substring(0, 60));
     // Use Headers.append() so each Set-Cookie is a separate header.
-    // Passing an array via redirect() causes the Headers API to merge them
-    // into one comma-delimited string, which browsers reject.
     const respHeaders = new Headers({ "Location": destination, "Cache-Control": "no-store" });
     respHeaders.append("Set-Cookie", sessionCookie);
     respHeaders.append("Set-Cookie", clearState);
