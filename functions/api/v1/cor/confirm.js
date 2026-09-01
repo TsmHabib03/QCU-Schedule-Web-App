@@ -22,6 +22,8 @@ import {
   Subjects,
   CatalogBuildings,
   CatalogRooms,
+  CatalogSeed,
+  Departments,
 } from "../../repo/index.js";
 
 // In-memory stores for confirmed data — NOW DELEGATED TO REPO
@@ -232,6 +234,13 @@ function commitRecords(user, draft, _catalog) {
   };
 }
 
+function timeToMinutes(timeStr) {
+  if (!timeStr) return 0;
+  const parts = String(timeStr).split(":");
+  if (parts.length < 2) return 0;
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
+
 // ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
@@ -301,8 +310,158 @@ export async function onRequestPost(context) {
     // Commit records
     const result = commitRecords(user, draft, catalogForValidation);
 
-    // Re-seal session cookie with ACTIVE state so bootstrap routes correctly
-    const sessionCookie = await refreshSession(context, session, { state: "ACTIVE" });
+    // ── Build dashboard snapshot for session persistence ───────────────
+    // On Cloudflare Pages, in-memory Maps reset per invocation.  We embed
+    // the full dashboard payload in the session cookie so dashboard.js can
+    // return it on subsequent requests without needing in-memory data.
+    const enrollment = Enrollments.getById(result.enrollmentId);
+    const schedule = Schedules.getById(result.scheduleId);
+    const rawEntries = schedule
+      ? ScheduleEntries.getByScheduleId(schedule.scheduleId)
+      : [];
+
+    const DAY_NUM = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+    const entries = rawEntries.map((e) => {
+      const ens = e.enrollmentSubjectId
+        ? EnrollmentSubjects.getById(e.enrollmentSubjectId)
+        : null;
+      const catalogSubject = ens?.matchedSubjectId
+        ? Subjects.getById(ens.matchedSubjectId)
+        : null;
+      const subjectCode = ens?.subjectCodeSnapshot || catalogSubject?.subjectCode || "";
+      const subjectTitle = ens?.subjectTitleSnapshot || catalogSubject?.title || "";
+      let building = e.buildingId ? CatalogBuildings.getById(e.buildingId) : null;
+      let room = e.roomId ? CatalogRooms.getById(e.roomId) : null;
+      if (!building && e.locationText) {
+        const m = e.locationText.match(/^([A-Z]{2})/i);
+        if (m) building = CatalogBuildings.getByCode(m[1].toUpperCase());
+      }
+      const startMinutes = timeToMinutes(e.startTime);
+      const endMinutes = timeToMinutes(e.endTime);
+      let normalizedDay = e.dayLabel || "";
+      if (!normalizedDay && typeof e.dayOfWeek === "number") {
+        normalizedDay = DAY_NUM[e.dayOfWeek] || "";
+      } else if (!normalizedDay && typeof e.dayOfWeek === "string") {
+        normalizedDay = e.dayOfWeek.charAt(0).toUpperCase() + e.dayOfWeek.slice(1).toLowerCase();
+      }
+      return {
+        entryId: e.smeId,
+        scheduleId: e.scheduleId,
+        code: subjectCode,
+        course: subjectCode,
+        title: subjectTitle,
+        units: ens?.units || 0,
+        type: e.modality || "ONSITE",
+        section: "",
+        day: normalizedDay,
+        dayLabel: normalizedDay,
+        start: e.startTime,
+        end: e.endTime,
+        startMinutes,
+        endMinutes,
+        buildingId: e.buildingId,
+        buildingCode: building?.buildingCode || "",
+        buildingName: building?.name || "",
+        roomId: e.roomId,
+        roomCode: room?.roomCode || "",
+        floor: room?.floor || null,
+        room: room?.roomCode || "",
+        instructor: "",
+        notes: e.locationText || "",
+      };
+    });
+
+    // Buildings
+    const buildingIds = new Set(rawEntries.map(e => e.buildingId).filter(Boolean));
+    const buildings = [];
+    for (const bid of buildingIds) {
+      const b = CatalogBuildings.getById(bid);
+      if (b) buildings.push({
+        buildingId: b.buildingId, code: b.buildingCode, name: b.name,
+        shortName: b.shortName || b.name, campusId: b.campusId,
+        floors: b.floors || 1, rooms: b.rooms || [], lat: b.lat || null, lng: b.lng || null,
+      });
+    }
+    if (enrollment?.campusId) {
+      const campusBuildings = CatalogBuildings.getByCampusId(enrollment.campusId);
+      for (const b of campusBuildings) {
+        if (!buildings.find(x => x.buildingId === b.buildingId)) {
+          buildings.push({
+            buildingId: b.buildingId, code: b.buildingCode, name: b.name,
+            shortName: b.shortName || b.name, campusId: b.campusId,
+            floors: b.floors || 1, rooms: b.rooms || [], lat: b.lat || null, lng: b.lng || null,
+          });
+        }
+      }
+    }
+
+    // Academic context
+    const meta = CatalogSeed.isLoaded() ? CatalogSeed.meta() : null;
+    const currentTerm = Terms.getCurrent();
+    const program = enrollment ? Programs.getById(enrollment.programId) || null : null;
+    const department = program ? Departments.getById(program.departmentId) || null : null;
+    const campus = enrollment?.campusId ? Campuses.getById(enrollment.campusId) || null : null;
+    const term = enrollment?.termId ? Terms.getById(enrollment.termId) || null : null;
+
+    const academic = {
+      catalogVersion: meta?.version || null,
+      currentTermId: currentTerm?.termId || null,
+      currentTermName: currentTerm?.name || null,
+      program: program ? { programId: program.programId, name: program.name, code: program.programCode, abbrev: program.abbreviation || program.name, departmentId: program.departmentId } : null,
+      department: department ? { departmentId: department.departmentId, name: department.name, code: department.departmentCode } : null,
+      campus: campus ? { campusId: campus.campusId, name: campus.name, code: campus.campusCode } : null,
+      term: term ? { termId: term.termId, name: term.name, shortName: term.shortName, academicYear: term.academicYear, semester: term.semester } : null,
+    };
+
+    // Enrollment subjects
+    const enrollmentSubjects = enrollment
+      ? EnrollmentSubjects.getByEnrollmentId(enrollment.enrollmentId).map(es => ({
+          enrollmentSubjectId: es.ensId, subjectCode: es.subjectCodeSnapshot || "",
+          title: es.subjectTitleSnapshot || "", units: es.units || 0,
+        }))
+      : [];
+    academic.enrollmentSubjects = enrollmentSubjects;
+
+    // Profile
+    const profile = user.profile || null;
+    let displayName = user.name;
+    if (profile && profile.firstName) {
+      const parts = [profile.firstName, profile.middleName, profile.lastName].filter(Boolean);
+      displayName = parts.join(" ") || user.name;
+    }
+
+    const daySet = new Set(entries.map(e => e.day));
+    const totalUnits = entries.reduce((sum, e) => sum + (e.units || 0), 0);
+
+    const dashboardSnapshot = {
+      enrollment: enrollment ? {
+        enrollmentId: enrollment.enrollmentId, programId: enrollment.programId,
+        campusId: enrollment.campusId, termId: enrollment.termId,
+        yearLevel: enrollment.yearLevel, section: enrollment.sectionLabelSnapshot,
+        status: enrollment.status, createdAt: enrollment.createdAt,
+      } : null,
+      schedule: schedule ? {
+        scheduleId: schedule.scheduleId, subjectCount: entries.length,
+        totalUnits, dayCount: daySet.size, isActive: schedule.isActive,
+        revisionNumber: schedule.revisionNumber,
+      } : null,
+      entries,
+      buildings,
+      academic,
+      profile: { userId: user.userId, email: user.email, name: displayName,
+        picture: user.picture, state: "ACTIVE", role: user.role, profile },
+      tasks: [],
+      notes: [],
+    };
+
+    // Re-seal session cookie with ACTIVE state + dashboard snapshot
+    const sessionCookie = await refreshSession(context, session, {
+      state: "ACTIVE",
+      profile: user.profile,
+      name: user.name,
+      dashboardSnapshot,
+    });
 
     const resp = json({
       status: "COMPLETE",

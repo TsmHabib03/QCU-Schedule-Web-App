@@ -4,6 +4,7 @@
 
 import {
   resolveUser,
+  readPlatformSession,
   json,
 } from "../auth/_lib.js";
 import {
@@ -45,9 +46,29 @@ export async function onRequestGet(context) {
       });
     }
 
-    // ── Active enrollment ───────────────────────────────────────────────
+    // ── Try in-memory Maps first (works locally), fall back to session snapshot (CF Pages) ──
+    const session = await readPlatformSession(context);
+    const snapshot = session?.dashboardSnapshot || null;
+
     const enrollments = Enrollments.getByUserId(user.userId);
     const activeEnrollment = enrollments.find((e) => e.status === "ACTIVE") || null;
+
+    // If no in-memory enrollment but snapshot exists, use snapshot
+    if (!activeEnrollment && snapshot) {
+      return json({
+        status: "OK",
+        authenticated: true,
+        routing: "dashboard",
+        enrollment: snapshot.enrollment,
+        schedule: snapshot.schedule,
+        entries: snapshot.entries,
+        buildings: snapshot.buildings,
+        tasks: snapshot.tasks,
+        notes: snapshot.notes,
+        academic: snapshot.academic,
+        profile: snapshot.profile,
+      });
+    }
 
     if (!activeEnrollment) {
       return json({
