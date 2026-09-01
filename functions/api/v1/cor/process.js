@@ -93,6 +93,7 @@ Rules:
 
   if (!response.ok) {
     const errText = await response.text();
+    console.error("Gemini HTTP", response.status, ":", errText.slice(0, 500));
     throw new Error(`Gemini API error ${response.status}: ${errText.slice(0, 200)}`);
   }
 
@@ -597,35 +598,24 @@ export async function onRequestPost(context) {
     let extractionResult = null;
 
     if (geminiKey) {
-      console.log("Using Gemini Vision API...");
+      console.log("Using Gemini Vision API, key starts with:", geminiKey.slice(0, 6) + "...");
       try {
         const geminiResult = await extractWithGemini(fileData.bytes, fileData.mimeType, geminiKey);
         extractionResult = geminiResultToDraft(geminiResult);
         console.log("Gemini OK:", extractionResult.subjects.length, "subjects,", extractionResult.studentInfo.firstName?.value, extractionResult.studentInfo.lastName?.value);
       } catch (geminiError) {
-        console.error("Gemini failed:", geminiError.message);
+        console.error("Gemini FAILED:", geminiError.message);
         extractionResult = null;
       }
     } else {
-      console.log("No GEMINI_API_KEY found, using Tesseract");
+      console.log("No GEMINI_API_KEY found, skipping Gemini");
     }
 
     if (!extractionResult) {
-      console.log("No Gemini result, attempting Tesseract OCR fallback...");
-      try {
-        const Tesseract = (await import("tesseract.js")).default;
-        const { data } = await Tesseract.recognize(Buffer.from(fileData.bytes), "eng");
-        extractionResult = parseCorText(data.text, session.name || "");
-      } catch (tessErr) {
-        console.error("Tesseract unavailable:", tessErr.message);
-        return json(
-          {
-            status: "ERROR",
-            error: "OCR engine unavailable in production. Please set GEMINI_API_KEY environment variable for COR processing, or upload a clearer image.",
-          },
-          500
-        );
-      }
+      const msg = !geminiKey
+        ? "No GEMINI_API_KEY set. COR processing requires a valid Gemini API key from https://aistudio.google.com/apikey"
+        : "Gemini extraction failed. Your GEMINI_API_KEY may be invalid. Get a key from https://aistudio.google.com/apikey";
+      return json({ status: "ERROR", error: msg }, 500);
     }
 
     // Store draft

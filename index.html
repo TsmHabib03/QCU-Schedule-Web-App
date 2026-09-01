@@ -188,13 +188,8 @@
         showError("Sign-in was cancelled. Please try again.");
         showLanding();
       } else if (authResult === "failed") {
-        if (!params.has("retry")) {
-          // Auto-retry once for transient cold-start failures
-          window.location.replace("/api/auth/google/start?retry=1");
-        } else {
-          showError("Sign-in failed. Please try again.");
-          showLanding();
-        }
+        showError("Sign-in failed. Please try again.");
+        showLanding();
       } else if (authResult === "onboarding") {
         window.location.href = "/onboarding.html";
       } else if (authResult === "dashboard") {
