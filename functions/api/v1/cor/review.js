@@ -82,7 +82,8 @@ export async function onRequestPost(context) {
     }
 
     // Update draft with student corrections
-    const existingDraft = (record ? CorDrafts.get(record.id) : null) || user.corDraft || {};
+    // Accept draft from request body (CF Pages path: draft was not in session)
+    const existingDraft = (record ? CorDrafts.get(record.id) : null) || user.corDraft || body.draft || {};
     const updatedDraft = {
       ...existingDraft,
       studentInfo: body.studentInfo,
@@ -107,6 +108,8 @@ export async function onRequestPost(context) {
     });
 
     if (!record) {
+      // Store the full reviewed draft in session for the confirm endpoint.
+      // Compact it to strip sourceText/confidence (keeps cookie under 4 KB).
       const sessionCookie = await refreshSession(context, session, {
         corDraft: compactDraft(updatedDraft),
       });

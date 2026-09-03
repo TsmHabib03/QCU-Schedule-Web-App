@@ -310,12 +310,14 @@ export async function onRequestPost(context) {
       }
     }
 
-    // Re-seal session cookie with ONBOARDING state, corRecordId, and draft
-    // Compact the draft to strip sourceText/confidence metadata (keeps cookie under 4 KB).
+    // Re-seal session cookie with ONBOARDING state and corRecordId only.
+    // The extraction draft is returned in the JSON response (not in the cookie)
+    // to stay under the 4 KB browser cookie limit.  The frontend caches the
+    // draft in memory and passes it to /cor/review and /cor/confirm.
     const sessionCookie = await refreshSession(context, session, {
       state: "ONBOARDING",
       corRecordId: corRecord.id,
-      corDraft: corDraft ? compactDraft(corDraft) : null,
+      corDraft: null,
     });
 
     const resp = json({
@@ -328,6 +330,9 @@ export async function onRequestPost(context) {
       message: corDraft
         ? "Upload and extraction complete. Please review your information."
         : "Upload complete. Preparing your COR.",
+      // Include the full extraction result in the response so the frontend
+      // can cache it and pass it to review/confirm without needing Maps.
+      result: corDraft || null,
     }, 201);
     resp.headers.append("Set-Cookie", sessionCookie);
     return resp;

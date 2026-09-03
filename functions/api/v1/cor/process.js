@@ -397,9 +397,11 @@ export async function onRequestPost(context) {
         message: "Extraction complete. Please review your information.",
         subjectsFound: user.corDraft.subjects?.length || 0,
         totalUnits: user.corDraft.totalUnits,
+        result: user.corDraft,
       });
+      // Re-seal session to set corRecordStatus without re-storing the draft
+      // (keeps cookie under 4 KB).
       const sessionCookie = await refreshSession(context, session, {
-        corDraft: compactDraft(user.corDraft),
         corRecordStatus: "REVIEW_REQUIRED",
       });
       resp.headers.append("Set-Cookie", sessionCookie);

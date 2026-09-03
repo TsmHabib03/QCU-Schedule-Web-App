@@ -208,6 +208,11 @@
       }
 
       corRecordId = data.corRecordId;
+      // Cache the extraction result from the upload response so it can be
+      // sent to /cor/review and /cor/confirm (avoids needing Maps on CF Pages).
+      if (data.result) {
+        draftResult = data.result;
+      }
       progressFill.style.width = "80%";
       progressText.textContent = "Upload complete. Starting extraction...";
 
@@ -287,6 +292,11 @@
 
   /* ── Load extraction result ──────────────────────────────────────────── */
   async function loadResult() {
+    // If draft was already cached from the upload response, use it directly.
+    if (draftResult && draftResult.subjects && draftResult.subjects.length > 0) {
+      populateReviewForm(draftResult);
+      return;
+    }
     try {
       const resp = await fetch("/api/v1/cor/result", { credentials: "include" });
       const data = await resp.json();
@@ -442,7 +452,7 @@
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentInfo, enrollmentInfo, subjects }),
+        body: JSON.stringify({ studentInfo, enrollmentInfo, subjects, draft: draftResult }),
       });
       const data = await resp.json();
 
