@@ -71,6 +71,41 @@ export async function onRequestGet(context) {
     }
 
     if (!activeEnrollment) {
+      // CF Pages: Maps empty — try to reconstruct from session enrollment data.
+      // The confirm endpoint stores compact enrollment + enrollmentSubjects
+      // in the session so the dashboard can display schedule info.
+      const sessEnrollment = session?.enrollment || null;
+      const sessSubjects = session?.enrollmentSubjects || null;
+      if (sessEnrollment && sessSubjects && sessSubjects.length > 0) {
+        const program = sessEnrollment.programId ? Programs.getById(sessEnrollment.programId) : null;
+        const department = program ? Departments.getById(program.departmentId) : null;
+        const campus = sessEnrollment.campusId ? Campuses.getById(sessEnrollment.campusId) : null;
+        const term = sessEnrollment.termId ? Terms.getById(sessEnrollment.termId) : null;
+        const academic = {
+          catalogVersion: CatalogSeed.isLoaded() ? CatalogSeed.meta()?.version : null,
+          currentTermId: Terms.getCurrent()?.termId || null,
+          currentTermName: Terms.getCurrent()?.name || null,
+          program: program ? { programId: program.programId, name: program.name, code: program.programCode, abbrev: program.abbreviation || program.name, departmentId: program.departmentId } : null,
+          department: department ? { departmentId: department.departmentId, name: department.name, code: department.departmentCode } : null,
+          campus: campus ? { campusId: campus.campusId, name: campus.name, code: campus.campusCode } : null,
+          term: term ? { termId: term.termId, name: term.name, shortName: term.shortName, academicYear: term.academicYear, semester: term.semester } : null,
+          enrollmentSubjects: sessSubjects,
+        };
+        const daySet = new Set();
+        return json({
+          status: "OK",
+          authenticated: true,
+          routing: "dashboard",
+          enrollment: sessEnrollment,
+          schedule: { scheduleId: null, subjectCount: sessSubjects.length, totalUnits: sessSubjects.reduce((s, e) => s + (e.units || 0), 0), dayCount: daySet.size, isActive: true, revisionNumber: 1 },
+          entries: [],
+          buildings: campus ? CatalogBuildings.getByCampusId(campus.campusId).map(b => formatBuilding(b)) : [],
+          tasks: formatDashboardTasks(user.userId),
+          notes: formatDashboardNotes(user.userId),
+          academic,
+          profile: buildProfile(user),
+        });
+      }
       return json({
         status: "OK",
         authenticated: true,

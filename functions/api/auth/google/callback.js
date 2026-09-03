@@ -154,6 +154,10 @@ export async function onRequestGet(context) {
       // rebuilt by the dashboard endpoint from in-memory Maps.
       corRecordId: existingSession?.corRecordId || null,
       profile: existingSession?.profile || null,
+      // Carry forward compact enrollment data (~1 KB) so the dashboard
+      // can display schedule info even when Maps are empty (CF Pages).
+      enrollment: existingSession?.enrollment || null,
+      enrollmentSubjects: existingSession?.enrollmentSubjects || null,
     };
 
     // --- Set session cookie and redirect ---

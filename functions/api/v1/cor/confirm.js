@@ -485,13 +485,24 @@ export async function onRequestPost(context) {
       notes: [],
     };
 
-    // Re-seal session cookie with ACTIVE state only.
-    // Do NOT store dashboardSnapshot in the cookie — it exceeds 4 KB and
-    // the browser silently drops the Set-Cookie header.
+    // Re-seal session cookie with ACTIVE state.
+    // Store compact enrollment + subjects so the dashboard can display
+    // schedule info on CF Pages where Maps are empty per-invocation.
+    // Total ~1 KB, well under the 4 KB browser cookie limit.
+    const enrollmentData = enrollment ? {
+      enrollmentId: enrollment.enrollmentId,
+      programId: enrollment.programId,
+      campusId: enrollment.campusId,
+      termId: enrollment.termId,
+      yearLevel: enrollment.yearLevel,
+      section: enrollment.sectionLabelSnapshot,
+    } : null;
     const sessionCookie = await refreshSession(context, session, {
       state: "ACTIVE",
       profile: user.profile,
       name: user.name,
+      enrollment: enrollmentData,
+      enrollmentSubjects: enrollmentSubjects,
     });
 
     const resp = json({
