@@ -99,6 +99,14 @@ img { max-width: 100%; display: block; }
 .brand-name { font-size: 13px; font-weight: 700; color: var(--blue); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brand-sub { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.signout-btn {
+  background: none; border: 1px solid var(--border, #E5E7EB); border-radius: 6px;
+  padding: 6px; cursor: pointer; color: var(--muted, #5F6368);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.signout-btn:hover { background: #FEE2E2; color: #DC2626; border-color: #FCA5A5; }
+.signout-btn svg, .signout-btn i { width: 18px; height: 18px; }
 .header-clock { text-align: right; }
 .clock-day { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.2; }
 .clock-date { font-size: 10px; color: var(--muted); font-weight: 600; line-height: 1.2; }

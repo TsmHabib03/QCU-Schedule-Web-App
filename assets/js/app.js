@@ -304,6 +304,9 @@ function renderShell() {
             <p id="live-time" class="clock-time">00:00</p>
           </div>
           <img class="qc-logo" src="assets/images/Quezon_City_Government.png" alt="QC Government logo">
+          <button class="signout-btn" onclick="signOut()" title="Sign out" aria-label="Sign out">
+            <i data-lucide="log-out"></i>
+          </button>
         </div>
       </div>`;
   }
@@ -1974,6 +1977,14 @@ function closeCrudModal() {
   document.body.classList.remove("modal-open");
   _crudEditingEntry = null;
 }
+
+/* ── Sign Out ────────────────────────────────────── */
+window.signOut = async function () {
+  try {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+  } catch (_) { /* best-effort */ }
+  window.location.href = "/";
+};
 
 /* ── Init ────────────────────────────────────────────── */
 async function init() {

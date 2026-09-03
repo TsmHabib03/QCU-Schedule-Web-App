@@ -15,12 +15,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=48">
+<link rel="stylesheet" href="assets/css/styles.css?v=49">
 </head>
 <body data-page="home">
 
   <!-- PUBLIC LANDING: shown when not authenticated -->
-  <div id="auth-landing" class="app-shell" style="display:none;">
+  <div id="auth-landing" class="app-shell" style="display:none !important;">
     <header class="page-header">
       <div class="page-header-inner" style="display:flex;align-items:center;justify-content:space-between;max-width:960px;margin:0 auto;padding:0 20px;height:56px;">
         <span style="font-weight:700;font-size:15px;color:var(--navy,#0B2341);">My-Schedule</span>
@@ -74,7 +74,7 @@
   </div>
 
   <!-- AUTHENTICATED DASHBOARD: shown after login -->
-  <div id="auth-dashboard" class="app-shell" style="display:none;">
+  <div id="auth-dashboard" class="app-shell" style="display:none !important;">
     <header id="app-header" class="page-header"></header>
 
     <main class="page-container home-layout">
@@ -181,7 +181,7 @@
 
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script src="assets/js/academic.js?v=41"></script>
-<script src="assets/js/app.js?v=47"></script>
+<script src="assets/js/app.js?v=48"></script>
 <script src="assets/js/install-prompt.js?v=1"></script>
   <script>
     // Optional overrides for the Home status panel (all keyless/optional).
@@ -229,14 +229,14 @@
       }
 
       function showLanding() {
-        landing.style.display = "";
+        landing.style.display = "block";
         dashboard.style.display = "none";
         loading.style.display = "none";
       }
 
       function showDashboard() {
         landing.style.display = "none";
-        dashboard.style.display = "";
+        dashboard.style.display = "block";
         loading.style.display = "none";
         // Clear URL params
         if (window.history.replaceState) {
