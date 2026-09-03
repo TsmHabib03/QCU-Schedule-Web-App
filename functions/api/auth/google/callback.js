@@ -118,7 +118,14 @@ export async function onRequestGet(context) {
     // --- Resolve or create internal user identity ---
     // Load any stored row for this Google account first, so a returning student
     // updates their record instead of being treated as brand new.
-    const hydration = await hydrateRepoFor(context, profile.sub, profile.email);
+    // Wrap in timeout so a slow Apps Script doesn't block the redirect.
+    let hydration = { hydrated: false, isNew: true };
+    try {
+      hydration = await Promise.race([
+        hydrateRepoFor(context, profile.sub, profile.email),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("hydrate timeout")), 5000)),
+      ]);
+    } catch (e) { console.warn("callback: hydrate skipped —", e.message); }
 
     const user = upsertUser(profile.sub, {
       email: profile.email,
@@ -172,7 +179,12 @@ export async function onRequestGet(context) {
     const sessionCookie = await platformSessionHeader(context, session);
 
     // Persist the login (creates the Users row on a first sign-in).
-    await flushRepo(context, session);
+    try {
+      await Promise.race([
+        flushRepo(context, session),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("flush timeout")), 5000)),
+      ]);
+    } catch (e) { console.warn("callback: flush skipped —", e.message); }
 
     const destination =
       effectiveState === "ACTIVE"

@@ -15,7 +15,35 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=49">
+<link rel="stylesheet" href="assets/css/styles.css?v=50">
+<script>
+  // EARLY auth check — runs BEFORE any other JS to prevent landing+dashboard overlap.
+  (function () {
+    var landing = document.getElementById("auth-landing");
+    var dashboard = document.getElementById("auth-dashboard");
+    var loading = document.getElementById("auth-loading");
+    // Hide both immediately so they never overlap
+    if (landing) landing.style.display = "none";
+    if (dashboard) dashboard.style.display = "none";
+    // Check session early
+    var params = new URLSearchParams(window.location.search);
+    var authResult = params.get("auth");
+    if (authResult === "onboarding") { window.location.replace("/onboarding.html"); return; }
+    if (authResult === "dashboard") { if (dashboard) dashboard.style.display = "block"; if (loading) loading.style.display = "none"; window.history.replaceState({}, document.title, "/"); return; }
+    if (authResult === "denied" || authResult === "failed") { if (landing) landing.style.display = "block"; if (loading) loading.style.display = "none"; return; }
+    // No auth param — check session
+    fetch("/api/v1/bootstrap", { credentials: "include" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.authenticated) { if (landing) landing.style.display = "block"; if (loading) loading.style.display = "none"; return; }
+        if (d.routing === "onboarding") { window.location.replace("/onboarding.html"); return; }
+        if (d.routing === "dashboard") { if (dashboard) dashboard.style.display = "block"; } else { if (landing) landing.style.display = "block"; }
+        if (loading) loading.style.display = "none";
+        window.history.replaceState({}, document.title, "/");
+      })
+      .catch(function () { if (landing) landing.style.display = "block"; if (loading) loading.style.display = "none"; });
+  })();
+</script>
 </head>
 <body data-page="home">
 
@@ -189,86 +217,6 @@
     window.QCU_STATUS_CONFIG = {};
   </script>
   <script src="assets/js/status.js?v=41"></script>
-  <script>
-    // CHUNK 23: Auth-aware routing
-    (function () {
-      var landing = document.getElementById("auth-landing");
-      var dashboard = document.getElementById("auth-dashboard");
-      var loading = document.getElementById("auth-loading");
-      var errorEl = document.getElementById("auth-error-msg");
-
-      // Check URL params for auth result
-      var params = new URLSearchParams(window.location.search);
-      var authResult = params.get("auth");
-
-      if (authResult === "denied") {
-        showError("Sign-in was cancelled. Please try again.");
-        showLanding();
-      } else if (authResult === "failed") {
-        var reason = params.get("reason") || "";
-        showError("Sign-in failed." + (reason ? " (" + reason + ")" : " Please try again."));
-        showLanding();
-      } else if (authResult === "onboarding") {
-        window.location.href = "/onboarding.html";
-      } else if (authResult === "dashboard") {
-        showDashboard();
-      } else {
-        // No auth result in URL — check session
-        checkSession();
-      }
-
-      function showError(msg) {
-        if (errorEl) {
-          errorEl.textContent = msg;
-          errorEl.style.display = "block";
-        }
-        // Clear URL params
-        if (window.history.replaceState) {
-          window.history.replaceState({}, document.title, "/");
-        }
-      }
-
-      function showLanding() {
-        landing.style.display = "block";
-        dashboard.style.display = "none";
-        loading.style.display = "none";
-      }
-
-      function showDashboard() {
-        landing.style.display = "none";
-        dashboard.style.display = "block";
-        loading.style.display = "none";
-        // Clear URL params
-        if (window.history.replaceState) {
-          window.history.replaceState({}, document.title, "/");
-        }
-      }
-
-      function checkSession() {
-        fetch("/api/v1/bootstrap", { credentials: "include" })
-          .then(function (res) { return res.json(); })
-          .then(function (data) {
-            if (!data.authenticated) {
-              showLanding();
-              return;
-            }
-            switch (data.routing) {
-              case "onboarding":
-                window.location.href = "/onboarding.html";
-                break;
-              case "dashboard":
-                showDashboard();
-                break;
-              default:
-                showLanding();
-            }
-          })
-          .catch(function () {
-            // Network error or API unavailable — show landing
-            showLanding();
-          });
-      }
-    })();
-  </script>
+  <!-- Auth routing moved to <head> for instant execution -->
 </body>
 </html>
