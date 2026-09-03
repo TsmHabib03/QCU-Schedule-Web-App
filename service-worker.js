@@ -1,46 +1,29 @@
-const CACHE_NAME = "qcu-schedule-v60";
+const CACHE_NAME = "qcu-schedule-v61";
 const STATIC_ASSETS = [
   "./",
   "index.html",
-  "campus-eta.html",
   "schedule.html",
-  "today.html",
   "buildings.html",
   "settings.html",
-  "tasks.html",
-  "notes.html",
-  "workspace.html",
-  "google.html",
   "offline.html",
   "onboarding.html",
+  "privacy.html",
+  "terms.html",
   "manifest.json",
   "assets/css/styles.css",
-  "assets/css/eta.css",
   "assets/js/app.js",
-  "assets/js/google-integration.js",
-  "assets/js/eta.js",
   "assets/js/status.js",
   "assets/js/onboarding.js",
   "assets/images/QCU college of computer studies logo.jpg",
   "assets/images/Quezon_City_Government.png",
-  "assets/images/QCU-BUILDING-1024x683-1.jpg",
-  "assets/images/Belmonte Building 2.jpg",
-  "assets/images/New Academic building(1).jpg",
-  "assets/images/Techboc HB bautista.jpg",
+  "assets/images/cropped-logo.jpg",
   "data/buildings.json",
-  "data/qcity-bus.json",
-  "data/route4-corridor.json"
+  "data/academic-catalog.json"
 ];
 
 // Data files that should NOT be cached (always fetch fresh)
 const NO_CACHE_PATHS = [
-  "data/schedule.json",
-  "data/suspensions.json",
-  "data/flood.json",
-  "/api/suspensions",
-  "/api/flood",
-  "/api/weather-alerts",
-  "/api/google/",
+  "/api/",
   "/api/v1/"
 ];
 
@@ -49,7 +32,13 @@ function isNoCachePath(url) {
 }
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(async (cache) => {
+      for (const url of STATIC_ASSETS) {
+        try { await cache.add(url); } catch (e) { /* skip missing assets */ }
+      }
+    })
+  );
   self.skipWaiting();
 });
 
