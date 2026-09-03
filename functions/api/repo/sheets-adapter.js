@@ -15,7 +15,7 @@
 // command exactly once, signs that string, and posts { canonical, signature }.
 // Signing the literal string avoids any dependence on JSON key ordering.
 
-const REQUEST_TIMEOUT_MS = 25_000;
+const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_ATTEMPTS = 2;
 
 // Google Sheets rejects a cell value over 50 000 characters. Drafts are

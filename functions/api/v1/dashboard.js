@@ -74,6 +74,7 @@ export async function onRequestGet(context) {
       // CF Pages: Maps empty — try to reconstruct from session enrollment data.
       // The confirm endpoint stores compact enrollment + enrollmentSubjects
       // in the session so the dashboard can display schedule info.
+      console.log("dashboard: no in-memory enrollment — falling back to session data");
       const sessEnrollment = session?.enrollment || null;
       const sessSubjects = session?.enrollmentSubjects || null;
       if (sessEnrollment && sessSubjects && sessSubjects.length > 0) {
@@ -123,11 +124,13 @@ export async function onRequestGet(context) {
 
     // ── Schedule (looked up by enrollmentId) ────────────────────────────
     const schedule = Schedules.getActiveByUserId(user.userId);
+    console.log("dashboard: schedule lookup", schedule ? schedule.scheduleId : "null", "enrollments:", Enrollments.getByUserId(user.userId).length);
 
     // ── Entries ─────────────────────────────────────────────────────────
     const rawEntries = schedule
       ? ScheduleEntries.getByScheduleId(schedule.scheduleId)
       : [];
+    console.log("dashboard: raw entries count:", rawEntries.length);
 
     // ── Resolve entry details (subject, building, room) ─────────────────
     const entries = rawEntries.map((e) => {

@@ -436,14 +436,26 @@ function actorFrom(session) {
 }
 
 async function hydrateRepo(context, session) {
-  try {
-    return await Repo.hydrate(context.env, actorFrom(session));
-  } catch (error) {
-    // Serve the request degraded rather than failing it outright: reads fall
-    // back to the session cookie, and a write still persists on its own.
-    console.error("repo: hydrate failed —", error.code || "", error.message);
-    return { hydrated: false, isNew: false, counts: {}, error: error.message };
+  const actor = actorFrom(session);
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const result = await Repo.hydrate(context.env, actor);
+      if (result.hydrated) {
+        console.log("repo: hydrated (attempt " + attempt + ")", JSON.stringify(result.counts || {}));
+      } else {
+        console.log("repo: hydrate skipped (not configured or no actor)");
+      }
+      return result;
+    } catch (error) {
+      console.error("repo: HYDRATE FAILED (attempt " + attempt + ") —", error.code || "", error.message);
+      if (attempt === 2) {
+        return { hydrated: false, isNew: false, counts: {}, error: error.message };
+      }
+      // Brief pause before retry
+      await new Promise(r => setTimeout(r, 500));
+    }
   }
+  return { hydrated: false, isNew: false, counts: {} };
 }
 
 /**
