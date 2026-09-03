@@ -305,7 +305,7 @@ function renderShell() {
           </div>
           <img class="qc-logo" src="assets/images/Quezon_City_Government.png" alt="QC Government logo">
           <button class="signout-btn" onclick="signOut()" title="Sign out" aria-label="Sign out">
-            <i data-lucide="log-out"></i>
+            Sign out
           </button>
         </div>
       </div>`;
@@ -2051,6 +2051,7 @@ async function init() {
   state.loading = false;
 
   renderShell();
+  iconify();
   tick();
 
   if (page === "buildings") renderBuildings();
