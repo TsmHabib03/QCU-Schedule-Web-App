@@ -1979,11 +1979,10 @@ function closeCrudModal() {
 }
 
 /* ── Sign Out ────────────────────────────────────── */
-window.signOut = async function () {
-  try {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-  } catch (_) { /* best-effort */ }
-  window.location.href = "/";
+window.signOut = function () {
+  // GET /api/auth/logout does a 302 redirect that clears all cookies
+  // reliably before landing on the login page.
+  window.location.href = "/api/auth/logout";
 };
 
 /* ── Init ────────────────────────────────────────────── */
