@@ -1327,6 +1327,8 @@ function openTaskModal(task) {
 
   document.getElementById("task-form").addEventListener("submit", async e => {
     e.preventDefault();
+    const submitBtn = e.target.querySelector('[type="submit"]');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.classList.add("btn-spinner"); }
     const data = {
       title: document.getElementById("tf-title").value.trim(),
       description: document.getElementById("tf-desc").value.trim(),
@@ -1334,12 +1336,16 @@ function openTaskModal(task) {
       priority: document.getElementById("tf-priority").value,
       deadline: document.getElementById("tf-deadline").value
     };
-    if (!data.title) return;
-    if (isEdit) await updateTask(taskId, { title: data.title, description: data.description, subjectId: data.subject || null, priority: data.priority, deadline: data.deadline || null });
-    else await addTask({ title: data.title, description: data.description, subjectId: data.subject || null, priority: data.priority, deadline: data.deadline || null });
-    _tasksCache = null;
-    closeTaskModal();
-    renderTasks();
+    if (!data.title) { if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove("btn-spinner"); } return; }
+    try {
+      if (isEdit) await updateTask(taskId, { title: data.title, description: data.description, subjectId: data.subject || null, priority: data.priority, deadline: data.deadline || null });
+      else await addTask({ title: data.title, description: data.description, subjectId: data.subject || null, priority: data.priority, deadline: data.deadline || null });
+      _tasksCache = null;
+      closeTaskModal();
+      renderTasks();
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove("btn-spinner"); }
+    }
   });
 }
 
@@ -1541,17 +1547,23 @@ function openNoteModal(note) {
 
   document.getElementById("note-form").addEventListener("submit", async e => {
     e.preventDefault();
+    const submitBtn = e.target.querySelector('[type="submit"]');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.classList.add("btn-spinner"); }
     const data = {
       title: document.getElementById("nf-title").value.trim(),
       subject: document.getElementById("nf-subject").value,
       body: document.getElementById("nf-body").value.trim()
     };
-    if (!data.title) return;
-    if (isEdit) await updateNote(noteId, { title: data.title, body: data.body, subjectId: data.subject || null });
-    else await addNote({ title: data.title, body: data.body, subjectId: data.subject || null });
-    _notesCache = null;
-    closeNoteModal();
-    renderNotes();
+    if (!data.title) { if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove("btn-spinner"); } return; }
+    try {
+      if (isEdit) await updateNote(noteId, { title: data.title, body: data.body, subjectId: data.subject || null });
+      else await addNote({ title: data.title, body: data.body, subjectId: data.subject || null });
+      _notesCache = null;
+      closeNoteModal();
+      renderNotes();
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove("btn-spinner"); }
+    }
   });
 }
 

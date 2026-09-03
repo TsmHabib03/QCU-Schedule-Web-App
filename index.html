@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=43">
+<link rel="stylesheet" href="assets/css/styles.css?v=47">
 </head>
 <body data-page="home">
 
@@ -101,6 +101,11 @@
               <span>today</span>
             </span>
           </div>
+          <div class="home-hero-skeleton" id="hero-skeleton" style="display:none;">
+            <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
+            <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
+          </div>
+          </div>
         </div>
         <div class="home-hero-seal" aria-hidden="true">
           <img src="assets/images/cropped-logo.jpg" alt="">
@@ -111,7 +116,11 @@
       <div class="home-today-head">
         <h2 class="home-kicker">Today's schedule</h2>
       </div>
-      <div id="today-grid" class="home-today-grid"></div>
+      <div id="today-grid" class="home-today-grid">
+        <div class="skel-tile"><div class="skel-time skeleton-pulse"></div><div class="skel-subject skeleton-pulse"></div><div class="skel-meta skeleton-pulse"></div></div>
+        <div class="skel-tile"><div class="skel-time skeleton-pulse"></div><div class="skel-subject skeleton-pulse"></div><div class="skel-meta skeleton-pulse"></div></div>
+        <div class="skel-tile"><div class="skel-time skeleton-pulse"></div><div class="skel-subject skeleton-pulse"></div><div class="skel-meta skeleton-pulse"></div></div>
+      </div>
 
       <!-- 1c. Class Tracker + Countdown -->
       <section class="home-nownext">
@@ -139,7 +148,15 @@
             <i data-lucide="arrow-right"></i>
           </a>
         </div>
-        <div id="home-week-strip" class="home-week-strip"></div>
+        <div id="home-week-strip" class="home-week-strip">
+          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
+          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
+          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
+          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
+          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
+          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
+          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
+        </div>
         <p class="home-week-hint">Tap a day to preview its classes.</p>
       </section>
 

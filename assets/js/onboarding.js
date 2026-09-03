@@ -180,6 +180,7 @@
   window.uploadCor = async function () {
     if (!selectedFile) return;
     uploadBtn.disabled = true;
+    uploadBtn.classList.add("btn-spinner");
     const progress = document.getElementById("upload-progress");
     const progressFill = document.getElementById("upload-progress-fill");
     const progressText = document.getElementById("upload-progress-text");
@@ -201,11 +202,13 @@
       progressFill.style.width = "60%";
 
       if (data.status !== "OK" && data.status !== "ACCEPTED" && data.status !== "EXTRACTED") {
-        showError(data.error || "Upload failed. Please try again.");
-        uploadBtn.disabled = false;
+        showError(data.error || "Upload failed. Please try again.");        uploadBtn.disabled = false;
+        uploadBtn.classList.remove("btn-spinner");
         progress.classList.remove("visible");
         return;
       }
+
+
 
       corRecordId = data.corRecordId;
       // Cache the extraction result from the upload response so it can be
@@ -227,11 +230,13 @@
       progressFill.style.width = "100%";
 
       if (procData.status !== "OK" && procData.status !== "PROCESSING" && procData.status !== "REVIEW_REQUIRED") {
-        showError(procData.error || "Could not start extraction. Please try again.");
-        uploadBtn.disabled = false;
+        showError(procData.error || "Could not start extraction. Please try again.");        uploadBtn.disabled = false;
+        uploadBtn.classList.remove("btn-spinner");
         progress.classList.remove("visible");
         return;
       }
+
+
 
       progressText.textContent = "Extraction started. Processing...";
       setTimeout(() => {
@@ -399,6 +404,8 @@
   window.saveAndConfirm = async function () {
     const reviewError = document.getElementById("review-error");
     reviewError.classList.remove("visible");
+    const saveBtn = document.getElementById("review-save-btn");
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.classList.add("btn-spinner"); }
 
     // Gather form values
     const studentInfo = {
@@ -467,6 +474,8 @@
     } catch (err) {
       reviewError.textContent = "Network error. Please try again.";
       reviewError.classList.add("visible");
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.classList.remove("btn-spinner"); }
     }
   };
 
@@ -506,7 +515,9 @@
   window.confirmAndActivate = async function () {
     const btn = document.getElementById("confirm-btn");
     btn.disabled = true;
-    btn.textContent = "Activating...";
+    btn.classList.add("btn-spinner");
+    const label = btn.querySelector(".btn-label");
+    if (label) label.textContent = "Activating...";
 
     try {
       const resp = await fetch("/api/v1/cor/confirm", {
@@ -525,14 +536,16 @@
         errEl.textContent = data.error || "Could not activate. Please try again.";
         errEl.classList.add("visible");
         btn.disabled = false;
-        btn.textContent = "Confirm and activate";
+        btn.classList.remove("btn-spinner");
+        if (label) label.textContent = "Confirm and activate";
       }
     } catch (err) {
       const errEl = document.getElementById("review-error");
       errEl.textContent = "Network error. Please try again.";
       errEl.classList.add("visible");
       btn.disabled = false;
-      btn.textContent = "Confirm and activate";
+      btn.classList.remove("btn-spinner");
+      if (label) label.textContent = "Confirm and activate";
     }
   };
 

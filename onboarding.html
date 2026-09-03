@@ -307,7 +307,7 @@
         </div>
 
         <div class="btn-row">
-          <button class="btn-primary" onclick="goToStep('upload')">Upload your COR</button>
+          <button class="btn-primary" id="welcome-start-btn" onclick="goToStep('upload')">Upload your COR</button>
         </div>
         <div class="btn-row-secondary">
           <a href="privacy.html" class="btn-ghost">Privacy</a>
@@ -351,7 +351,7 @@
         <div class="upload-error" id="upload-error"></div>
 
         <div class="btn-row">
-          <button class="btn-primary" id="upload-btn" disabled onclick="uploadCor()">Upload COR</button>
+          <button class="btn-primary" id="upload-btn" disabled onclick="uploadCor()"><span class="btn-label">Upload COR</span></button>
           <button class="btn-secondary" onclick="goToStep('welcome')">Back</button>
         </div>
       </section>
@@ -448,7 +448,7 @@
         <div class="upload-error" id="review-error"></div>
 
         <div class="btn-row">
-          <button class="btn-primary" onclick="saveAndConfirm()">Save and continue</button>
+          <button class="btn-primary" id="review-save-btn" onclick="saveAndConfirm()"><span class="btn-label">Save and continue</span></button>
           <button class="btn-secondary" onclick="goToStep('upload')">Back</button>
         </div>
       </section>
@@ -465,7 +465,7 @@
         <div class="confirm-summary" id="confirm-summary"></div>
 
         <div class="btn-row">
-          <button class="btn-primary" id="confirm-btn" onclick="confirmAndActivate()">Confirm and activate</button>
+          <button class="btn-primary" id="confirm-btn" onclick="confirmAndActivate()"><span class="btn-label">Confirm and activate</span></button>
           <button class="btn-secondary" onclick="goToStep('review')">Back to review</button>
         </div>
       </section>
