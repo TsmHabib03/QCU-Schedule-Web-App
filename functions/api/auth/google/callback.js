@@ -13,7 +13,6 @@ import {
   resolveUserId,
   json,
   redirect,
-  compactDraft,
 } from "../_lib.js";
 
 function getCookie(request, name) {
@@ -147,12 +146,14 @@ export async function onRequestGet(context) {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token || "",
       expiresAt: Date.now() + Number(tokens.expires_in || 3600) * 1000,
-      // Carry forward data from previous session (CF Pages in-memory Maps are empty)
-      // Compact drafts to keep session cookie under 4 KB browser limit.
+      // IMPORTANT: Do NOT carry forward corDraft or dashboardSnapshot here.
+      // Both can be several KB after encryption, exceeding the browser's
+      // 4 KB cookie limit and causing silent cookie rejection (page hangs).
+      // corRecordId is lightweight (< 50 bytes) and essential for onboarding.
+      // corDraft is sent in upload JSON response; dashboardSnapshot is
+      // rebuilt by the dashboard endpoint from in-memory Maps.
       corRecordId: existingSession?.corRecordId || null,
-      corDraft: existingSession?.corDraft ? compactDraft(existingSession.corDraft) : null,
       profile: existingSession?.profile || null,
-      dashboardSnapshot: existingSession?.dashboardSnapshot || null,
     };
 
     // --- Set session cookie and redirect ---
