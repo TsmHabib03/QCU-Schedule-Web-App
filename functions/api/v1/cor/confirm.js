@@ -485,13 +485,13 @@ export async function onRequestPost(context) {
       notes: [],
     };
 
-    // Re-seal session cookie with ACTIVE state + dashboard snapshot
-    // Drop corDraft (no longer needed) and compact snapshot to keep cookie under 4 KB.
+    // Re-seal session cookie with ACTIVE state only.
+    // Do NOT store dashboardSnapshot in the cookie — it exceeds 4 KB and
+    // the browser silently drops the Set-Cookie header.
     const sessionCookie = await refreshSession(context, session, {
       state: "ACTIVE",
       profile: user.profile,
       name: user.name,
-      dashboardSnapshot: compactDashboardSnapshot(dashboardSnapshot),
     });
 
     const resp = json({
@@ -503,6 +503,10 @@ export async function onRequestPost(context) {
       subjectCount: result.subjectCount,
       entryCount: result.entryCount,
       message: "Your student profile and schedule have been created.",
+      // Return dashboard snapshot in JSON response (not in cookie).
+      // The frontend can cache this and the dashboard endpoint reads
+      // from in-memory Maps (works locally) or falls back to empty (CF Pages).
+      dashboardSnapshot: compactDashboardSnapshot(dashboardSnapshot),
     });
     resp.headers.append("Set-Cookie", sessionCookie);
     return resp;
