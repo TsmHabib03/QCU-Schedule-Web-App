@@ -11,6 +11,8 @@ import {
   readPlatformSession,
   upsertUser,
   resolveUserId,
+  hydrateRepoFor,
+  flushRepo,
   json,
   redirect,
 } from "../_lib.js";
@@ -114,6 +116,10 @@ export async function onRequestGet(context) {
     }
 
     // --- Resolve or create internal user identity ---
+    // Load any stored row for this Google account first, so a returning student
+    // updates their record instead of being treated as brand new.
+    const hydration = await hydrateRepoFor(context, profile.sub, profile.email);
+
     const user = upsertUser(profile.sub, {
       email: profile.email,
       name: profile.name,
@@ -121,16 +127,18 @@ export async function onRequestGet(context) {
     });
 
     // --- Determine user state ---
-    // On Cloudflare Pages each invocation is isolated, so upsertUser() always
-    // creates a fresh user with state "AUTHENTICATED".  To preserve progress
-    // across requests, read the existing session cookie first — its `state`
-    // field is the most up-to-date value we have for returning users.
+    // With no durable store, each invocation is isolated and upsertUser() always
+    // reports "AUTHENTICATED", so the session cookie is the best available
+    // record of progress. When a stored row exists it is the durable answer and
+    // wins over a cookie that may be stale or have been dropped.
     const existingSession = await readPlatformSession(context);
     const preservedState =
       (existingSession && existingSession.googleSub === profile.sub && existingSession.state)
         ? existingSession.state
         : null;
-    const effectiveState = preservedState || user.state;
+    const effectiveState = (hydration.hydrated && !hydration.isNew)
+      ? user.state
+      : (preservedState || user.state);
 
     // --- Create platform session ---
     const session = {
@@ -162,6 +170,10 @@ export async function onRequestGet(context) {
 
     // --- Set session cookie and redirect ---
     const sessionCookie = await platformSessionHeader(context, session);
+
+    // Persist the login (creates the Users row on a first sign-in).
+    await flushRepo(context, session);
+
     const destination =
       effectiveState === "ACTIVE"
         ? "/?auth=dashboard"

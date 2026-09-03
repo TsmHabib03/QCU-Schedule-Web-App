@@ -9,6 +9,11 @@
     "dev": "node scripts/dev-server.mjs",
     "dev:wrangler": "wrangler pages dev . --port 8790",
     "google:configure": "node scripts/configure-google-oauth.mjs",
+    "sheets:test-mapping": "node scripts/test-sheets-mapping.mjs",
+    "sheets:e2e": "node scripts/test-sheets-e2e.mjs",
+    "sheets:emulator": "node scripts/sheets-emulator.mjs",
+    "sheets:test": "node scripts/test-sheets-live.mjs",
+    "sheets:sync-catalog": "node scripts/sheets-sync-catalog.mjs",
     "deploy": "wrangler pages deploy . --project-name qcu-schedule-web-app"
   },
   "devDependencies": {

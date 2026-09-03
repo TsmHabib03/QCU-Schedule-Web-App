@@ -6,6 +6,7 @@
 import {
   resolveUser,
   refreshSession,
+  flushRepo,
   json,
   compactDraft,
 } from "../../auth/_lib.js";
@@ -96,6 +97,7 @@ export async function onRequestPost(context) {
     if (record) {
       CorDrafts.set(record.id, updatedDraft);
       CorRecords.update(record, { draftVersion: (record.draftVersion || 0) + 1 });
+      await flushRepo(context, session);
     }
 
     // On CF Pages: save updated draft in session cookie

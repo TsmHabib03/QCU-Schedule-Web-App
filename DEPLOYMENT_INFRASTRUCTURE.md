@@ -426,6 +426,59 @@ Rollback:
 | `AI_PROVIDER_API_KEY` | Script Properties | Server-side only |
 | `SESSION_SECRET` | Script Properties | Server-side only |
 
+### 5.5 Runbook: Bringing Persistence Online
+
+What is actually deployed today is Cloudflare Pages Functions rather than the standalone Worker described above, and the shared secret is named `APPS_SCRIPT_SECRET` on both sides. The steps below are the current, working procedure.
+
+**1. Install the database script.** Open the workbook, then Extensions > Apps Script. Replace the project contents with `setup-database.gs` from the repository root and save.
+
+**2. Create the sheets.** Run `setupDatabase()` from the editor. It creates all 34 sheets and, on a re-run against an existing workbook, appends any column a definition has gained without touching existing data. Then run `seedCatalogData()` for roles and capabilities.
+
+**3. Set the shared secret.** Generate one:
+
+```bash
+node -e "console.log(crypto.randomUUID().replace(/-/g,'') + crypto.randomUUID().replace(/-/g,''))"
+```
+
+Add it in Project Settings > Script properties as `APPS_SCRIPT_SECRET`. It signs every request; if the two sides disagree, Apps Script answers `UNAUTHENTICATED` and nothing is written.
+
+**4. Deploy the web app.** Deploy > New deployment > Web app, with Execute as **Me** and Who has access **Anyone**. "Anyone" is safe here because the HMAC signature, not Google's ACL, is what authenticates the caller — but it does mean the secret is the only thing standing in front of the database, so treat it accordingly. Copy the `/exec` URL.
+
+**5. Configure Cloudflare Pages.** Under Settings > Environment variables add `APPS_SCRIPT_URL` (plain text, the `/exec` URL) and `APPS_SCRIPT_SECRET` (encrypted, the same value as step 3). Redeploy — Pages only picks up variables on a new deployment.
+
+**6. Verify.** `GET /api/v1/health` must report `"persistence": "sheets"`. If it says `"memory"`, one of the two variables is missing and every request is still starting from an empty database.
+
+Then, with both values in `.dev.vars`:
+
+```bash
+npm run sheets:test           # signs a real request, writes and deletes a row, reports latency
+npm run sheets:sync-catalog   # pushes the academic catalog into the catalog sheets
+```
+
+`npm run sheets:test` is the one that matters: it proves the signature is accepted, a row round-trips through the spreadsheet with its fields intact, and another user cannot write your rows.
+
+### 5.6 Testing Without a Deployment
+
+Three checks run with no Google account and no network:
+
+| Command | What it covers |
+|---|---|
+| `npm run sheets:test-mapping` | Every entity survives the repo-object to sheet-row round trip |
+| `npm run sheets:e2e` | The real `setup-database.gs` runs in an emulator behind a real HTTP server, driven by the real repository layer — including that data survives a cold isolate |
+| `npm run sheets:emulator` | Serves the database locally so the app itself can be run against it |
+
+To exercise the app end to end against emulated persistence:
+
+```bash
+npm run sheets:emulator        # terminal 1, listens on 8791
+APPS_SCRIPT_URL=http://127.0.0.1:8791/exec \
+  APPS_SCRIPT_SECRET=local-emulator-secret npm run dev   # terminal 2
+```
+
+An explicitly exported shell variable overrides `.dev.vars`, so this redirects persistence for one run without editing the file. Restarting the dev server while the emulator keeps running is the honest test of whether data outlives the process.
+
+Note that `_build_apps_script.py` at the repository root generated an earlier version of the sheet definitions and is now stale — it predates the `extraJson` columns and the `COR_Drafts` sheet that persistence depends on. `getSheetDefinitions()` inside `setup-database.gs` is the only source of truth for the schema.
+
 ---
 
 ## 6. Google Infrastructure Ownership

@@ -2,6 +2,7 @@
 
 import {
   resolveUser,
+  flushRepo,
   json,
 } from "../../auth/_lib.js";
 import {
@@ -131,6 +132,8 @@ export async function onRequestPatch(context) {
     // ── Apply updates ──────────────────────────────────────────────────
     const updated = Notes.update(note, updates);
 
+    await flushRepo(context, resolved.session);
+
     return json({ ok: true, data: formatNote(updated) });
   } catch (error) {
     console.error("Note update failed:", String(error?.message || error));
@@ -172,6 +175,8 @@ export async function onRequestDelete(context) {
 
     // ── Soft-delete ────────────────────────────────────────────────────
     Notes.delete(noteId);
+
+    await flushRepo(context, resolved.session);
 
     return json({
       ok: true,

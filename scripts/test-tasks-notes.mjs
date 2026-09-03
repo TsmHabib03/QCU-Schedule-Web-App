@@ -1,6 +1,7 @@
 // Smoke test for Tasks + Notes CRUD endpoints
+// Override the target with BASE=http://127.0.0.1:8799 to test another port.
 
-const BASE = "http://127.0.0.1:8788";
+const BASE = process.env.BASE || "http://127.0.0.1:8788";
 const SESSION_SECRET = "9598879826a344d8ac267a6754ee6d183aeb8d1f7d9ff6988c7f6167ce30e4d8";
 
 // ── Seal/unseal (inline) ────────────────────────────────────────────────

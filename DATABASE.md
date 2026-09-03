@@ -646,6 +646,37 @@ Stable codes: `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `VALIDATION_FAILED`, 
 
 List responses use cursor pagination and a bounded `limit`; no endpoint returns an entire high-volume sheet. Mutations require `clientMutationId` where retries are plausible and `expectedVersion` for existing mutable rows.
 
+### Batch Pair: `snapshot.read` and `batch.write`
+
+The table above describes one action per operation. The student-facing Functions do not call it that way, because an Apps Script round trip costs 300-900 ms and a single request touches the repository many times — `/api/v1/dashboard` reads about 31 times, `/api/v1/cor/confirm` writes about 37. One action per operation would put a page load in the 15-30 s range, past the point where Cloudflare gives up.
+
+Two batch actions carry that traffic instead:
+
+| Action | Payload | Returns |
+|---|---|---|
+| `snapshot.read` | `{ kinds: [...] }` — optional; defaults to every user-owned entity | `{ userId, isNew, entities: { kind: [row, ...] } }` — every row the actor owns |
+| `batch.write` | `{ ops: [{ kind, id, row } \| { kind, id, remove }] }`, at most 500 | `{ applied, inserted, updated, removed, skipped }` |
+
+A request therefore costs two round trips regardless of how much it reads or changes:
+
+1. `resolveUser()` calls `Repo.hydrate()`, which issues one `snapshot.read` and loads the rows into the repository's maps.
+2. Endpoint code runs against those maps synchronously, exactly as it did before any of this existed. Each mutating call records which row it touched.
+3. A mutating endpoint calls `flushRepo()`, which issues one `batch.write` for the recorded set under `LockService`.
+
+`kind` is one of `users`, `profiles`, `corRecords`, `corDrafts`, `enrollments`, `enrollmentSubjects`, `schedules`, `scheduleEntries`, `tasks`, `notes`. Apps Script resolves each to its sheet, primary key and owner column from a single registry, so a new user-owned entity is one line on each side.
+
+Ownership is never taken from the payload. `batch.write` overwrites the owner column with the resolved actor and rejects any op whose existing row belongs to somebody else, so a forged `ownerUserId` changes nothing. The `users` kind is additionally pinned to the actor's own row.
+
+Fine-grained actions remain valid and implemented for callers that want one operation at a time, including admin tooling. The batch pair is an addition to this contract, not a replacement.
+
+### Field Mapping and `extraJson`
+
+The repository's in-memory objects predate this schema and disagree with it in two ways: some fields are named differently (`smeId` vs `scheduleEntryId`, `userId` vs `ownerUserId`, `dueDate` vs `dueAt`), and some have no column at all (`sortOrder`, `dayLabel`, `isActive`, `roomSnapshot`, `matchedSubjectId`).
+
+`functions/api/repo/sheets-adapter.js` declares, per entity, which repo field maps to which column. Anything left over is serialized into that sheet's `extraJson` column and merged back on read. The visible columns stay meaningful to somebody reading the spreadsheet, and nothing is silently dropped — `npm run sheets:test-mapping` asserts every field of every entity survives the round trip.
+
+COR file bytes are the one thing never written. A cell holds 50 000 characters and a COR scan is megabytes, so `/api/v1/cor/upload` runs extraction in the same request that receives the file and persists only the resulting draft, as `draftJson` on `COR_Drafts`.
+
 ## 16. Validation and Data-Integrity Rules
 
 ### Identity and Duplicates

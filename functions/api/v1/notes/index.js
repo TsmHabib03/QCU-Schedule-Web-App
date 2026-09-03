@@ -2,6 +2,7 @@
 
 import {
   resolveUser,
+  flushRepo,
   json,
 } from "../../auth/_lib.js";
 import {
@@ -121,6 +122,8 @@ export async function onRequestPost(context) {
     const subject = note.subjectId ? Subjects.getById(note.subjectId) : null;
     const ens = note.enrollmentSubjectId ? EnrollmentSubjects.getById(note.enrollmentSubjectId) : null;
     const entry = note.scheduleEntryId ? ScheduleEntries.getById(note.scheduleEntryId) : null;
+
+    await flushRepo(context, resolved.session);
 
     return json({
       ok: true,

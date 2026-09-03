@@ -3,6 +3,7 @@
 
 import {
   resolveUser,
+  flushRepo,
   json,
 } from "../../../auth/_lib.js";
 import {
@@ -214,6 +215,8 @@ export async function onRequestPatch(context) {
     const building = updated.buildingId ? CatalogBuildings.getById(updated.buildingId) : null;
     const room = updated.roomId ? CatalogRooms.getById(updated.roomId) : null;
 
+    await flushRepo(context, resolved.session);
+
     return json({
       ok: true,
       data: {
@@ -297,6 +300,8 @@ export async function onRequestDelete(context) {
 
     // ── Soft-delete: mark as REMOVED ───────────────────────────────────
     ScheduleEntries.update(entry, { status: "REMOVED" });
+
+    await flushRepo(context, resolved.session);
 
     return json({
       ok: true,

@@ -5,10 +5,11 @@
 import {
   resolveUser,
   refreshSession,
+  flushRepo,
   json,
   compactDraft,
 } from "../../auth/_lib.js";
-import { CorRecords, CorFiles, Concurrency } from "../../repo/index.js";
+import { CorRecords, CorFiles, CorDrafts, Concurrency, Users } from "../../repo/index.js";
 import { extractWithGemini, geminiResultToDraft } from "./_gemini.js";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MiB
@@ -283,11 +284,12 @@ export async function onRequestPost(context) {
       mimeType: corRecord.mimeType,
     });
 
-    // Transition user to ONBOARDING (for both new and returning ACTIVE users)
-    if (user.state === "AUTHENTICATED" || user.state === "ACTIVE") {
-      user.state = "ONBOARDING";
-    }
-    user.corRecordId = corRecord.id;
+    // Transition user to ONBOARDING (for both new and returning ACTIVE users).
+    // Routed through Users.update so the change is recorded for the flush below.
+    Users.update(user, {
+      state: (user.state === "AUTHENTICATED" || user.state === "ACTIVE") ? "ONBOARDING" : user.state,
+      corRecordId: corRecord.id,
+    });
 
     // --- Immediately extract COR data via Gemini ---
     // On CF Pages, in-memory Maps are empty on the next request, so process.js
@@ -310,6 +312,14 @@ export async function onRequestPost(context) {
       }
     }
 
+    // Persist the draft so review and confirm can read it back from storage.
+    // The response below still carries it for the frontend cache, which is what
+    // keeps this working when no Sheets backend is configured.
+    if (corDraft) {
+      CorDrafts.set(corRecord.id, corDraft);
+      CorRecords.update(corRecord, { status: "REVIEW_REQUIRED", draftVersion: 1 });
+    }
+
     // Re-seal session cookie with ONBOARDING state and corRecordId only.
     // The extraction draft is returned in the JSON response (not in the cookie)
     // to stay under the 4 KB browser cookie limit.  The frontend caches the
@@ -319,6 +329,8 @@ export async function onRequestPost(context) {
       corRecordId: corRecord.id,
       corDraft: null,
     });
+
+    await flushRepo(context, session);
 
     const resp = json({
       status: corDraft ? "EXTRACTED" : "ACCEPTED",

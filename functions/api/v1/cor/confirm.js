@@ -6,11 +6,13 @@
 import {
   resolveUser,
   refreshSession,
+  flushRepo,
   json,
   compactDraft,
   compactDashboardSnapshot,
 } from "../../auth/_lib.js";
 import {
+  Users,
   CorRecords,
   CorDrafts,
   Profiles,
@@ -237,20 +239,22 @@ function commitRecords(user, draft, _catalog) {
     CorRecords.update(corRecord, { status: "COMPLETE" });
   }
 
-  // 6. Update user state
-  user.state = "ACTIVE";
-  // Update user.name with COR-extracted name so it's used everywhere
+  // 6. Update user state — via Users.update so the change is recorded for flush
   const nameParts = [profile.firstName, profile.middleName, profile.lastName].filter(Boolean);
-  if (nameParts.length) user.name = nameParts.join(" ");
-  user.profile = {
-    profileId: profile.profileId,
-    studentNumber: profile.studentNumber,
-    firstName: profile.firstName,
-    middleName: profile.middleName,
-    lastName: profile.lastName,
-    suffix: profile.suffix,
-    verificationStatus: profile.verificationStatus,
-  };
+  Users.update(user, {
+    state: "ACTIVE",
+    // Prefer the COR-extracted name so it is used everywhere.
+    name: nameParts.length ? nameParts.join(" ") : user.name,
+    profile: {
+      profileId: profile.profileId,
+      studentNumber: profile.studentNumber,
+      firstName: profile.firstName,
+      middleName: profile.middleName,
+      lastName: profile.lastName,
+      suffix: profile.suffix,
+      verificationStatus: profile.verificationStatus,
+    },
+  });
 
   return {
     profileId: profile.profileId,
@@ -504,6 +508,10 @@ export async function onRequestPost(context) {
       enrollment: enrollmentData,
       enrollmentSubjects: enrollmentSubjects,
     });
+
+    // One batch.write for the whole commit: profile, enrollment, subjects,
+    // schedule, every entry, the COR record and the user's new ACTIVE state.
+    await flushRepo(context, session);
 
     const resp = json({
       status: "COMPLETE",

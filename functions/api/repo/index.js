@@ -39,6 +39,224 @@ function now() {
 }
 
 // ---------------------------------------------------------------------------
+// Change tracking
+// ---------------------------------------------------------------------------
+// Endpoints keep calling the repository synchronously; persistence happens once
+// per request instead of once per call. Every mutating method records what it
+// touched here, and Repo.flush() ships the whole set to Apps Script in a single
+// batch.write. See sheets-adapter.js for why one round trip matters so much.
+
+const _dirty = new Map(); // `${kind}:${id}` -> { kind, id, remove }
+
+function markDirty(kind, id, remove = false) {
+  if (!id) return;
+  _dirty.set(`${kind}:${id}`, { kind, id, remove });
+}
+
+// ---------------------------------------------------------------------------
+// Persistence lifecycle
+// ---------------------------------------------------------------------------
+// Without APPS_SCRIPT_URL the maps below are the whole database, which is fine
+// for `npm run dev` and is exactly how this repository behaved before.
+//
+// With it configured, each request runs:
+//   1. Repo.hydrate(env, actor)  one snapshot.read, merged into the maps
+//   2. ...ordinary synchronous repository calls...
+//   3. Repo.flush(env, actor)    one batch.write of whatever changed
+//
+// Rows for other users may linger in the maps between requests in the same
+// isolate. That is safe because every lookup either filters on the owner or is
+// followed by an ownership check in the endpoint, so another user's row is
+// unreachable rather than merely unlikely to be read.
+
+import {
+  isConfigured as sheetsConfigured,
+  readSnapshot,
+  writeBatch,
+} from "./sheets-adapter.js";
+
+const MAX_CACHED_USERS = 200;
+
+const _hydratedUsers = new Set();
+const _inflightHydrate = new Map(); // userId -> Promise
+
+/** Where each entity kind lives, and how to read or write one row of it. */
+function entityBindings() {
+  return {
+    users: {
+      put: (obj) => _users.set(obj.googleSub, obj),
+      get: (id) => Users.getById(id),
+    },
+    profiles: {
+      put: (obj) => _profiles.set(obj.profileId, obj),
+      get: (id) => _profiles.get(id) || null,
+    },
+    corRecords: {
+      put: (obj) => _corRecords.set(obj.id, obj),
+      get: (id) => _corRecords.get(id) || null,
+    },
+    corDrafts: {
+      // The snapshot wraps the draft; the map stores the draft itself.
+      put: (obj) => { if (obj.draft) _corDrafts.set(obj.corRecordId, obj.draft); },
+      get: (id) => {
+        const draft = _corDrafts.get(id);
+        if (!draft) return null;
+        const record = _corRecords.get(id);
+        return {
+          corRecordId: id,
+          ownerUserId: record ? record.ownerUserId : null,
+          draftVersion: record ? record.draftVersion || 1 : 1,
+          draft,
+        };
+      },
+    },
+    enrollments: {
+      put: (obj) => _enrollments.set(obj.enrollmentId, obj),
+      get: (id) => _enrollments.get(id) || null,
+    },
+    enrollmentSubjects: {
+      put: (obj) => _enrollmentSubjects.set(obj.ensId, obj),
+      get: (id) => _enrollmentSubjects.get(id) || null,
+    },
+    schedules: {
+      put: (obj) => _schedules.set(obj.scheduleId, obj),
+      get: (id) => _schedules.get(id) || null,
+    },
+    scheduleEntries: {
+      put: (obj) => _scheduleEntries.set(obj.smeId, obj),
+      get: (id) => _scheduleEntries.get(id) || null,
+    },
+    tasks: {
+      put: (obj) => _tasks.set(obj.taskId, obj),
+      get: (id) => _tasks.get(id) || null,
+    },
+    notes: {
+      put: (obj) => _notes.set(obj.noteId, obj),
+      get: (id) => _notes.get(id) || null,
+    },
+  };
+}
+
+export const Repo = {
+  /** True when a Sheets backend is configured for this environment. */
+  enabled(env) {
+    return sheetsConfigured(env);
+  },
+
+  /** Number of rows waiting to be written. */
+  pending() {
+    return _dirty.size;
+  },
+
+  /**
+   * Load this user's rows from Sheets into the in-memory maps.
+   * A no-op when Sheets is not configured, so local dev is unaffected.
+   * Returns { hydrated, isNew, counts } — `isNew` means Sheets has no Users row
+   * for this googleSub yet.
+   */
+  async hydrate(env, actor) {
+    if (!sheetsConfigured(env) || !actor?.googleSub) {
+      return { hydrated: false, isNew: false, counts: {} };
+    }
+
+    const key = actor.googleSub;
+    if (_inflightHydrate.has(key)) return _inflightHydrate.get(key);
+
+    const work = (async () => {
+      // Bound isolate memory, but only while nothing is mid-write.
+      if (_hydratedUsers.size > MAX_CACHED_USERS && _dirty.size === 0) {
+        clearUserData();
+      }
+
+      const bindings = entityBindings();
+      const snapshot = await readSnapshot(env, actor);
+      const counts = {};
+
+      for (const [kind, rows] of Object.entries(snapshot.entities)) {
+        const binding = bindings[kind];
+        if (!binding) continue;
+        for (const row of rows) binding.put(row);
+        counts[kind] = rows.length;
+      }
+
+      // Hydration is not a change; anything it wrote must not be echoed back.
+      _dirty.clear();
+      _hydratedUsers.add(key);
+
+      return { hydrated: true, isNew: snapshot.isNew, counts };
+    })();
+
+    _inflightHydrate.set(key, work);
+    try {
+      return await work;
+    } finally {
+      _inflightHydrate.delete(key);
+    }
+  },
+
+  /**
+   * Write every change made since the last hydrate or flush.
+   * A no-op when Sheets is not configured or nothing changed.
+   */
+  async flush(env, actor) {
+    if (!sheetsConfigured(env) || _dirty.size === 0) {
+      return { flushed: false, applied: 0 };
+    }
+
+    const bindings = entityBindings();
+    const ops = [];
+
+    for (const { kind, id, remove } of _dirty.values()) {
+      const binding = bindings[kind];
+      if (!binding) continue;
+
+      if (remove) {
+        ops.push({ kind, id, remove: true });
+        continue;
+      }
+
+      const obj = binding.get(id);
+      // Created then hard-deleted inside one request: nothing left to write.
+      if (!obj) continue;
+      ops.push({ kind, id, obj });
+    }
+
+    // Clear before awaiting so a failed write cannot be replayed twice, and so
+    // a concurrent request in this isolate does not pick up these same rows.
+    _dirty.clear();
+
+    if (!ops.length) return { flushed: false, applied: 0 };
+
+    const result = await writeBatch(env, actor, ops);
+    return { flushed: true, ...result };
+  },
+
+  /** Drop every user-owned row from memory. Catalog data is left intact. */
+  reset() {
+    clearUserData();
+  },
+};
+
+function clearUserData() {
+  _users.clear();
+  _corRecords.clear();
+  _corFiles.clear();
+  _corDrafts.clear();
+  _profiles.clear();
+  _enrollments.clear();
+  _enrollmentSubjects.clear();
+  _schedules.clear();
+  _scheduleEntries.clear();
+  _tasks.clear();
+  _notes.clear();
+  _dirty.clear();
+  _hydratedUsers.clear();
+}
+
+
+
+
+// ---------------------------------------------------------------------------
 // User repository
 // ---------------------------------------------------------------------------
 
@@ -81,6 +299,7 @@ export const Users = {
       existing.email = profile.email || existing.email;
       existing.lastLoginAt = ts;
       existing.updatedAt = ts;
+      markDirty("users", existing.userId);
       return existing;
     }
     const userId = this.resolveId(googleSub);
@@ -99,6 +318,7 @@ export const Users = {
       lastLoginAt: ts,
     };
     _users.set(googleSub, user);
+    markDirty("users", user.userId);
     return user;
   },
 
@@ -106,7 +326,23 @@ export const Users = {
   update(user, fields) {
     const ts = now();
     Object.assign(user, fields, { updatedAt: ts });
+    markDirty("users", user.userId);
     return user;
+  },
+
+  /**
+   * Put an existing user object into the map without recording a change.
+   *
+   * resolveUser() rebuilds a user from the session cookie when Sheets has no row
+   * yet (or could not be reached). Adopting that object makes it the same record
+   * every other repository call sees, so a later Users.update() marks the right
+   * row dirty instead of mutating an orphan. Deliberately not dirty: adopting is
+   * not an edit, and marking it would turn every read into a write.
+   */
+  adopt(user) {
+    if (!user || !user.googleSub) return user;
+    if (!_users.has(user.googleSub)) _users.set(user.googleSub, user);
+    return _users.get(user.googleSub);
   },
 };
 
@@ -137,6 +373,7 @@ export const CorRecords = {
       updatedAt: ts,
     };
     _corRecords.set(record.id, record);
+    markDirty("corRecords", record.id);
     return record;
   },
 
@@ -162,6 +399,7 @@ export const CorRecords = {
   update(record, fields) {
     const ts = now();
     Object.assign(record, fields, { updatedAt: ts });
+    markDirty("corRecords", record.id);
     return record;
   },
 
@@ -181,7 +419,14 @@ export const CorRecords = {
 // ---------------------------------------------------------------------------
 
 export const CorFiles = {
-  /** Store file bytes (dev adapter). In production, uploads to private Drive. */
+  /**
+   * Store the uploaded bytes for the current request only.
+   *
+   * These never reach Sheets: a cell holds 50 000 characters and a COR scan is
+   * megabytes. The upload endpoint therefore runs extraction in the same
+   * request that receives the file, so the bytes never need to outlive it. Only
+   * the resulting draft is persisted (see CorDrafts).
+   */
   store(corRecordId, fileData) {
     _corFiles.set(corRecordId, {
       bytes: fileData.bytes,
@@ -205,6 +450,7 @@ export const CorDrafts = {
   /** Save or overwrite the extraction draft for a COR record. */
   set(corRecordId, draft) {
     _corDrafts.set(corRecordId, draft);
+    markDirty("corDrafts", corRecordId);
     return draft;
   },
 
@@ -216,6 +462,7 @@ export const CorDrafts = {
   /** Delete a draft (e.g., on COR cancellation). */
   delete(corRecordId) {
     _corDrafts.delete(corRecordId);
+    markDirty("corDrafts", corRecordId, true);
   },
 };
 
@@ -243,6 +490,7 @@ export const Profiles = {
       updatedAt: ts,
     };
     _profiles.set(profile.profileId, profile);
+    markDirty("profiles", profile.profileId);
     return profile;
   },
 
@@ -263,6 +511,7 @@ export const Profiles = {
   update(profile, fields) {
     const ts = now();
     Object.assign(profile, fields, { updatedAt: ts });
+    markDirty("profiles", profile.profileId);
     return profile;
   },
 };
@@ -296,6 +545,7 @@ export const Enrollments = {
       updatedAt: ts,
     };
     _enrollments.set(enrollment.enrollmentId, enrollment);
+    markDirty("enrollments", enrollment.enrollmentId);
     return enrollment;
   },
 
@@ -313,6 +563,7 @@ export const Enrollments = {
   update(enrollment, fields) {
     const ts = now();
     Object.assign(enrollment, fields, { updatedAt: ts });
+    markDirty("enrollments", enrollment.enrollmentId);
     return enrollment;
   },
 };
@@ -347,6 +598,7 @@ export const EnrollmentSubjects = {
       updatedAt: ts,
     };
     _enrollmentSubjects.set(subject.ensId, subject);
+    markDirty("enrollmentSubjects", subject.ensId);
     return subject;
   },
 
@@ -396,6 +648,7 @@ export const Schedules = {
       updatedAt: ts,
     };
     _schedules.set(schedule.scheduleId, schedule);
+    markDirty("schedules", schedule.scheduleId);
     return schedule;
   },
 
@@ -416,6 +669,7 @@ export const Schedules = {
   update(schedule, fields) {
     const ts = now();
     Object.assign(schedule, fields, { updatedAt: ts });
+    markDirty("schedules", schedule.scheduleId);
     return schedule;
   },
 };
@@ -452,6 +706,7 @@ export const ScheduleEntries = {
       updatedAt: ts,
     };
     _scheduleEntries.set(entry.smeId, entry);
+    markDirty("scheduleEntries", entry.smeId);
     return entry;
   },
 
@@ -498,11 +753,13 @@ export const ScheduleEntries = {
   update(entry, fields) {
     const ts = now();
     Object.assign(entry, fields, { updatedAt: ts });
+    markDirty("scheduleEntries", entry.smeId);
     return entry;
   },
 
   /** Delete a schedule entry (physical removal). Prefer soft-delete via update. */
   delete(smeId) {
+    markDirty("scheduleEntries", smeId, true);
     return _scheduleEntries.delete(smeId);
   },
 };
@@ -532,6 +789,7 @@ export const Tasks = {
       updatedAt: ts,
     };
     _tasks.set(task.taskId, task);
+    markDirty("tasks", task.taskId);
     return task;
   },
 
@@ -551,6 +809,7 @@ export const Tasks = {
   update(task, fields) {
     const ts = now();
     Object.assign(task, fields, { updatedAt: ts });
+    markDirty("tasks", task.taskId);
     return task;
   },
 
@@ -562,6 +821,7 @@ export const Tasks = {
       task.status = "DELETED";
       task.deletedAt = ts;
       task.updatedAt = ts;
+      markDirty("tasks", taskId);
     }
   },
 };
@@ -588,6 +848,7 @@ export const Notes = {
       updatedAt: ts,
     };
     _notes.set(note.noteId, note);
+    markDirty("notes", note.noteId);
     return note;
   },
 
@@ -607,6 +868,7 @@ export const Notes = {
   update(note, fields) {
     const ts = now();
     Object.assign(note, fields, { updatedAt: ts });
+    markDirty("notes", note.noteId);
     return note;
   },
 
@@ -618,6 +880,7 @@ export const Notes = {
       note.status = "DELETED";
       note.deletedAt = ts;
       note.updatedAt = ts;
+      markDirty("notes", noteId);
     }
   },
 };
@@ -847,17 +1110,7 @@ if (!CatalogSeed.isLoaded()) {
 export const DevReset = {
   /** Clear all in-memory data. For development/testing only. */
   clearAll() {
-    _users.clear();
-    _corRecords.clear();
-    _corFiles.clear();
-    _corDrafts.clear();
-    _profiles.clear();
-    _enrollments.clear();
-    _enrollmentSubjects.clear();
-    _schedules.clear();
-    _scheduleEntries.clear();
-    _tasks.clear();
-    _notes.clear();
+    clearUserData();
   },
 
   /** Clear only catalog data (academic reference data). */
@@ -892,6 +1145,7 @@ export const DevReset = {
       subjects: _subjects.size,
       catalogBuildings: _catalogBuildings.size,
       catalogRooms: _catalogRooms.size,
+      pendingWrites: _dirty.size,
     };
   },
 };

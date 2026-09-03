@@ -401,7 +401,7 @@ export async function fetchGoogleUserInfo(accessToken) {
 // User identity store — delegates to repository layer
 // ---------------------------------------------------------------------------
 
-import { Users } from "../repo/index.js";
+import { Repo, Users } from "../repo/index.js";
 
 export function resolveUserId(googleSub) {
   return Users.resolveId(googleSub);
@@ -424,6 +424,55 @@ export function getAllUsers() {
 }
 
 // ---------------------------------------------------------------------------
+// Sheets persistence boundary
+// ---------------------------------------------------------------------------
+// The repository is synchronous, so a request loads once and saves once around
+// its ordinary calls. resolveUser() hydrates; any endpoint that writes must
+// call flushRepo() before it responds, or the change lives only in the isolate.
+
+/** The signed identity Apps Script authorizes every action against. */
+function actorFrom(session) {
+  return { googleSub: session.googleSub, email: session.email || "" };
+}
+
+async function hydrateRepo(context, session) {
+  try {
+    return await Repo.hydrate(context.env, actorFrom(session));
+  } catch (error) {
+    // Serve the request degraded rather than failing it outright: reads fall
+    // back to the session cookie, and a write still persists on its own.
+    console.error("repo: hydrate failed —", error.code || "", error.message);
+    return { hydrated: false, isNew: false, counts: {}, error: error.message };
+  }
+}
+
+/**
+ * Load a user's rows before any repository read, for callers that run outside
+ * resolveUser(). The OAuth callback needs this: it has a googleSub but no
+ * platform session yet, and must see an existing row to update rather than
+ * replace it. Returns { hydrated, isNew }.
+ */
+export async function hydrateRepoFor(context, googleSub, email) {
+  if (!googleSub) return { hydrated: false, isNew: false, counts: {} };
+  return hydrateRepo(context, { googleSub, email: email || "" });
+}
+
+/**
+ * Persist everything this request changed. Call before returning a response
+ * from any endpoint that mutates. Errors propagate on purpose: a student who
+ * sees "saved" must not be looking at a write that silently failed.
+ */
+export async function flushRepo(context, session) {
+  if (!session || !session.googleSub) return { flushed: false, applied: 0 };
+  return Repo.flush(context.env, actorFrom(session));
+}
+
+/** True when this deployment persists to Google Sheets. */
+export function persistenceEnabled(context) {
+  return Repo.enabled(context.env);
+}
+
+// ---------------------------------------------------------------------------
 // resolveUser / refreshSession — session-cookie-backed identity
 // ---------------------------------------------------------------------------
 // On Cloudflare Pages every invocation is isolated: in-memory Maps are empty.
@@ -441,6 +490,10 @@ export function getAllUsers() {
 export async function resolveUser(context) {
   const session = await readPlatformSession(context);
   if (!session || !session.googleSub) return null;
+
+  // Load this user's rows from Sheets before any synchronous repository read.
+  // A no-op when APPS_SCRIPT_URL is unset, which is how local dev runs.
+  await hydrateRepo(context, session);
 
   const memUser = getUserByGoogleSub(session.googleSub);
   const ts = new Date().toISOString();
@@ -462,7 +515,9 @@ export async function resolveUser(context) {
     updatedAt: ts,
   };
 
-  return { user, session };
+  // Make the map hold this exact object, so a later Users.update() marks the
+  // right row dirty instead of mutating a copy no flush can find.
+  return { user: Users.adopt(user), session };
 }
 
 /**

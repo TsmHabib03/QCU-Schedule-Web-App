@@ -2,6 +2,7 @@
 
 import {
   resolveUser,
+  flushRepo,
   json,
 } from "../../auth/_lib.js";
 import {
@@ -166,6 +167,8 @@ export async function onRequestPatch(context) {
     // ── Apply updates ──────────────────────────────────────────────────
     const updated = Tasks.update(task, updates);
 
+    await flushRepo(context, resolved.session);
+
     return json({ ok: true, data: formatTask(updated) });
   } catch (error) {
     console.error("Task update failed:", String(error?.message || error));
@@ -207,6 +210,8 @@ export async function onRequestDelete(context) {
 
     // ── Soft-delete ────────────────────────────────────────────────────
     Tasks.delete(taskId);
+
+    await flushRepo(context, resolved.session);
 
     return json({
       ok: true,

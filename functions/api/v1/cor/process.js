@@ -5,6 +5,7 @@
 import {
   resolveUser,
   refreshSession,
+  flushRepo,
   json,
   compactDraft,
 } from "../../auth/_lib.js";
@@ -385,19 +386,21 @@ export async function onRequestPost(context) {
       );
     }
 
-    // --- CF Pages path: draft was already extracted during upload ---
-    // On Cloudflare Pages, in-memory Maps are empty on each invocation, so
-    // CorRecords/CorFiles will not be found.  If the draft was saved in the
-    // session cookie during upload, return it directly.
-    if (user.corDraft) {
-      console.log("Returning draft from session cookie (CF Pages path)");
+    // --- Draft already extracted during upload ---
+    // upload.js extracts in the same request that receives the file, because the
+    // bytes cannot outlive it. So by the time we get here a draft normally
+    // exists: loaded from Sheets by hydrate, or carried on the session cookie
+    // when no Sheets backend is configured.
+    const existingDraft = CorDrafts.get(user.corRecordId) || user.corDraft;
+    if (existingDraft) {
+      console.log("Returning draft already produced at upload time");
       const resp = json({
         status: "REVIEW_REQUIRED",
         corRecordId: user.corRecordId,
         message: "Extraction complete. Please review your information.",
-        subjectsFound: user.corDraft.subjects?.length || 0,
-        totalUnits: user.corDraft.totalUnits,
-        result: user.corDraft,
+        subjectsFound: existingDraft.subjects?.length || 0,
+        totalUnits: existingDraft.totalUnits,
+        result: existingDraft,
       });
       // Re-seal session to set corRecordStatus without re-storing the draft
       // (keeps cookie under 4 KB).
@@ -465,6 +468,8 @@ export async function onRequestPost(context) {
 
     // Update record to REVIEW_REQUIRED
     CorRecords.update(record, { status: "REVIEW_REQUIRED", draftVersion: 1 });
+
+    await flushRepo(context, session);
 
     return json({
       status: "REVIEW_REQUIRED",

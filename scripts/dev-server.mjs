@@ -136,7 +136,11 @@ async function loadDevVars() {
   }
 }
 
-const env = { ...process.env, ...await loadDevVars() };
+// .dev.vars is the baseline; an explicitly exported shell variable overrides it.
+// That order lets a one-off run redirect a single setting without editing the
+// file, e.g. pointing APPS_SCRIPT_URL at scripts/sheets-emulator.mjs.
+const devVars = await loadDevVars();
+const env = { ...devVars, ...process.env };
 
 // Seed academic catalog on startup
 try {

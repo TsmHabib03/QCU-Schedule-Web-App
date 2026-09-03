@@ -15,6 +15,14 @@ compatibility_date = "2024-11-01"
 #   GOOGLE_CLIENT_SECRET    (encrypted)
 #   GOOGLE_SESSION_SECRET   (encrypted)
 #   GOOGLE_PUBLIC_ORIGIN    (plain text — e.g. https://qcu-schedule-web-app.pages.dev)
+#   GEMINI_API_KEY          (encrypted — COR extraction)
+#   APPS_SCRIPT_URL         (plain text — the Apps Script web app /exec URL)
+#   APPS_SCRIPT_SECRET      (encrypted — must equal the Apps Script property of
+#                            the same name; it signs every database request)
+#
+# Without APPS_SCRIPT_URL and APPS_SCRIPT_SECRET the Functions fall back to
+# in-memory storage, which on Pages means every request starts with an empty
+# database. Check GET /api/v1/health — `persistence` must read "sheets".
 
 # This repository is deployed by Cloudflare Pages. Do not use `wrangler deploy`,
 # which is the Workers command and requires a Worker entry point.

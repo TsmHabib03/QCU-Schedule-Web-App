@@ -12,3 +12,19 @@ GOOGLE_SESSION_SECRET="replace-with-a-long-random-secret"
 # matches redirect URIs exactly and every Cloudflare Pages deployment otherwise
 # presents a different hostname.
 GOOGLE_PUBLIC_ORIGIN=
+
+# --- Google Sheets persistence (optional locally, required in production) ---
+# Leave both blank for local development: the repository then keeps student data
+# in memory for the lifetime of one request, which is fine for `npm run dev` and
+# is why `npm run dev` needs no spreadsheet.
+#
+# Set both to persist to the Google Sheets workbook:
+#   1. Open the workbook > Extensions > Apps Script, paste setup-database.gs
+#   2. Run setupDatabase(), then seedCatalogData()
+#   3. Project Settings > Script properties > add APPS_SCRIPT_SECRET
+#   4. Deploy > New deployment > Web app (Execute as: Me, Access: Anyone)
+#   5. Put the /exec URL in APPS_SCRIPT_URL and the same secret here
+# The secret signs every request (HMAC-SHA256); the two values must match
+# exactly or Apps Script rejects the call with UNAUTHENTICATED.
+APPS_SCRIPT_URL=
+APPS_SCRIPT_SECRET=

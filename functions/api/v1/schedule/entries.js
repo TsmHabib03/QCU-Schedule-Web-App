@@ -3,6 +3,7 @@
 
 import {
   resolveUser,
+  flushRepo,
   json,
 } from "../../auth/_lib.js";
 import {
@@ -184,6 +185,8 @@ export async function onRequestPost(context) {
     const subject = Subjects.getById(enrollmentSubjectId);
     const building = buildingId ? CatalogBuildings.getById(buildingId) : null;
     const room = roomId ? CatalogRooms.getById(roomId) : null;
+
+    await flushRepo(context, resolved.session);
 
     return json({
       ok: true,
