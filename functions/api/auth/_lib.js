@@ -346,41 +346,55 @@ export function buildAuthorizationUrl(config, state, nonce) {
 }
 
 export async function exchangeCode(config, code) {
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      code,
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      redirect_uri: config.redirectUri,
-      grant_type: "authorization_code",
-    }),
-  });
-  const data = await response.json();
-  if (!response.ok || !data.access_token)
-    throw new Error(
-      data.error_description || data.error || "OAuth token exchange failed"
-    );
-  return data;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      signal: controller.signal,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        redirect_uri: config.redirectUri,
+        grant_type: "authorization_code",
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.access_token)
+      throw new Error(
+        data.error_description || data.error || "OAuth token exchange failed"
+      );
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function fetchGoogleUserInfo(accessToken) {
-  const response = await fetch(
-    "https://openidconnect.googleapis.com/v1/userinfo",
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-    }
-  );
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw new Error(
-      data.error?.message || `Google userinfo HTTP ${response.status}`
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(
+      "https://openidconnect.googleapis.com/v1/userinfo",
+      {
+        signal: controller.signal,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json",
+        },
+      }
     );
-  return data;
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok)
+      throw new Error(
+        data.error?.message || `Google userinfo HTTP ${response.status}`
+      );
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -67,11 +67,9 @@ export async function onRequestGet(context) {
 
   // --- Error from Google (user denied or error) ---
   if (url.searchParams.get("error")) {
-    const deniedHtml = `<!DOCTYPE html><html><head><title>Login cancelled</title></head><body>` +
-      `<script>window.location.replace('/?auth=denied')</script></body></html>`;
-    const deniedHeaders = new Headers({ "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+    const deniedHeaders = new Headers({ "Location": "/?auth=denied", "Cache-Control": "no-store" });
     deniedHeaders.append("Set-Cookie", clearState);
-    return new Response(deniedHtml, { status: 200, headers: deniedHeaders });
+    return new Response(null, { status: 302, headers: deniedHeaders });
   }
 
   try {
@@ -85,11 +83,9 @@ export async function onRequestGet(context) {
 
     if (!code) {
       console.error("Callback: no authorization code in URL");
-      const failHtml = `<!DOCTYPE html><html><head><title>Login failed</title></head><body>` +
-        `<script>window.location.replace('/?auth=failed&reason=no_code')</script></body></html>`;
-      const failHeaders = new Headers({ "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+      const failHeaders = new Headers({ "Location": "/?auth=failed&reason=no_code", "Cache-Control": "no-store" });
       failHeaders.append("Set-Cookie", clearState);
-      return new Response(failHtml, { status: 200, headers: failHeaders });
+      return new Response(null, { status: 302, headers: failHeaders });
     }
 
     // Validate state — cookie is primary; if missing (CF Pages SameSite issue),
@@ -98,11 +94,9 @@ export async function onRequestGet(context) {
     if (stateData) {
       if (stateData.state !== urlState) {
         console.error("Callback state mismatch: cookie state != url state");
-        const mismatchHtml = `<!DOCTYPE html><html><head><title>Login failed</title></head><body>` +
-          `<script>window.location.replace('/?auth=failed&reason=state_mismatch')</script></body></html>`;
-        const mismatchHeaders = new Headers({ "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+        const mismatchHeaders = new Headers({ "Location": "/?auth=failed&reason=state_mismatch", "Cache-Control": "no-store" });
         mismatchHeaders.append("Set-Cookie", clearState);
-        return new Response(mismatchHtml, { status: 200, headers: mismatchHeaders });
+        return new Response(null, { status: 302, headers: mismatchHeaders });
       }
       returnTo = stateData.returnTo || "/";
       console.log("Callback state validated OK");
@@ -169,31 +163,25 @@ export async function onRequestGet(context) {
         : "/?auth=onboarding";
 
     console.log("Callback SUCCESS:", profile.email, "->", destination);
-    // Use a 200 HTML response with JS redirect instead of 302.
-    // This ensures the browser processes Set-Cookie headers before navigating,
-    // fixing session cookie loss on Cloudflare Pages with SameSite=Lax.
-    const html = `<!DOCTYPE html><html><head><title>Signing in...</title>` +
-      `<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#555}</style>` +
-      `</head><body>` +
-      `<p>Signing you in...</p>` +
-      `<script>window.location.replace(${JSON.stringify(destination)})</script>` +
-      `</body></html>`;
+    // Use a 302 redirect with Set-Cookie. The same-origin redirect ensures
+    // the browser stores the session cookie before navigating.
     const respHeaders = new Headers({
-      "Content-Type": "text/html; charset=utf-8",
+      "Location": destination,
       "Cache-Control": "no-store",
     });
     respHeaders.append("Set-Cookie", sessionCookie);
     respHeaders.append("Set-Cookie", clearState);
-    return new Response(html, { status: 200, headers: respHeaders });
+    return new Response(null, { status: 302, headers: respHeaders });
   } catch (error) {
     const message = String(error?.message || "Login failed").slice(0, 200);
     const stack = String(error?.stack || "").slice(0, 300);
     console.error("Auth callback FAILED:", message, stack);
     const errReason = encodeURIComponent(message.slice(0, 80));
-    const errHtml = `<!DOCTYPE html><html><head><title>Login failed</title></head><body>` +
-      `<script>window.location.replace('/?auth=failed&reason=${errReason}')</script></body></html>`;
-    const errHeaders = new Headers({ "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+    const errHeaders = new Headers({
+      "Location": `/?auth=failed&reason=${errReason}`,
+      "Cache-Control": "no-store",
+    });
     errHeaders.append("Set-Cookie", clearState);
-    return new Response(errHtml, { status: 200, headers: errHeaders });
+    return new Response(null, { status: 302, headers: errHeaders });
   }
 }
