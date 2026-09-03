@@ -206,9 +206,9 @@ function commitRecords(user, draft, _catalog) {
     });
 
     // Create schedule entries for each meeting
-    const schedule = subject.schedule || subject.meetings;
-    if (schedule) {
-      for (const meeting of schedule) {
+    const meetings = subject.schedule || subject.meetings;
+    if (meetings) {
+      for (const meeting of meetings) {
         entryIndex++;
         const dayVal = val(meeting.day) || val(meeting.dayOfWeek);
         const startVal = val(meeting.time?.start) || val(meeting.startTime);
