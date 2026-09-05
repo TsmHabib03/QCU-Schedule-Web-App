@@ -1,17 +1,7 @@
 {
   "status": "OK",
-  "checkedAt": "2026-09-04T23:59:53.610Z",
+  "checkedAt": "2026-09-05T23:50:37.521Z",
   "source": "Quezon City Government",
   "sourceUrl": "https://quezoncity.gov.ph/news-and-media/announcements/",
-  "items": [
-    {
-      "title": "Walang Pasok: Face-to-face Classes Suspended (All levels Public and Private Schools) – September 5, 2026",
-      "body": "",
-      "effectiveDate": "2026-09-05",
-      "publishedAt": "2026-09-05",
-      "reason": "",
-      "source": "Quezon City Government",
-      "sourceUrl": "https://quezoncity.gov.ph/walang-pasok-face-to-face-classes-suspended-all-levels-public-and-private-schools-september-5-2026/"
-    }
-  ]
+  "items": []
 }
