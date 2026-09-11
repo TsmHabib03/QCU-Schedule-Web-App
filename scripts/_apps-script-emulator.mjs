@@ -142,7 +142,7 @@ class FakeSpreadsheet {
  * Load setup-database.gs and return its callable entry points.
  * Returns { doPost, doGet, setupDatabase, seedCatalogData, spreadsheet, logs }.
  */
-export async function loadAppsScript({ repoRoot, secret }) {
+export async function loadAppsScript({ repoRoot, secret, properties = {} }) {
   const source = await readFile(resolve(repoRoot, "setup-database.gs"), "utf8");
   const spreadsheet = new FakeSpreadsheet();
   const logs = [];
@@ -170,7 +170,7 @@ export async function loadAppsScript({ repoRoot, secret }) {
 
     PropertiesService: {
       getScriptProperties: () => ({
-        getProperty: (name) => (name === "APPS_SCRIPT_SECRET" ? secret : null),
+        getProperty: (name) => (name === "APPS_SCRIPT_SECRET" ? secret : properties[name] || null),
       }),
     },
 

@@ -16,6 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/styles.css?v=54">
+<link rel="stylesheet" href="assets/css/admin-entry.css?v=1">
 <script>
   // Auth gate: start the session check immediately so the network round-trip
   // overlaps page parse, but apply DOM changes only AFTER <body> exists.
@@ -38,16 +39,17 @@
     }
 
     function run() {
-      if (authResult === "denied" || authResult === "failed") {
+      if (authResult === "denied" || authResult === "failed" || authResult === "admin_denied" || authResult === "backend_unavailable") {
         show("landing");
         var error = document.getElementById("auth-error-msg");
         if (error) {
-          error.textContent = authResult === "denied" ? "Google sign-in was cancelled. Please try again." : "Sign-in could not be completed. Please try again.";
+          error.textContent = authResult === "backend_unavailable" ? "Sign-in is temporarily unavailable because the database connection needs configuration." : authResult === "admin_denied" ? "This account does not have administrator access. Choose an authorized account or use student sign-in." : authResult === "denied" ? "Google sign-in was cancelled. Please try again." : "Sign-in could not be completed. Please try again.";
           error.style.display = "block";
         }
         return;
       }
       bootstrap.then(function (d) {
+        if (d && d.authenticated && d.routing === "admin") { window.location.replace("/admin.html"); return; }
         if (d && d.authenticated && d.routing === "onboarding") { window.location.replace("/onboarding.html"); return; }
         show(d && d.authenticated && d.routing === "dashboard" ? "dashboard" : "landing");
         window.history.replaceState({}, document.title, "/");
@@ -89,6 +91,8 @@
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#fff"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#fff"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#fff"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#fff"/></svg>
         Continue with Google
       </a>
+
+      <div class="admin-entry"><span class="admin-entry-label">PORTAL MANAGEMENT</span><a class="admin-signin" href="/api/auth/google/start?returnTo=%2Fadmin.html"><span>Administrator sign in</span><span aria-hidden="true">?</span></a><small>Restricted to the authorized administrator account.</small></div>
 
       <p id="auth-error-msg" style="color:#dc2626;font-size:13px;margin-top:16px;display:none;"></p>
 

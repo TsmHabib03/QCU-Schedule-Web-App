@@ -1,3 +1,4 @@
+import { isAdminIdentity } from '../admin/_lib.js';
 // GET /api/v1/bootstrap
 // Returns user state, profile, and routing decision.
 // This is the main endpoint the frontend calls on page load to decide
@@ -43,6 +44,8 @@ export async function onRequestGet(context) {
       default:
         routing = "login";
     }
+
+    if (isAdminIdentity(context.env, resolved.session)) routing = 'admin';
 
     // Lightweight academic context for the frontend
     const academicMeta = CatalogSeed.isLoaded() ? CatalogSeed.meta() : null;

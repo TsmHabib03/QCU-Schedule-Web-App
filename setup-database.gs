@@ -34,7 +34,7 @@ var NONCE_TTL_SECONDS = 600;
 function getSheetDefinitions() {
   var D = {};
 
-  D['Users'] = ['userId', 'googleSub', 'email', 'emailVerified', 'displayName', 'avatarUrl', 'accountStatus', 'onboardingState', 'lastLoginAt', 'suspendedReason', 'closedAt', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'version', 'extraJson'];
+  D['Users'] = ['userId', 'googleSub', 'email', 'emailVerified', 'displayName', 'avatarUrl', 'accountStatus', 'onboardingState', 'lastLoginAt', 'suspendedReason', 'closedAt', 'sessionsRevokedAt', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'version', 'extraJson'];
   D['Student_Profiles'] = ['profileId', 'userId', 'studentNumber', 'firstName', 'middleName', 'lastName', 'suffix', 'preferredName', 'verificationStatus', 'sourceCorRecordId', 'status', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'version', 'extraJson'];
   D['Roles'] = ['roleId', 'roleKey', 'displayName', 'description', 'isSystemRole', 'status', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'version'];
   D['Capabilities'] = ['capabilityId', 'capabilityKey', 'description', 'status', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'version'];
@@ -347,7 +347,8 @@ function objectToRow(header, obj) {
     } else if (typeof value === 'object') {
       row.push(JSON.stringify(value));
     } else {
-      row.push(value);
+      // Prevent user-controlled text from becoming a spreadsheet formula.
+      row.push(typeof value === 'string' && value.charAt(0) === '=' ? "'" + value : value);
     }
   }
   return row;
@@ -551,12 +552,14 @@ function verifyRequest(body) {
   if (!command.nonce) {
     throw apiError('VALIDATION_FAILED', 'Request nonce is required.');
   }
-  var cache = CacheService.getScriptCache();
-  var nonceKey = 'nonce_' + command.nonce;
-  if (cache.get(nonceKey)) {
-    throw apiError('UNAUTHENTICATED', 'Request nonce has already been used.');
-  }
-  cache.put(nonceKey, '1', NONCE_TTL_SECONDS);
+  var nonceLock = LockService.getScriptLock();
+  if (!nonceLock.tryLock(LOCK_TIMEOUT_MS)) throw apiError('RATE_LIMITED', 'Database busy.');
+  try {
+    var cache = CacheService.getScriptCache();
+    var nonceKey = 'nonce_' + command.nonce;
+    if (cache.get(nonceKey)) throw apiError('UNAUTHENTICATED', 'Request nonce has already been used.');
+    cache.put(nonceKey, '1', NONCE_TTL_SECONDS);
+  } finally { nonceLock.releaseLock(); }
 
   if (!command.action) {
     throw apiError('VALIDATION_FAILED', 'Request action is required.');
@@ -584,6 +587,7 @@ function doPost(e) {
   var requestId = null;
 
   try {
+    if (e && e.postData && e.postData.contents && e.postData.contents.length > 2000000) throw apiError('PAYLOAD_TOO_LARGE', 'Request too large.');
     if (!e || !e.postData || !e.postData.contents) {
       throw apiError('VALIDATION_FAILED', 'Empty request body.');
     }
@@ -668,11 +672,14 @@ function resolveActor(actor) {
       if (rows[i].accountStatus === 'CLOSED' || rows[i].accountStatus === 'SUSPENDED') {
         throw apiError('FORBIDDEN', 'This account is not active.');
       }
+      if (Number(rows[i].sessionsRevokedAt) && Number(actor.issuedAt || 0) <= Number(rows[i].sessionsRevokedAt)) throw apiError('UNAUTHENTICATED', 'Please sign in again.');
       return {
         userId: String(rows[i].userId),
         googleSub: googleSub,
         email: rows[i].email || (actor.email || ''),
         accountStatus: rows[i].accountStatus || 'ACTIVE',
+        emailVerified: actor.emailVerified === true,
+        issuedAt: Number(actor.issuedAt) || 0,
         isNew: false
       };
     }
@@ -690,6 +697,11 @@ function resolveActor(actor) {
 function dispatch(action, actor, payload) {
   switch (action) {
     // Batch pair used by the Cloudflare repository layer.
+    case 'auth.read': return { user: adminUserProjection(readRows('Users', 'googleSub', actor.googleSub)[0] || {}), isNew: actor.isNew };
+    case 'admin.access': requireAdministrator(actor); return { authorized: true };
+    case 'admin.users.list': requireAdministrator(actor); return adminListUsers(payload);
+    case 'admin.user.read': requireAdministrator(actor); return adminReadUser(actor, payload);
+    case 'admin.user.update': requireAdministrator(actor); return adminUpdateUser(actor, payload);
     case 'snapshot.read':   return handleSnapshotRead(actor, payload);
     case 'batch.write':     return handleBatchWrite(actor, payload);
 
@@ -701,7 +713,12 @@ function dispatch(action, actor, payload) {
     case 'task.list':       return { rows: readOwned('tasks', actor.userId) };
     case 'note.list':       return { rows: readOwned('notes', actor.userId) };
     case 'schedule.active.read': return handleScheduleActiveRead(actor, payload);
-    case 'audit.append':    return handleAuditAppend(actor, payload);
+    case 'audit.append':
+      (payload.events || []).forEach(function(ev) {
+        if (String(ev.action).indexOf('admin.') === 0) throw apiError('FORBIDDEN', 'Reserved audit action.');
+        ev.actorType = 'USER';
+      });
+      return handleAuditAppend(actor, payload);
 
     default:
       throw apiError('NOT_FOUND', 'Unknown action: ' + action);
@@ -792,7 +809,9 @@ function handleBatchWrite(actor, payload) {
   try {
     // Re-read inside the lock so ownership checks see committed state.
     _sheetCache = {};
+    resolveActor(actor); // Recheck account status inside the write lock.
     assertOwnership(safeOps, actor.userId);
+    protectUserFields(safeOps, actor);
     return applyOps(safeOps, actor.userId);
   } finally {
     lock.releaseLock();
@@ -894,6 +913,8 @@ function handleCatalogList(actor, payload) {
  * INACTIVE rather than deleted, so historical foreign keys keep resolving.
  */
 function handleCatalogSync(actor, payload) {
+  var operator = PropertiesService.getScriptProperties().getProperty('CATALOG_SYNC_GOOGLE_SUB');
+  if (!operator || actor.googleSub !== operator) throw apiError('FORBIDDEN', 'Catalog operator required.');
   var catalog = (payload && payload.catalog) || {};
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(LOCK_TIMEOUT_MS)) {
@@ -1012,3 +1033,165 @@ function handleAuditAppend(actor, payload) {
   return { recorded: true, count: rows.length };
 }
 
+// Administrative API. All actions remain behind the signed server-to-server envelope.
+function requireAdministrator(actor) {
+  var pinned = PropertiesService.getScriptProperties().getProperty('ADMIN_GOOGLE_SUB');
+  pinned = String(pinned || '').trim();
+  if ((pinned && actor.googleSub !== pinned) || !actor.googleSub || actor.emailVerified !== true ||
+      String(actor.email).toLowerCase() !== 'myscheduleqcu@gmail.com' || actor.isNew ||
+      !actor.issuedAt || Date.now() - actor.issuedAt > 3600000) {
+    throw apiError('FORBIDDEN', 'Administrator sign-in required.');
+  }
+}
+function protectUserFields(ops, actor) {
+  var current = readRows('Users', 'googleSub', actor.googleSub)[0];
+  ops.forEach(function(op) {
+    if (op.kind !== 'users') return;
+    if (op.remove) throw apiError('FORBIDDEN', 'Use the administrator account closure workflow.');
+    ['accountStatus', 'suspendedReason', 'closedAt', 'sessionsRevokedAt'].forEach(function(key) {
+      op.row[key] = current ? current[key] : (key === 'accountStatus' ? 'ACTIVE' : null);
+    });
+    // No role, status or revocation authority may be smuggled through extraJson.
+    var extra = {};
+    try { extra = JSON.parse(op.row.extraJson || '{}'); } catch (_) {}
+    ['role', 'accountStatus', 'sessionsRevokedAt', 'emailVerified', 'googleSub', 'email', 'userId'].forEach(function(key) { delete extra[key]; });
+    op.row.extraJson = JSON.stringify(extra);
+    op.row.email = actor.email;
+  });
+}
+function adminUserProjection(row) {
+  var out = {};
+  ['userId','displayName','email','accountStatus','onboardingState','createdAt','lastLoginAt','version','suspendedReason'].forEach(function(k) { out[k] = row[k] || null; });
+  return out;
+}
+function adminTarget(id) {
+  if (typeof id !== 'string' || !id || id.length > 160) throw apiError('VALIDATION_FAILED', 'Invalid user.');
+  var row = readRows('Users', 'userId', id)[0];
+  if (!row) throw apiError('NOT_FOUND', 'User not found.');
+  return row;
+}
+function adminListUsers(payload) {
+  if (Object.keys(payload).some(function(k) { return ['q','status','from','to','page','campus','program','section'].indexOf(k) < 0; }) ||
+      (payload.status && ['ACTIVE','SUSPENDED','CLOSED'].indexOf(payload.status) < 0)) throw apiError('VALIDATION_FAILED', 'Invalid filters.');
+  var rows = readRows('Users');
+  var today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0,10);
+  var counts = { total: rows.length, today: 0, week: 0, active: 0, suspended: 0 };
+  rows.forEach(function(r) {
+    var time = Date.parse(r.createdAt);
+    if (isFinite(time) && new Date(time + 8 * 3600000).toISOString().slice(0,10) === today) counts.today++;
+    if (time >= Date.now() - 7 * 86400000) counts.week++;
+    if (r.onboardingState === 'ACTIVE' && r.accountStatus === 'ACTIVE') counts.active++;
+    if (r.accountStatus === 'SUSPENDED') counts.suspended++;
+  });
+  var query = String(payload.q || '').toLowerCase().slice(0,100);
+  var enrollments = readRows('Enrollments');
+  var offerings = readRows('Program_Offerings');
+  enrollments.forEach(function(e) {
+    var extra = {}; try { extra = JSON.parse(e.extraJson || '{}'); } catch (_) {}
+    var offering = offerings.filter(function(o) { return o.offeringId === e.offeringId; })[0] || {};
+    e.programId = offering.programId || extra.programId;
+    e.campusId = offering.campusId || extra.campusId;
+  });
+  var filters = {
+    campuses: readRows('Campuses').map(function(r) { return { value: r.campusId, label: r.name || r.campusCode || r.campusId }; }),
+    programs: readRows('Programs').map(function(r) { return { value: r.programId, label: r.name || r.programCode || r.programId }; }),
+    sections: []
+  };
+  enrollments.forEach(function(e) {
+    var value = e.sectionId || e.sectionLabelSnapshot;
+    if (value && !filters.sections.some(function(s) { return s.value === value; })) filters.sections.push({ value: value, label: e.sectionLabelSnapshot || value });
+  });
+  rows = rows.filter(function(r) {
+    return (!query || [r.displayName,r.email,r.userId].join(' ').toLowerCase().indexOf(query) >= 0) &&
+      (!payload.status || r.accountStatus === payload.status) &&
+      (!payload.from || String(r.createdAt || '').slice(0,10) >= payload.from) &&
+      (!payload.to || String(r.createdAt || '').slice(0,10) <= payload.to) &&
+      (!(payload.section || payload.program || payload.campus) || enrollments.some(function(e) { return e.ownerUserId === r.userId && (!payload.section || (e.sectionId || e.sectionLabelSnapshot) === payload.section) && (!payload.program || e.programId === payload.program) && (!payload.campus || e.campusId === payload.campus); }));
+  });
+  rows.sort(function(a,b) { return String(b.createdAt).localeCompare(String(a.createdAt)) || String(a.userId).localeCompare(String(b.userId)); });
+  var page = Math.max(1, Math.floor(Number(payload.page) || 1));
+  var audit = readRows('Audit_Log').filter(function(e) { return String(e.action).indexOf('admin.') === 0; }).slice(-15).reverse();
+  return { filters: filters, counts: counts, total: rows.length, page: page, pageSize: 25, users: rows.slice((page-1)*25,page*25).map(adminUserProjection), audit: audit.map(function(e) { return { occurredAt: e.occurredAt, action: e.action, targetId: e.targetId, result: e.result }; }), refreshedAt: new Date().toISOString() };
+}
+function adminDependencies(userId) {
+  var result = {};
+  var defs = getSheetDefinitions();
+  Object.keys(defs).forEach(function(name) {
+    if (name === 'Users') return;
+    var owner = defs[name].indexOf('ownerUserId') >= 0 ? 'ownerUserId' : defs[name].indexOf('userId') >= 0 ? 'userId' : null;
+    if (owner) result[name] = readRows(name, owner, userId).length;
+  });
+  return result;
+}
+function adminReadUser(actor, payload) {
+  var row = adminTarget(payload.userId);
+  function projection(name, keys) {
+    return readRows(name, 'ownerUserId', row.userId).map(function(r) {
+      var out = {}; keys.forEach(function(k) { out[k] = r[k]; }); return out;
+    });
+  }
+  var profiles = readRows('Student_Profiles', 'userId', row.userId).map(function(r) {
+    return { studentNumber: r.studentNumber, firstName: r.firstName, lastName: r.lastName, verificationStatus: r.verificationStatus };
+  });
+  return { user: adminUserProjection(row), protected: row.googleSub === actor.googleSub,
+    profiles: profiles, dependencies: adminDependencies(row.userId),
+    enrollments: projection('Enrollments', ['termId','offeringId','sectionId','sectionLabelSnapshot','yearLevel','status']),
+    schedule: projection('Schedule_Entries', ['dayOfWeek','startTime','endTime','subjectId','locationText','status']),
+    cor: projection('COR_Records', ['corRecordId','status','createdAt','confirmedAt','failureCode']) };
+}
+function adminAudit(actor, payload, result) {
+  var written = handleAuditAppend(actor, { events: [{ action: 'admin.' + payload.operation, targetType: 'USER', targetId: payload.userId, result: result, reason: payload.reason, requestId: payload.mutationId, actorType: 'ADMINISTRATOR' }] });
+  if (!written.recorded) throw apiError('INTERNAL_ERROR', 'Audit store unavailable.');
+}
+function adminUpdateUser(actor, payload) {
+  if (Object.keys(payload).some(function(k) { return ['operation','userId','version','reason','mutationId','confirm'].indexOf(k) < 0; }) ||
+      ['suspend','reactivate','close','purge'].indexOf(payload.operation) < 0 ||
+      typeof payload.reason !== 'string' || payload.reason.trim().length < 3 || payload.reason.length > 500 ||
+      !/^[a-zA-Z0-9-]{16,80}$/.test(payload.mutationId || '')) throw apiError('VALIDATION_FAILED', 'Action, reason and mutation ID are required.');
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(LOCK_TIMEOUT_MS)) throw apiError('RATE_LIMITED', 'Database busy. Please retry.');
+  try {
+    _sheetCache = {};
+    requireAdministrator(resolveActor(actor));
+    var row = adminTarget(payload.userId);
+    if (row.googleSub === actor.googleSub) throw apiError('FORBIDDEN', 'You cannot modify your own administrator account.');
+    var events = readRows('Audit_Log');
+    var previous = events.filter(function(e) { return e.requestId === payload.mutationId && e.actorUserId === actor.userId; });
+    if (previous.some(function(e) { return e.targetId !== payload.userId || e.action !== 'admin.' + payload.operation; })) throw apiError('CONFLICT', 'Mutation ID already used.');
+    if (previous.some(function(e) { return e.result === 'SUCCESS'; })) return { ok: true, replayed: true };
+    if (Number(row.version) !== Number(payload.version)) throw apiError('CONFLICT', 'The account changed. Refresh its details before retrying.');
+    var recent = events.filter(function(e) { return e.actorUserId === actor.userId && e.result === 'STARTED' && Date.parse(e.occurredAt) > Date.now()-60000; });
+    if (recent.length >= 20) throw apiError('RATE_LIMITED', 'Too many account changes. Wait a minute.');
+    if (payload.operation === 'purge' && (row.accountStatus !== 'CLOSED' || payload.confirm !== row.userId)) throw apiError('VALIDATION_FAILED', 'Close the account first and confirm its user ID.');
+    if (payload.operation === 'reactivate' && row.accountStatus !== 'SUSPENDED') throw apiError('VALIDATION_FAILED', 'Only suspended accounts can be reactivated.');
+    if (payload.operation === 'suspend' && row.accountStatus === 'CLOSED') throw apiError('VALIDATION_FAILED', 'Closed accounts cannot be suspended.');
+    adminAudit(actor, payload, 'STARTED');
+    if (payload.operation === 'purge') {
+      // Trash referenced files before removing their metadata; failures leave the closed account retryable.
+      readRows('Document_Assets', 'ownerUserId', row.userId).forEach(function(asset) {
+        if (asset.driveFileId) DriveApp.getFileById(String(asset.driveFileId)).setTrashed(true);
+      });
+      var defs = getSheetDefinitions();
+      Object.keys(adminDependencies(row.userId)).forEach(function(name) {
+        var data = getSheetData(name);
+        var owner = defs[name].indexOf('ownerUserId') >= 0 ? 'ownerUserId' : 'userId';
+        for (var i = data.rows.length-1; i >= 0; i--) {
+          if (String(rowToObject(data.header,data.rows[i])[owner]) === row.userId) data.sheet.deleteRow(i+2);
+        }
+        delete _sheetCache[name];
+      });
+      // Keep a minimal closed identity tombstone to prevent silent re-registration.
+      row = { userId: row.userId, googleSub: row.googleSub, accountStatus: 'CLOSED', closedAt: row.closedAt, createdAt: row.createdAt, sessionsRevokedAt: Date.now() };
+    } else {
+      row.accountStatus = { suspend: 'SUSPENDED', reactivate: 'ACTIVE', close: 'CLOSED' }[payload.operation];
+      row.suspendedReason = payload.reason.trim();
+      row.sessionsRevokedAt = Date.now();
+      if (payload.operation === 'close') row.closedAt = new Date().toISOString();
+    }
+    row.updatedAt = new Date().toISOString();
+    var result = applyOps([{ kind: 'users', id: row.userId, row: row }], actor.userId);
+    if (result.skipped.length) throw apiError('INTERNAL_ERROR', 'Account update failed.');
+    adminAudit(actor, payload, 'SUCCESS');
+    return { ok: true };
+  } finally { lock.releaseLock(); }
+}

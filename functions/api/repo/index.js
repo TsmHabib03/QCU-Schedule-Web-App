@@ -50,7 +50,9 @@ const _dirty = new Map(); // `${kind}:${id}` -> { kind, id, remove }
 
 function markDirty(kind, id, remove = false) {
   if (!id) return;
-  _dirty.set(`${kind}:${id}`, { kind, id, remove });
+  const obj = entityBindings()[kind]?.get(id);
+  const ownerId = kind === 'users' ? obj?.userId : obj?.ownerUserId || obj?.userId;
+  _dirty.set(`${kind}:${id}`, { kind, id, remove, ownerId });
 }
 
 // ---------------------------------------------------------------------------
@@ -154,12 +156,12 @@ export const Repo = {
    * Returns { hydrated, isNew, counts } — `isNew` means Sheets has no Users row
    * for this googleSub yet.
    */
-  async hydrate(env, actor) {
+  async hydrate(env, actor, kinds) {
     if (!sheetsConfigured(env) || !actor?.googleSub) {
       return { hydrated: false, isNew: false, counts: {} };
     }
 
-    const key = actor.googleSub;
+    const key = actor.googleSub + ":" + (kinds || []).join(",") + ":" + (actor.issuedAt || 0);
     if (_inflightHydrate.has(key)) return _inflightHydrate.get(key);
 
     const work = (async () => {
@@ -169,7 +171,7 @@ export const Repo = {
       }
 
       const bindings = entityBindings();
-      const snapshot = await readSnapshot(env, actor);
+      const snapshot = await readSnapshot(env, actor, kinds);
       const counts = {};
 
       for (const [kind, rows] of Object.entries(snapshot.entities)) {
@@ -179,8 +181,7 @@ export const Repo = {
         counts[kind] = rows.length;
       }
 
-      // Hydration is not a change; anything it wrote must not be echoed back.
-      _dirty.clear();
+      // Hydration does not mark dirty; preserve pending changes from other requests.
       _hydratedUsers.add(key);
 
       return { hydrated: true, isNew: snapshot.isNew, counts };
@@ -206,7 +207,9 @@ export const Repo = {
     const bindings = entityBindings();
     const ops = [];
 
-    for (const { kind, id, remove } of _dirty.values()) {
+    const ownerId = Users.getByGoogleSub(actor.googleSub)?.userId || Users.resolveId(actor.googleSub);
+    const pending = [..._dirty.entries()].filter(([, entry]) => entry.ownerId === ownerId);
+    for (const [, { kind, id, remove }] of pending) {
       const binding = bindings[kind];
       if (!binding) continue;
 
@@ -223,7 +226,7 @@ export const Repo = {
 
     // Clear before awaiting so a failed write cannot be replayed twice, and so
     // a concurrent request in this isolate does not pick up these same rows.
-    _dirty.clear();
+    for (const [key, entry] of pending) { if (_dirty.get(key) === entry) _dirty.delete(key); }
 
     if (!ops.length) return { flushed: false, applied: 0 };
 
@@ -461,8 +464,8 @@ export const CorDrafts = {
 
   /** Delete a draft (e.g., on COR cancellation). */
   delete(corRecordId) {
-    _corDrafts.delete(corRecordId);
     markDirty("corDrafts", corRecordId, true);
+    _corDrafts.delete(corRecordId);
   },
 };
 

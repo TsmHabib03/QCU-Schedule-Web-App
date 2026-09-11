@@ -16,7 +16,7 @@
 // Signing the literal string avoids any dependence on JSON key ordering.
 
 const REQUEST_TIMEOUT_MS = 30_000;
-const MAX_ATTEMPTS = 2;
+const MAX_ATTEMPTS = 1; // Mutations must never be blindly replayed after a timeout.
 
 // Google Sheets rejects a cell value over 50 000 characters. Drafts are
 // normally 3-10 KB; guard so an oversized one fails legibly here instead of as
@@ -79,7 +79,7 @@ export async function callAction(env, action, actor, payload = {}) {
     timestamp: new Date().toISOString(),
     nonce: crypto.randomUUID(),
     action,
-    actor: { googleSub: actor.googleSub, email: actor.email || "" },
+    actor: { googleSub: actor.googleSub, email: actor.email || "", emailVerified: actor.emailVerified === true, issuedAt: actor.issuedAt || 0 },
     payload,
   });
 
@@ -167,7 +167,7 @@ export const ENTITIES = {
     alias: { name: "displayName", picture: "avatarUrl", state: "onboardingState" },
     columns: [
       "userId", "googleSub", "email", "emailVerified", "displayName", "avatarUrl",
-      "accountStatus", "onboardingState", "lastLoginAt", "suspendedReason", "closedAt",
+      "accountStatus", "onboardingState", "lastLoginAt", "suspendedReason", "closedAt", "sessionsRevokedAt",
       ...COMMON, "extraJson",
     ],
     defaults: { accountStatus: "ACTIVE", emailVerified: true },

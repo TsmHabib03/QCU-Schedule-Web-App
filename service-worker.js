@@ -1,4 +1,4 @@
-const CACHE_NAME = "qcu-schedule-v64";
+const CACHE_NAME = "qcu-schedule-v67";
 const STATIC_ASSETS = [
   "./",
   "index.html",
@@ -62,6 +62,8 @@ self.addEventListener("fetch", (event) => {
   // cache. Cache.put only supports http(s), and cross-origin responses do not
   // belong in the app shell cache.
   if (!/^https?:$/.test(requestUrl.protocol) || requestUrl.origin !== self.location.origin) return;
+
+  if (["/admin", "/admin/", "/admin.html"].includes(requestUrl.pathname)) return;
 
   const url = requestUrl.href;
 

@@ -82,8 +82,8 @@ console.log('PASS timeout stays on processing with explicit retry');
 const env = { GOOGLE_SESSION_SECRET: 'offline-cor-regression-test-secret' };
 const user = Users.adopt({ userId: 'regression-user', googleSub: 'regression-sub', state: 'ONBOARDING' });
 const context = async (path, body) => {
-  const cookie = (await platformSessionHeader({ env, request: new Request('https://example.test') }, { ...user, ts: Date.now() })).split(';')[0];
-  return { env, request: new Request('https://example.test' + path, { method: 'POST', headers: { Cookie: cookie }, body: body instanceof FormData ? body : JSON.stringify(body || {}) }) };
+  const cookie = (await platformSessionHeader({ env, request: new Request('http://127.0.0.1') }, { ...user, ts: Date.now() })).split(';')[0];
+  return { env, request: new Request('http://127.0.0.1' + path, { method: 'POST', headers: { Cookie: cookie }, body: body instanceof FormData ? body : JSON.stringify(body || {}) }) };
 };
 const record = CorRecords.create({ ownerUserId: user.userId, status: 'ACCEPTED', filename: 'missing.pdf' });
 Users.update(user, { corRecordId: record.id });

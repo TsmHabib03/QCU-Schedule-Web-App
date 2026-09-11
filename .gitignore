@@ -4,3 +4,6 @@
 !.dev.vars.example
 node_modules/
 .wrangler/
+
+# Local validation output
+.build/admin-functions/

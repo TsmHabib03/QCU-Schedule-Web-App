@@ -51,7 +51,8 @@ export async function onRequestGet(context) {
     const stateData = { state, nonce, returnTo, createdAt: new Date().toISOString() };
     const stateCookie = await seal(stateData, config.sessionSecret);
 
-    const authUrl = buildAuthorizationUrl(config, state, nonce);
+    const authorizationUrl = new URL(buildAuthorizationUrl(config, state, nonce));
+    const authUrl = authorizationUrl.toString();
 
     // Return an auto-submitting HTML form instead of a 302 redirect.
     // This ensures the state cookie is set on the page origin (same site)

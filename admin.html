@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#005bac">
+<title>Account management · My-Schedule</title>
+<link rel="stylesheet" href="assets/css/admin.css?v=2">
+<script src="assets/js/admin.js?v=3" defer></script>
+</head>
+<body>
+<header><a class="brand" href="/"><img src="assets/images/cropped-logo.jpg" alt="QCU" width="36" height="36">My-Schedule <span>Admin console</span></a><div class="header-actions"><span class="admin-identity" id="admin-identity" hidden><span class="status-dot" aria-hidden="true"></span>Authorized administrator</span><a class="signout" href="/api/auth/logout">Sign out</a></div></header>
+<div class="admin-layout"><aside class="admin-nav" aria-label="Administration navigation"><p class="nav-label">WORKSPACE</p><a class="nav-current" href="#users-title">User management</a><a href="#activity-title">Activity log</a><div class="nav-note"><strong>Account access</strong><p>Only the authorized administrator can manage student accounts.</p></div></aside><main>
+<div class="heading"><div><p class="eyebrow">QCU STUDENT PORTAL</p><h1>Your portal, at a glance.</h1><p>Registrations, student progress, and account access.</p></div><button id="refresh" class="primary" type="button">Refresh data</button></div>
+<p id="message" role="status" aria-live="polite">Verifying administrator access…</p>
+<p id="signin" hidden><a href="/api/auth/google/start?returnTo=%2Fadmin.html">Sign in with your administrator Google account</a></p>
+<section id="workspace" hidden>
+<div id="metrics" class="metrics" aria-label="Registration summary"></div>
+<section class="panel" aria-labelledby="users-title">
+<div class="panel-heading"><div><h2 id="users-title">Student directory</h2><p class="panel-description">Find a student, review their progress, or manage account access.</p></div><span id="updated"></span></div>
+<form id="filters" class="filters">
+<label class="search">Search users<input name="q" type="search" placeholder="Name, email, or user ID" maxlength="100"></label>
+<label>Account status<select name="status"><option value="">All statuses</option><option>ACTIVE</option><option>SUSPENDED</option><option>CLOSED</option></select></label>
+<label>Registered from<input name="from" type="date"></label><label>Through<input name="to" type="date"></label>
+<label>Campus<select name="campus"><option value="">All campuses</option></select></label><label>Program<select name="program"><option value="">All programs</option></select></label><label>Section<select name="section"><option value="">All sections</option></select></label>
+<button id="reset-filters" class="reset-filters" type="reset">Clear filters</button></form>
+<div class="table-wrap"><table><thead><tr><th scope="col">User</th><th scope="col">Account</th><th scope="col">Onboarding</th><th scope="col">Registered</th><th scope="col">Last login</th><th scope="col">Details</th></tr></thead><tbody id="users"></tbody></table></div>
+<div class="pagination"><span id="results"></span><div><button id="prev">Previous</button><span id="page"></span><button id="next">Next</button></div></div>
+</section>
+<section class="panel"><div class="panel-heading"><h2 id="activity-title">Recent administrative activity</h2></div><ul id="audit" class="audit"></ul></section>
+<p class="footnote">Dates use Asia/Manila time. Last login does not indicate whether a user is currently online.</p>
+</section>
+</main></div>
+<dialog id="details" aria-labelledby="detail-title"><div class="dialog-heading"><h2 id="detail-title">User details</h2><button id="close-dialog" aria-label="Close user details">Close</button></div><div id="detail-content"></div>
+<form id="action-form"><h3>Manage account</h3><p>Closing blocks access immediately. Permanent deletion removes stored student records and moves referenced Drive files to Trash. A blocked identity and audit history remain.</p>
+<label>Action<select id="operation"><option value="suspend">Suspend account</option><option value="reactivate">Reactivate suspended account</option><option value="close">Close account</option><option value="purge">Permanently delete student records</option></select></label>
+<label>Reason<textarea id="reason" required minlength="3" maxlength="500" rows="2"></textarea></label>
+<label id="confirm-label" hidden>Type the user ID to confirm deletion<input id="confirm" autocomplete="off"></label>
+<label class="ack"><input id="ack" type="checkbox" required> I have reviewed the account and intend to apply this change.</label>
+<p id="action-message" role="status"></p><button id="apply" class="danger" type="submit">Apply account change</button>
+</form></dialog>
+</body></html>

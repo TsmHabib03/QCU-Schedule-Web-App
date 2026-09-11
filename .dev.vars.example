@@ -26,5 +26,8 @@ GOOGLE_PUBLIC_ORIGIN=
 #   5. Put the /exec URL in APPS_SCRIPT_URL and the same secret here
 # The secret signs every request (HMAC-SHA256); the two values must match
 # exactly or Apps Script rejects the call with UNAUTHENTICATED.
-APPS_SCRIPT_URL=
+APPS_SCRIPT_URL=https://script.google.com/macros/s/AKfycbzLvziOhBbX3ZG1rp1szZWa2AP-wCL4acehRjeTjKc55AV_5u6gsloDXB4iKZhR82jr7A/exec
 APPS_SCRIPT_SECRET=
+
+# Optional additional admin restriction: the approved Google account's stable subject ID.
+ADMIN_GOOGLE_SUB=

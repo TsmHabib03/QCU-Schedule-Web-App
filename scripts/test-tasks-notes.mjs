@@ -2,7 +2,7 @@
 // Override the target with BASE=http://127.0.0.1:8799 to test another port.
 
 const BASE = process.env.BASE || "http://127.0.0.1:8788";
-const SESSION_SECRET = "9598879826a344d8ac267a6754ee6d183aeb8d1f7d9ff6988c7f6167ce30e4d8";
+const SESSION_SECRET = process.env.TEST_SESSION_SECRET || 'local-admin-regression-test-secret';
 
 // ── Seal/unseal (inline) ────────────────────────────────────────────────
 
@@ -31,11 +31,11 @@ const MARIA = { googleSub: "synthetic_student_a" };
 const JUAN  = { googleSub: "synthetic_student_b" };
 
 async function makeSession(user) {
-  return seal({ googleSub: user.googleSub, ts: Date.now() }, SESSION_SECRET);
+  return seal({ googleSub: user.googleSub, issuedAt: Date.now(), sessionExpiresAt: Date.now() + 3600000 }, SESSION_SECRET);
 }
 
 async function api(method, path, cookie, body) {
-  const opts = { method, headers: { Cookie: `qcu_platform_session=${cookie}` } };
+  const opts = { method, headers: { Origin: BASE, Cookie: `qcu_platform_session=${cookie}` } };
   if (body) {
     opts.headers["Content-Type"] = "application/json";
     opts.body = JSON.stringify(body);

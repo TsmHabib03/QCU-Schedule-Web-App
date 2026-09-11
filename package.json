@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "QCU Student Portal — a static HTML/CSS/JS PWA for viewing schedules, current/next classes, and campus buildings.",
+  "description": "QCU Student Portal \u00e2\u20ac\u201d a static HTML/CSS/JS PWA for viewing schedules, current/next classes, and campus buildings.",
   "scripts": {
-    "build": "echo 'Static site — no build required'",
+    "build": "echo 'Static site \u00e2\u20ac\u201d no build required'",
     "dev": "node scripts/dev-server.mjs",
     "dev:wrangler": "wrangler pages dev . --port 8790",
     "google:configure": "node scripts/configure-google-oauth.mjs",
@@ -14,7 +14,9 @@
     "sheets:emulator": "node scripts/sheets-emulator.mjs",
     "sheets:test": "node scripts/test-sheets-live.mjs",
     "sheets:sync-catalog": "node scripts/sheets-sync-catalog.mjs",
-    "deploy": "wrangler pages deploy . --project-name qcu-schedule-web-app"
+    "deploy": "wrangler pages deploy . --project-name qcu-schedule-web-app",
+    "test:admin": "node scripts/test-admin-security.mjs && node scripts/test-admin-api.mjs",
+    "admin:check": "node scripts/check-admin-deployment.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.125.0"

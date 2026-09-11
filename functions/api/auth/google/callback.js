@@ -1,9 +1,11 @@
+import { isAdminIdentity } from '../../admin/_lib.js';
 // GET /api/auth/google/callback
 // Handles OIDC callback from Google.
 // Validates state, exchanges code for tokens, creates platform session,
 // resolves or creates internal user identity, redirects to frontend.
 
 import {
+  clearAllAuthCookies,
   oauthConfig,
   exchangeCode,
   fetchGoogleUserInfo,
@@ -91,7 +93,10 @@ export async function onRequestGet(context) {
 
     // Require the encrypted state cookie and an exact state match. The OAuth
     // redirect URI alone does not bind this callback to the browser session.
-    if (!stateData || !urlState || stateData.state !== urlState) {
+    if (!stateData || !urlState || stateData.state !== urlState ||
+        !Number.isFinite(Date.parse(stateData.createdAt)) ||
+        Date.now() - Date.parse(stateData.createdAt) > 600000 ||
+        Date.parse(stateData.createdAt) > Date.now() + 60000) {
       console.error("Callback state validation failed");
       const mismatchHeaders = new Headers({ "Location": "/?auth=failed&reason=state_mismatch", "Cache-Control": "no-store" });
       mismatchHeaders.append("Set-Cookie", clearState);
@@ -109,21 +114,24 @@ export async function onRequestGet(context) {
     // --- Fetch Google user info (OIDC) ---
     const profile = await fetchGoogleUserInfo(tokens.access_token);
 
-    if (!profile.sub) {
+    if (!profile.sub || profile.email_verified !== true) {
       throw new Error("Google did not return a user identifier");
+    }
+
+    const adminLogin = ['/admin', '/admin.html'].includes(returnTo);
+    const verifiedIdentity = { googleSub: profile.sub, email: profile.email, emailVerified: profile.email_verified === true };
+    if (adminLogin && !isAdminIdentity(context.env, verifiedIdentity)) {
+      const headers = new Headers({ Location: '/?auth=admin_denied', 'Cache-Control': 'no-store' });
+      for (const cookie of clearAllAuthCookies(context.request)) headers.append('Set-Cookie', cookie);
+      headers.append('Set-Cookie', clearState);
+      return new Response(null, { status: 302, headers });
     }
 
     // --- Resolve or create internal user identity ---
     // Load any stored row for this Google account first, so a returning student
     // updates their record instead of being treated as brand new.
-    // Wrap in timeout so a slow Apps Script doesn't block the redirect.
-    let hydration = { hydrated: false, isNew: true };
-    try {
-      hydration = await Promise.race([
-        hydrateRepoFor(context, profile.sub, profile.email),
-        new Promise((_, rej) => setTimeout(() => rej(new Error("hydrate timeout")), 5000)),
-      ]);
-    } catch (e) { console.warn("callback: hydrate skipped —", e.message); }
+    // The adapter bounds request time; persistence failures must block sign-in.
+    const hydration = await hydrateRepoFor(context, profile.sub, profile.email);
 
     const user = upsertUser(profile.sub, {
       email: profile.email,
@@ -136,7 +144,8 @@ export async function onRequestGet(context) {
     // reports "AUTHENTICATED", so the session cookie is the best available
     // record of progress. When a stored row exists it is the durable answer and
     // wins over a cookie that may be stale or have been dropped.
-    const existingSession = await readPlatformSession(context);
+    const priorSession = await readPlatformSession(context);
+    const existingSession = priorSession?.googleSub === profile.sub ? priorSession : null;
     const preservedState =
       (existingSession && existingSession.googleSub === profile.sub && existingSession.state)
         ? existingSession.state
@@ -150,6 +159,8 @@ export async function onRequestGet(context) {
       userId: user.userId,
       googleSub: profile.sub,
       email: profile.email || "",
+      emailVerified: true,
+      issuedAt: Date.now(),
       name: profile.name || "",
       picture: profile.picture || "",
       state: effectiveState,
@@ -177,19 +188,12 @@ export async function onRequestGet(context) {
     const sessionCookie = await platformSessionHeader(context, session);
 
     // Persist the login (creates the Users row on a first sign-in).
-    try {
-      await Promise.race([
-        flushRepo(context, session),
-        new Promise((_, rej) => setTimeout(() => rej(new Error("flush timeout")), 5000)),
-      ]);
-    } catch (e) { console.warn("callback: flush skipped —", e.message); }
+    await flushRepo(context, session);
 
-    const destination =
-      effectiveState === "ACTIVE"
-        ? "/?auth=dashboard"
-        : "/?auth=onboarding";
+    const destination = isAdminIdentity(context.env, session)
+      ? '/admin.html'
+      : effectiveState === 'ACTIVE' ? '/?auth=dashboard' : '/?auth=onboarding';
 
-    console.log("Callback SUCCESS:", profile.email, "->", destination);
     // Use a 302 redirect with Set-Cookie. The same-origin redirect ensures
     // the browser stores the session cookie before navigating.
     const respHeaders = new Headers({
@@ -205,7 +209,7 @@ export async function onRequestGet(context) {
     console.error("Auth callback FAILED:", message, stack);
     const errReason = encodeURIComponent(message.slice(0, 80));
     const errHeaders = new Headers({
-      "Location": `/?auth=failed&reason=${errReason}`,
+      "Location": error.code === "BACKEND_NOT_CONFIGURED" ? "/?auth=backend_unavailable" : `/?auth=failed&reason=${errReason}`,
       "Cache-Control": "no-store",
     });
     errHeaders.append("Set-Cookie", clearState);

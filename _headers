@@ -28,3 +28,8 @@
 # cache long-term: a new deploy bumps the ?v= query so the URL changes.
 /assets/*
   Cache-Control: public, max-age=31536000
+/admin.html
+  Cache-Control: no-store
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'

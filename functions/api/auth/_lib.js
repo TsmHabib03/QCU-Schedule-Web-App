@@ -268,7 +268,7 @@ export function compactDashboardSnapshot(snapshot) {
 export function platformSessionHeader(context, session) {
   const secret = context.env.GOOGLE_SESSION_SECRET;
   if (!secret) throw new Error("GOOGLE_SESSION_SECRET is not configured");
-  return seal(session, secret).then((sealed) =>
+  return seal({ ...session, sessionExpiresAt: session.sessionExpiresAt || Date.now() + 30 * 86400000 }, secret).then((sealed) =>
     makeCookie(PLATFORM_SESSION_COOKIE, sealed, context.request, 60 * 60 * 24 * 30)
   );
 }
@@ -276,10 +276,9 @@ export function platformSessionHeader(context, session) {
 export async function readPlatformSession(context) {
   const secret = context.env.GOOGLE_SESSION_SECRET;
   if (!secret) return null;
-  return unseal(
-    getCookie(context.request, PLATFORM_SESSION_COOKIE),
-    secret
-  );
+  const session = await unseal(getCookie(context.request, PLATFORM_SESSION_COOKIE), secret);
+  if (!session || !session.sessionExpiresAt || session.sessionExpiresAt <= Date.now()) return null;
+  return session;
 }
 
 export function generateCsrfToken() {
@@ -432,30 +431,25 @@ export function getAllUsers() {
 
 /** The signed identity Apps Script authorizes every action against. */
 function actorFrom(session) {
-  return { googleSub: session.googleSub, email: session.email || "" };
+  return { googleSub: session.googleSub, email: session.email || "", emailVerified: session.emailVerified === true, issuedAt: session.issuedAt || 0 };
 }
 
 async function hydrateRepo(context, session) {
   const actor = actorFrom(session);
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      const result = await Repo.hydrate(context.env, actor);
-      if (result.hydrated) {
-        console.log("repo: hydrated (attempt " + attempt + ")", JSON.stringify(result.counts || {}));
-      } else {
-        console.log("repo: hydrate skipped (not configured or no actor)");
-      }
-      return result;
-    } catch (error) {
-      console.error("repo: HYDRATE FAILED (attempt " + attempt + ") —", error.code || "", error.message);
-      if (attempt === 2) {
-        return { hydrated: false, isNew: false, counts: {}, error: error.message };
-      }
-      // Brief pause before retry
-      await new Promise(r => setTimeout(r, 500));
-    }
+  // Authorization failures and database outages must never become cookie fallback.
+  const requestUrl = new URL(context.request.url);
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(requestUrl.hostname);
+  if (!Repo.enabled(context.env) && (!local || context.env.APPS_SCRIPT_URL || context.env.APPS_SCRIPT_SECRET)) {
+    throw Object.assign(new Error('Configure both APPS_SCRIPT_URL and APPS_SCRIPT_SECRET before signing in.'), { code: 'BACKEND_NOT_CONFIGURED' });
   }
-  return { hydrated: false, isNew: false, counts: {} };
+  const path = requestUrl.pathname;
+  let kinds;
+  if (path.startsWith('/api/auth/google/')) kinds = ['users'];
+  else if (path === '/api/v1/me') kinds = ['users','profiles'];
+  else if (path === '/api/v1/bootstrap') kinds = ['users','profiles','enrollments'];
+  else if (path.startsWith('/api/v1/tasks')) kinds = ['users','tasks','enrollmentSubjects','scheduleEntries'];
+  else if (path.startsWith('/api/v1/notes')) kinds = ['users','notes','enrollmentSubjects','scheduleEntries'];
+  return Repo.hydrate(context.env, actor, kinds);
 }
 
 /**
@@ -466,7 +460,7 @@ async function hydrateRepo(context, session) {
  */
 export async function hydrateRepoFor(context, googleSub, email) {
   if (!googleSub) return { hydrated: false, isNew: false, counts: {} };
-  return hydrateRepo(context, { googleSub, email: email || "" });
+  return hydrateRepo(context, { googleSub, email: email || "", issuedAt: Date.now() });
 }
 
 /**
@@ -505,7 +499,8 @@ export async function resolveUser(context) {
 
   // Load this user's rows from Sheets before any synchronous repository read.
   // A no-op when APPS_SCRIPT_URL is unset, which is how local dev runs.
-  await hydrateRepo(context, session);
+  const hydration = await hydrateRepo(context, session);
+  if (persistenceEnabled(context) && (!hydration.hydrated || hydration.isNew)) return null;
 
   const memUser = getUserByGoogleSub(session.googleSub);
   const ts = new Date().toISOString();

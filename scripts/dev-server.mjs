@@ -1,3 +1,6 @@
+import { onRequest as pageMiddleware } from '../functions/_middleware.js';
+import { onRequestGet as adminUsersGet, onRequestPost as adminUsersPost } from '../functions/api/admin/users.js';
+import { onRequest as apiMiddleware } from '../functions/api/_middleware.js';
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
@@ -62,6 +65,8 @@ const PORT = Number(process.env.PORT) || 8788;
 const HOST = "127.0.0.1";
 
 const API_ROUTES = new Map([
+  ["GET /api/admin/users", adminUsersGet],
+  ["POST /api/admin/users", adminUsersPost],
   ["GET /api/google/callback", googleCallback],
   ["GET /api/google/connect", googleConnect],
   ["POST /api/google/disconnect", googleDisconnect],
@@ -142,6 +147,10 @@ async function loadDevVars() {
 // file, e.g. pointing APPS_SCRIPT_URL at scripts/sheets-emulator.mjs.
 const devVars = await loadDevVars();
 const env = { ...devVars, ...process.env };
+if (!env.APPS_SCRIPT_URL || !env.APPS_SCRIPT_SECRET) {
+  console.warn('Database setup incomplete: configure APPS_SCRIPT_URL and APPS_SCRIPT_SECRET in .dev.vars.');
+  console.warn('Use the same APPS_SCRIPT_SECRET as Apps Script Project Settings > Script properties. Restart after editing. Admin access stays disabled until connected.');
+}
 
 // Seed academic catalog on startup
 try {
@@ -317,12 +326,6 @@ async function sendWebResponse(res, response, request) {
     }
   }
   if (setCookieValues.length) headerObj['Set-Cookie'] = setCookieValues;
-  // DEBUG: log Set-Cookie values for auth debugging
-  if (setCookieValues.length) {
-    for (const sc of setCookieValues) {
-      console.log('  Set-Cookie:', sc.split(';')[0].substring(0, 60));
-    }
-  }
   res.writeHead(response.status, headerObj);
   if (!response.body) return res.end();
   const buffer = Buffer.from(await response.arrayBuffer());
@@ -362,7 +365,7 @@ const server = createServer(async (req, res) => {
   try {
     const request = await nodeRequest(req);
     const url = new URL(request.url);
-    console.log(req.method, url.pathname + url.search);
+    console.log(req.method, url.pathname); // Never log OAuth codes, state, or session cookies.
 
     if (request.method === "OPTIONS" && url.pathname.startsWith("/api/google/")) {
       return sendWebResponse(res, new Response(null, { status: 204 }), request);
@@ -380,7 +383,7 @@ const server = createServer(async (req, res) => {
 
     const handler = API_ROUTES.get(`${request.method} ${url.pathname}`);
     if (handler) {
-      const response = await handler({ request, env });
+      const response = await apiMiddleware({ request, env, next: () => handler({ request, env }) });
       return sendWebResponse(res, response, request);
     }
 
@@ -390,9 +393,9 @@ const server = createServer(async (req, res) => {
       if (entryId && entryId.startsWith("sme_")) {
         let response;
         if (request.method === "PATCH") {
-          response = await scheduleEntryPatch({ request, env });
+          response = await apiMiddleware({ request, env, next: () => scheduleEntryPatch({ request, env }) });
         } else if (request.method === "DELETE") {
-          response = await scheduleEntryDelete({ request, env });
+          response = await apiMiddleware({ request, env, next: () => scheduleEntryDelete({ request, env }) });
         }
         if (response) return sendWebResponse(res, response, request);
       }
@@ -404,9 +407,9 @@ const server = createServer(async (req, res) => {
       if (taskId && taskId.startsWith("tsk_")) {
         let response;
         if (request.method === "PATCH") {
-          response = await taskPatch({ request, env });
+          response = await apiMiddleware({ request, env, next: () => taskPatch({ request, env }) });
         } else if (request.method === "DELETE") {
-          response = await taskDelete({ request, env });
+          response = await apiMiddleware({ request, env, next: () => taskDelete({ request, env }) });
         }
         if (response) return sendWebResponse(res, response, request);
       }
@@ -418,9 +421,9 @@ const server = createServer(async (req, res) => {
       if (noteId && noteId.startsWith("nt_")) {
         let response;
         if (request.method === "PATCH") {
-          response = await notePatch({ request, env });
+          response = await apiMiddleware({ request, env, next: () => notePatch({ request, env }) });
         } else if (request.method === "DELETE") {
-          response = await noteDelete({ request, env });
+          response = await apiMiddleware({ request, env, next: () => noteDelete({ request, env }) });
         }
         if (response) return sendWebResponse(res, response, request);
       }
@@ -428,6 +431,10 @@ const server = createServer(async (req, res) => {
 
     if (url.pathname.startsWith("/api/")) {
       return sendWebResponse(res, Response.json({ status: "NOT_FOUND", error: "API route not found." }, { status: 404 }), request);
+    }
+    if (['/admin', '/admin/', '/admin.html'].includes(url.pathname)) {
+      const response = await pageMiddleware({ request, env, next: async () => new Response(await readFile(resolve(ROOT, 'admin.html')), { headers: { 'Content-Type': 'text/html; charset=utf-8' } }) });
+      return sendWebResponse(res, response, request);
     }
     return serveStatic(req, res, url.pathname);
   } catch (error) {

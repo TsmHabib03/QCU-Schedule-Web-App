@@ -70,7 +70,7 @@ async function startBridge(gs) {
 }
 
 async function main() {
-  const gs = await loadAppsScript({ repoRoot, secret: SECRET });
+  const gs = await loadAppsScript({ repoRoot, secret: SECRET, properties: { CATALOG_SYNC_GOOGLE_SUB: ACTOR.googleSub } });
   gs.setupDatabase();
   gs.seedCatalogData();
 
@@ -255,6 +255,21 @@ async function main() {
     check("update did not duplicate the row", Tasks.getByUserId(userId).filter((x) => x.taskId === task.taskId).length <= 1);
     check("new title persisted", Tasks.getById(task.taskId)?.title === "Read chapter 4", String(Tasks.getById(task.taskId)?.title));
     check("version incremented by Apps Script", Number(Tasks.getById(task.taskId)?.version) >= 2, String(Tasks.getById(task.taskId)?.version));
+    section("Concurrent user change isolation");
+    const other = { googleSub: 'parallel-student', email: 'parallel@example.test' };
+    await Repo.hydrate(env, other);
+    Users.upsert(other.googleSub, { email: other.email, name: 'Parallel student' });
+    const pendingOther = Repo.pending();
+    await Repo.hydrate(env, ACTOR);
+    check('hydration preserves another user pending changes', Repo.pending() === pendingOther);
+    Tasks.update(Tasks.getById(task.taskId), { title: 'Scoped write' });
+    await Repo.flush(env, ACTOR);
+    check('flush leaves another user pending changes intact', Repo.pending() === pendingOther);
+    await Repo.flush(env, other);
+    Repo.reset();
+    const otherSnapshot = await Repo.hydrate(env, other);
+    check('other user persists independently', !otherSnapshot.isNew && Users.getByGoogleSub(other.googleSub)?.name === 'Parallel student');
+    check('other user receives no first-user tasks', Tasks.getByUserId(Users.resolveId(other.googleSub)).length === 0);
   } finally {
     server.close();
   }
