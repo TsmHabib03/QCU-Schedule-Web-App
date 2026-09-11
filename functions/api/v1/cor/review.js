@@ -1,14 +1,14 @@
 // POST /api/v1/cor/review
 // Saves student corrections to the extraction draft.
 // Body: { studentInfo, enrollmentInfo, subjects }
-// On CF Pages: updates draft in session cookie (in-memory Maps are empty).
+// Persist in the repository when available; the client carries its reviewed
+// draft to confirmation when running without durable storage.
 
 import {
   resolveUser,
   refreshSession,
   flushRepo,
   json,
-  compactDraft,
 } from "../../auth/_lib.js";
 import { CorRecords, CorDrafts } from "../../repo/index.js";
 
@@ -49,7 +49,9 @@ export async function onRequestPost(context) {
 
     // Validate student info
     const si = body.studentInfo;
-    if (!si.firstName || !si.lastName || !si.studentNumber) {
+    const value = (field) => field && typeof field === "object" ? field.value : field;
+    const hasValue = (field) => String(value(field) ?? "").trim().length > 0;
+    if (!hasValue(si.firstName) || !hasValue(si.lastName) || !hasValue(si.studentNumber)) {
       return json(
         { status: "ERROR", error: "Student first name, last name, and student number are required." },
         400
@@ -58,7 +60,7 @@ export async function onRequestPost(context) {
 
     // Validate enrollment info
     const ei = body.enrollmentInfo;
-    if (!ei.program || !ei.yearLevel || !ei.term) {
+    if (!hasValue(ei.program) || !hasValue(ei.yearLevel) || !hasValue(ei.term)) {
       return json(
         { status: "ERROR", error: "Program, year level, and term are required." },
         400
@@ -74,7 +76,7 @@ export async function onRequestPost(context) {
     }
 
     for (const subject of body.subjects) {
-      if (!subject.subjectCode || !subject.subjectName) {
+      if (!hasValue(subject.subjectCode) || !hasValue(subject.subjectName)) {
         return json(
           { status: "ERROR", error: "Each subject must have a code and name." },
           400
@@ -100,20 +102,19 @@ export async function onRequestPost(context) {
       await flushRepo(context, session);
     }
 
-    // On CF Pages: save updated draft in session cookie
-    // Compact the draft to keep cookie under 4 KB.
+    // Keep drafts out of the cookie: even compact schedules can exceed 4 KB.
     const resp = json({
       status: "OK",
       corRecordId: record?.id || user.corRecordId,
-      draftVersion: (record?.draftVersion || 0) + 1,
+      draftVersion: record?.draftVersion || 1,
       message: "Corrections saved. Ready to confirm.",
     });
 
     if (!record) {
-      // Store the full reviewed draft in session for the confirm endpoint.
-      // Compact it to strip sourceText/confidence (keeps cookie under 4 KB).
+      // The client sends the reviewed draft to confirmation as JSON.
       const sessionCookie = await refreshSession(context, session, {
-        corDraft: compactDraft(updatedDraft),
+        corDraft: null,
+        corRecordStatus: "REVIEW_REQUIRED",
       });
       resp.headers.append("Set-Cookie", sessionCookie);
     }

@@ -44,13 +44,13 @@ export async function onRequestGet(context) {
     }
 
     // CF Pages: Maps empty, infer status from session
-    if (user.corDraft) {
+    if (user.corDraft || user.corRecordStatus === "REVIEW_REQUIRED") {
       return json({
         status: "OK",
         hasImport: true,
         corRecordId,
         importStatus: "REVIEW_REQUIRED",
-        filename: user.corDraft.filename || "unknown.pdf",
+        filename: user.corDraft?.filename || "unknown.pdf",
         sizeBytes: 0,
         createdAt: null,
         updatedAt: null,

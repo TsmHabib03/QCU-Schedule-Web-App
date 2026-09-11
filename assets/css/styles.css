@@ -313,6 +313,8 @@ body.modal-open { overflow: hidden; }
 .home-week { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 16px; }
 .home-week-head { padding: 0 2px 12px; }
 .home-week-strip { display: block; }
+.home-week-strip:has(> .skel-week-day) { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.home-week-strip > .skel-week-day { min-width: 0; }
 .home-week-table { display: block; border: 1px solid var(--divider); border-radius: var(--radius); overflow: hidden; background: var(--bg); }
 .home-week-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 .home-week-head-row { background: var(--blue-soft); border-bottom: 1px solid var(--divider); }

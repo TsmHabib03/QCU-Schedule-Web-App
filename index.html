@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=53">
+<link rel="stylesheet" href="assets/css/styles.css?v=54">
 <script>
   // Auth gate: start the session check immediately so the network round-trip
   // overlaps page parse, but apply DOM changes only AFTER <body> exists.
@@ -23,8 +23,8 @@
   (function () {
     var params = new URLSearchParams(window.location.search);
     var authResult = params.get("auth");
-    // Kick off the bootstrap request now, unless an ?auth= param already decides routing.
-    var bootstrap = authResult ? null : fetch("/api/v1/bootstrap", { credentials: "include" })
+    // Always verify the session; URL parameters are not authentication proof.
+    var bootstrap = fetch("/api/v1/bootstrap", { credentials: "include", cache: "no-store" })
       .then(function (r) { return r.json(); })
       .catch(function () { return { authenticated: false, routing: "login" }; });
 
@@ -38,9 +38,15 @@
     }
 
     function run() {
-      if (authResult === "onboarding") { window.location.replace("/onboarding.html"); return; }
-      if (authResult === "dashboard") { show("dashboard"); window.history.replaceState({}, document.title, "/"); return; }
-      if (authResult === "denied" || authResult === "failed") { show("landing"); return; }
+      if (authResult === "denied" || authResult === "failed") {
+        show("landing");
+        var error = document.getElementById("auth-error-msg");
+        if (error) {
+          error.textContent = authResult === "denied" ? "Google sign-in was cancelled. Please try again." : "Sign-in could not be completed. Please try again.";
+          error.style.display = "block";
+        }
+        return;
+      }
       bootstrap.then(function (d) {
         if (d && d.authenticated && d.routing === "onboarding") { window.location.replace("/onboarding.html"); return; }
         show(d && d.authenticated && d.routing === "dashboard" ? "dashboard" : "landing");
@@ -140,7 +146,6 @@
           <div class="home-hero-skeleton" id="hero-skeleton">
             <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
             <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
-          </div>
           </div>
         </div>
         <div class="home-hero-seal" aria-hidden="true">

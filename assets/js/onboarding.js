@@ -14,6 +14,17 @@
   let pollTimer = null;
   const MAX_POLL = 60;
   let pollCount = 0;
+  let uploadInFlight = false;
+  let pollingInFlight = false;
+  function cacheDraft() {
+    try { sessionStorage.setItem("qcu-cor-draft", JSON.stringify({ owner: user?.userId || user?.email, corRecordId, draft: draftResult })); } catch (_) {}
+  }
+  function restoreDraft() {
+    try {
+      const cached = JSON.parse(sessionStorage.getItem("qcu-cor-draft"));
+      if (cached?.owner === (user?.userId || user?.email) && cached.corRecordId === corRecordId) draftResult = cached.draft;
+    } catch (_) {}
+  }
 
   /* ── DOM refs ────────────────────────────────────────────────────────── */
   const headerName = document.getElementById("header-user-name");
@@ -25,6 +36,7 @@
   let currentStep = "welcome";
 
   window.goToStep = function (step) {
+    if (uploadInFlight && (step === "welcome" || step === "upload")) return;
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     currentStep = step;
     document.querySelectorAll(".onboarding-step").forEach((el) => el.classList.remove("active"));
@@ -49,6 +61,7 @@
 
   /* ── Sign out ────────────────────────────────────────────────────────── */
   window.signOut = async function () {
+    try { sessionStorage.removeItem("qcu-cor-draft"); } catch (_) {}
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch (_) {}
     window.location.href = "/";
   };
@@ -98,6 +111,11 @@
           goToStep("processing");
           startPolling();
           break;
+        case "UPLOAD":
+          corRecordId = data.corRecordId;
+          goToStep("processing");
+          await processImport();
+          break;
         case "REVIEW":
           corRecordId = data.corRecordId;
           await loadResult();
@@ -111,8 +129,9 @@
         default:
           goToStep("welcome");
       }
-    } catch (_) {
-      goToStep("welcome");
+    } catch (err) {
+      goToStep("upload");
+      showError(err.message || "Could not resume your import. Please try again.");
     }
   }
 
@@ -145,6 +164,8 @@
   }
 
   function handleFileSelect(file) {
+    if (uploadInFlight) return;
+    removeFile();
     hideError();
     if (!ALLOWED_TYPES.includes(file.type)) {
       showError("Unsupported file type. Please upload a PDF, JPG, or PNG.");
@@ -165,6 +186,7 @@
   }
 
   window.removeFile = function () {
+    if (uploadInFlight) return;
     selectedFile = null;
     fileInput.value = "";
     fileSummary.classList.remove("visible");
@@ -178,7 +200,9 @@
 
   /* ── Upload ──────────────────────────────────────────────────────────── */
   window.uploadCor = async function () {
-    if (!selectedFile) return;
+    if (!selectedFile || uploadInFlight) return;
+    uploadInFlight = true;
+    hideError();
     uploadBtn.disabled = true;
     uploadBtn.classList.add("btn-spinner");
     const progress = document.getElementById("upload-progress");
@@ -201,6 +225,21 @@
       const data = await resp.json();
       progressFill.style.width = "60%";
 
+      if (data.status === "DUPLICATE") {
+        corRecordId = data.corRecordId;
+        draftResult = null;
+        goToStep("processing");
+        if (data.importStatus === "REVIEW_REQUIRED") {
+          await loadResult();
+          goToStep("review");
+        } else if (["ACCEPTED", "QUEUED"].includes(data.importStatus)) {
+          await processImport();
+        } else {
+          startPolling();
+        }
+        return;
+      }
+
       if (data.status !== "OK" && data.status !== "ACCEPTED" && data.status !== "EXTRACTED") {
         showError(data.error || "Upload failed. Please try again.");        uploadBtn.disabled = false;
         uploadBtn.classList.remove("btn-spinner");
@@ -213,46 +252,51 @@
       corRecordId = data.corRecordId;
       // Cache the extraction result from the upload response so it can be
       // sent to /cor/review and /cor/confirm (avoids needing Maps on CF Pages).
-      if (data.result) {
-        draftResult = data.result;
+      draftResult = data.result || null;
+      if (draftResult) {
+        cacheDraft();
+        populateReviewForm(draftResult);
+        goToStep("review");
+        return;
       }
       progressFill.style.width = "80%";
       progressText.textContent = "Upload complete. Starting extraction...";
 
-      // Trigger processing
-      const procResp = await fetch("/api/v1/cor/process", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ corRecordId }),
-      });
-      const procData = await procResp.json();
-      progressFill.style.width = "100%";
-
-      if (procData.status !== "OK" && procData.status !== "PROCESSING" && procData.status !== "REVIEW_REQUIRED") {
-        showError(procData.error || "Could not start extraction. Please try again.");        uploadBtn.disabled = false;
-        uploadBtn.classList.remove("btn-spinner");
-        progress.classList.remove("visible");
-        return;
-      }
-
-
-
-      progressText.textContent = "Extraction started. Processing...";
-      setTimeout(() => {
-        progress.classList.remove("visible");
-        goToStep("processing");
-        startPolling();
-      }, 800);
+      goToStep("processing");
+      await processImport();
     } catch (err) {
-      showError("Network error. Please check your connection and try again.");
-      uploadBtn.disabled = false;
+      uploadInFlight = false;
+      goToStep("upload");
+      showError(err.message || "Network error. Please check your connection and try again.");
+    } finally {
+      uploadInFlight = false;
+      uploadBtn.disabled = !selectedFile;
+      uploadBtn.classList.remove("btn-spinner");
       progress.classList.remove("visible");
     }
   };
 
+  async function processImport() {
+    const resp = await fetch("/api/v1/cor/process", {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ corRecordId }),
+    });
+    const data = await resp.json();
+    if (!["OK", "PROCESSING", "REVIEW_REQUIRED"].includes(data.status)) {
+      throw new Error(data.error || "Could not start extraction. Please try again.");
+    }
+    if (data.status === "REVIEW_REQUIRED") {
+      draftResult = data.result || null;
+      await loadResult();
+      goToStep("review");
+    } else startPolling();
+  }
+
   /* ── Processing polling ──────────────────────────────────────────────── */
   function startPolling() {
+    document.getElementById("processing-message").textContent = "We are extracting your student and class details. This may take a moment.";
+    document.getElementById("processing-retry").hidden = true;
     pollCount = 0;
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(pollStatus, 1500);
@@ -260,18 +304,20 @@
   }
 
   async function pollStatus() {
+    if (pollingInFlight || currentStep !== "processing") return;
     pollCount++;
     if (pollCount > MAX_POLL) {
       clearInterval(pollTimer);
       pollTimer = null;
-      goToStep("upload");
-      showError("Processing took too long. Please try again.");
+      document.getElementById("processing-message").textContent = "Your import has not finished yet, or its status could not be checked. Check again to resume without uploading twice.";
+      document.getElementById("processing-retry").hidden = false;
       return;
     }
+    pollingInFlight = true;
     try {
       const resp = await fetch("/api/v1/cor/status", { credentials: "include" });
       const data = await resp.json();
-      if (data.status !== "OK") return;
+      if (data.status !== "OK" || currentStep !== "processing") return;
 
       switch (data.importStatus || data.corStatus) {
         case "REVIEW_REQUIRED":
@@ -292,24 +338,31 @@
           goToStep("success");
           break;
       }
-    } catch (_) {}
+    } catch (err) {
+      document.getElementById("processing-message").textContent = err.message || "Could not check processing status.";
+      document.getElementById("processing-retry").hidden = false;
+    } finally { pollingInFlight = false; }
   }
+  window.resumeProcessing = startPolling;
 
   /* ── Load extraction result ──────────────────────────────────────────── */
   async function loadResult() {
+    if (!draftResult) restoreDraft();
     // If draft was already cached from the upload response, use it directly.
     if (draftResult && draftResult.subjects && draftResult.subjects.length > 0) {
+      cacheDraft();
       populateReviewForm(draftResult);
       return;
     }
-    try {
-      const resp = await fetch("/api/v1/cor/result", { credentials: "include" });
-      const data = await resp.json();
-      if (data.status === "OK" && data.hasResult) {
-        draftResult = data.result;
-        populateReviewForm(draftResult);
-      }
-    } catch (_) {}
+    const resp = await fetch("/api/v1/cor/result", { credentials: "include" });
+    const data = await resp.json();
+    if (data.status === "OK" && data.hasResult) {
+      draftResult = data.result;
+      cacheDraft();
+      populateReviewForm(draftResult);
+      return;
+    }
+    throw new Error("Your COR result is not available yet. Please check again.");
   }
 
   /* ── Populate review form ────────────────────────────────────────────── */
@@ -335,8 +388,9 @@
     if (programSelect && draft.enrollmentInfo?.program) {
       const val = draft.enrollmentInfo.program;
       const opt = document.createElement("option");
-      opt.value = val.value || "";
-      opt.textContent = val.value || "";
+      programSelect.replaceChildren();
+      opt.value = typeof val === "object" ? (val.value || "") : val;
+      opt.textContent = opt.value;
       opt.selected = true;
       programSelect.appendChild(opt);
     }
@@ -372,9 +426,9 @@
         const end = fv(m.time?.end) || m.endTime || "";
         const room = fv(s.room);
         return `<div class="subject-schedule-row">
-          <span class="subject-day">${day}</span>
-          <span>${start}${end ? " \u2013 " + end : ""}</span>
-          ${room ? `<span style="margin-left:auto;color:var(--muted,#5F6368)">${room}</span>` : ""}
+          <span class="subject-day">${esc(day)}</span>
+          <span>${esc(start)}${end ? " \u2013 " + esc(end) : ""}</span>
+          ${room ? `<span style="margin-left:auto;color:var(--muted,#5F6368)">${esc(room)}</span>` : ""}
         </div>`;
       }).join("");
 
@@ -384,8 +438,8 @@
       card.innerHTML = `
         <div class="subject-header">
           <span class="subject-code">${esc(fv(s.subjectCode))}</span>
-          <span class="review-confidence ${confClass}">${conf}</span>
-          ${fv(s.units) ? `<span class="subject-units">${fv(s.units)} units</span>` : ""}
+          <span class="review-confidence ${confClass}">${esc(conf)}</span>
+          ${fv(s.units) ? `<span class="subject-units">${esc(fv(s.units))} units</span>` : ""}
         </div>
         <div class="subject-name">${esc(fv(s.subjectName))}</div>
         <div class="subject-schedule">${scheduleHtml || "<em>No schedule detected</em>"}</div>
@@ -405,7 +459,7 @@
     const reviewError = document.getElementById("review-error");
     reviewError.classList.remove("visible");
     const saveBtn = document.getElementById("review-save-btn");
-    if (saveBtn) { saveBtn.disabled = true; saveBtn.classList.add("btn-spinner"); }
+    if (saveBtn?.disabled) return;
 
     // Gather form values
     const studentInfo = {
@@ -431,8 +485,8 @@
       adviserName: { value: getVal("review-adviserName"), confidence: "high" },
     };
 
-    if (!enrollmentInfo.program.value || !enrollmentInfo.yearLevel.value) {
-      reviewError.textContent = "Program and year level are required.";
+    if (!enrollmentInfo.program.value || !enrollmentInfo.yearLevel.value || !enrollmentInfo.term.value) {
+      reviewError.textContent = "Program, year level, and term are required.";
       reviewError.classList.add("visible");
       return;
     }
@@ -454,6 +508,7 @@
       matchedSubjectId: s.matchedSubjectId || null,
     }));
 
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.classList.add("btn-spinner"); }
     try {
       const resp = await fetch("/api/v1/cor/review", {
         method: "POST",
@@ -464,6 +519,8 @@
       const data = await resp.json();
 
       if (data.status === "OK") {
+        draftResult = { ...draftResult, studentInfo, enrollmentInfo, subjects };
+        cacheDraft();
         // Build confirmation summary
         buildConfirmSummary(studentInfo, enrollmentInfo, subjects);
         goToStep("confirm");
@@ -514,6 +571,8 @@
   /* ── Confirm and activate ────────────────────────────────────────────── */
   window.confirmAndActivate = async function () {
     const btn = document.getElementById("confirm-btn");
+    if (btn.disabled) return;
+    document.getElementById("confirm-error").classList.remove("visible");
     btn.disabled = true;
     btn.classList.add("btn-spinner");
     const label = btn.querySelector(".btn-label");
@@ -524,15 +583,17 @@
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ corRecordId, draft: draftResult }),
       });
       const data = await resp.json();
 
       if (data.status === "COMPLETE") {
+        try { sessionStorage.removeItem("qcu-cor-draft"); } catch (_) {}
         goToStep("success");
         // Auto-redirect after 3 seconds
         setTimeout(() => { window.location.href = "/"; }, 3000);
       } else {
-        const errEl = document.getElementById("review-error");
+        const errEl = document.getElementById("confirm-error");
         errEl.textContent = data.error || "Could not activate. Please try again.";
         errEl.classList.add("visible");
         btn.disabled = false;
@@ -540,7 +601,7 @@
         if (label) label.textContent = "Confirm and activate";
       }
     } catch (err) {
-      const errEl = document.getElementById("review-error");
+      const errEl = document.getElementById("confirm-error");
       errEl.textContent = "Network error. Please try again.";
       errEl.classList.add("visible");
       btn.disabled = false;

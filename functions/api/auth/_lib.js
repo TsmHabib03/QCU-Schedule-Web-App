@@ -522,6 +522,7 @@ export async function resolveUser(context) {
     role: session.role || "student",
     profile: session.profile || null,
     corRecordId: session.corRecordId || null,
+    corRecordStatus: session.corRecordStatus || null,
     corDraft: session.corDraft || null,
     createdAt: session.createdAt || ts,
     updatedAt: ts,

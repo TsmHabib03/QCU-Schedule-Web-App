@@ -360,7 +360,8 @@
       <section class="onboarding-step" id="step-processing">
         <div class="processing-spinner"></div>
         <h2 class="processing-title">Processing your COR</h2>
-        <p class="processing-text">We are extracting your student and class details. This may take a moment.</p>
+        <p class="processing-text" id="processing-message" role="status">We are extracting your student and class details. This may take a moment.</p>
+        <div class="btn-row"><button class="btn-secondary" id="processing-retry" hidden onclick="resumeProcessing()">Check again</button></div>
       </section>
 
       <!-- Step 3: Review -->
@@ -465,7 +466,8 @@
         <div class="confirm-summary" id="confirm-summary"></div>
 
         <div class="btn-row">
-          <button class="btn-primary" id="confirm-btn" onclick="confirmAndActivate()"><span class="btn-label">Confirm and activate</span></button>
+            <p class="upload-error" id="confirm-error" role="alert"></p>
+            <button class="btn-primary" id="confirm-btn" onclick="confirmAndActivate()"><span class="btn-label">Confirm and activate</span></button>
           <button class="btn-secondary" onclick="goToStep('review')">Back to review</button>
         </div>
       </section>
@@ -486,6 +488,6 @@
     </main>
   </div>
 
-  <script src="assets/js/onboarding.js"></script>
+  <script src="assets/js/onboarding.js?v=2"></script>
 </body>
 </html>

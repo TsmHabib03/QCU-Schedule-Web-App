@@ -419,6 +419,12 @@ export async function onRequestPost(context) {
       );
     }
 
+    async function failImport(message) {
+      CorRecords.update(record, { status: "CANCELLED", failureCode: "EXTRACTION_FAILED", failureStage: "extraction" });
+      await flushRepo(context, session);
+      return json({ status: "ERROR", error: message }, 422);
+    }
+
     // Must be in ACCEPTED or QUEUED state
     if (!["ACCEPTED", "QUEUED", "PROCESSING"].includes(record.status)) {
       return json(
@@ -433,7 +439,7 @@ export async function onRequestPost(context) {
     // Get the uploaded file bytes
     const fileData = CorFiles.get(record.id);
     if (!fileData) {
-      return json({ status: "ERROR", error: "Could not find uploaded file." }, 404);
+      return failImport("The uploaded file is no longer available. Please upload your COR again.");
     }
 
     console.log("Processing COR:", record.filename, "(", fileData.mimeType, ")...");
@@ -443,24 +449,21 @@ export async function onRequestPost(context) {
     let extractionResult = null;
 
     if (geminiKey) {
-      console.log("Using Gemini Vision API, key starts with:", geminiKey.slice(0, 6) + "...");
+      console.log("Using Gemini Vision API");
       try {
         const geminiResult = await extractWithGemini(fileData.bytes, fileData.mimeType, geminiKey);
         extractionResult = geminiResultToDraft(geminiResult);
         console.log("Gemini OK:", extractionResult.subjects.length, "subjects,", extractionResult.studentInfo.firstName?.value, extractionResult.studentInfo.lastName?.value);
       } catch (geminiError) {
         console.error("Gemini FAILED:", geminiError.message);
-        return json({ status: "ERROR", error: `Gemini error: ${geminiError.message}` }, 500);
+        return failImport("Could not extract your COR. Please upload it again.");
       }
     } else {
       console.log("No GEMINI_API_KEY found, skipping Gemini");
     }
 
     if (!extractionResult) {
-      const msg = !geminiKey
-        ? "No GEMINI_API_KEY set. COR processing requires a valid Gemini API key from https://aistudio.google.com/apikey"
-        : `Gemini extraction failed. Your key starts with: ${geminiKey.slice(0, 6)}... Error: Check Cloudflare Functions logs.`;
-      return json({ status: "ERROR", error: msg }, 500);
+      return failImport("COR extraction is unavailable. Please try again later.");
     }
 
     // Store draft
@@ -477,6 +480,7 @@ export async function onRequestPost(context) {
       message: "Extraction complete. Please review your information.",
       subjectsFound: extractionResult.subjects.length,
       totalUnits: extractionResult.totalUnits,
+      result: extractionResult,
     });
   } catch (error) {
     console.error("COR processing failed:", String(error?.message || error));

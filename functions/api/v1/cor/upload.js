@@ -7,7 +7,6 @@ import {
   refreshSession,
   flushRepo,
   json,
-  compactDraft,
 } from "../../auth/_lib.js";
 import { CorRecords, CorFiles, CorDrafts, Concurrency, Users } from "../../repo/index.js";
 import { extractWithGemini, geminiResultToDraft } from "./_gemini.js";
@@ -252,6 +251,10 @@ export async function onRequestPost(context) {
       );
     }
 
+    // Finish asynchronous hashing before checking/creating the record so two
+    // requests in the same isolate cannot both pass the duplicate check.
+    const contentHash = await computeHash(filePart.data);
+
     // Check for duplicate active import
     const existingRecord = Concurrency.getDuplicateCorRecord(user.userId);
     if (existingRecord) {
@@ -263,8 +266,9 @@ export async function onRequestPost(context) {
       });
     }
 
-    // Compute content hash
-    const contentHash = await computeHash(filePart.data);
+    if (!(context.env || {}).GEMINI_API_KEY) {
+      return json({ status: "ERROR", error: "COR extraction is unavailable. Please try again later." }, 503);
+    }
 
     // Create COR record
     const corRecord = CorRecords.create({
@@ -286,6 +290,8 @@ export async function onRequestPost(context) {
 
     // Transition user to ONBOARDING (for both new and returning ACTIVE users).
     // Routed through Users.update so the change is recorded for the flush below.
+    const previousState = user.state;
+    const previousRecordId = user.corRecordId;
     Users.update(user, {
       state: (user.state === "AUTHENTICATED" || user.state === "ACTIVE") ? "ONBOARDING" : user.state,
       corRecordId: corRecord.id,
@@ -308,7 +314,10 @@ export async function onRequestPost(context) {
         console.log("Upload: Gemini OK,", corDraft.subjects.length, "subjects");
       } catch (geminiError) {
         console.error("Upload: Gemini extraction failed:", geminiError.message);
-        // Continue without draft — process.js will retry on next request
+        CorRecords.update(corRecord, { status: "CANCELLED", failureCode: "EXTRACTION_FAILED", failureStage: "extraction" });
+        Users.update(user, { state: previousState, corRecordId: previousRecordId });
+        await flushRepo(context, session);
+        return json({ status: "ERROR", error: "Could not extract your COR. Please try uploading again." }, 502);
       }
     }
 
@@ -328,6 +337,7 @@ export async function onRequestPost(context) {
       state: "ONBOARDING",
       corRecordId: corRecord.id,
       corDraft: null,
+      corRecordStatus: "REVIEW_REQUIRED",
     });
 
     await flushRepo(context, session);

@@ -1,4 +1,4 @@
-const CACHE_NAME = "qcu-schedule-v63";
+const CACHE_NAME = "qcu-schedule-v64";
 const STATIC_ASSETS = [
   "./",
   "index.html",
@@ -94,11 +94,10 @@ self.addEventListener("fetch", (event) => {
   if (isNoCachePath(url)) {
     event.respondWith(
       fetch(event.request, { cache: "no-store" })
-        .then(response => {
-          if (!response.ok) throw new Error("Network response not ok");
-          return response;
-        })
-        .catch(() => caches.match(event.request).then(cached => cached || caches.match("offline.html")))
+        .catch(() => new Response(JSON.stringify({ status: "OFFLINE", error: "You are offline. Please reconnect and try again." }), {
+          status: 503,
+          headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
+        }))
     );
     return;
   }

@@ -67,7 +67,7 @@ export async function onRequestGet(context) {
       } else {
         // CF Pages: Maps empty — infer stage from session data
         // corDraft exists → user needs to review; otherwise → user needs to process
-        if (user.corDraft) {
+        if (user.corDraft || user.corRecordStatus === "REVIEW_REQUIRED") {
           stage = "REVIEW";
           nextAction = "review";
           corStatus = "REVIEW_REQUIRED";

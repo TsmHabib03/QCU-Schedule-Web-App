@@ -301,11 +301,18 @@ export async function onRequestPost(context) {
     }
 
     // --- Get extraction draft (Maps or session fallback) ---
+    const body = await context.request.json().catch(() => ({}));
+    if (body.corRecordId && body.corRecordId !== user.corRecordId) {
+      return json({ status: "ERROR", error: "This COR import is no longer active." }, 409);
+    }
     let draft = record ? CorDrafts.get(record.id) : null;
     if (!draft && user.corDraft) {
       // CF Pages: draft stored in session cookie during upload
       console.log("Using draft from session cookie (CF Pages path)");
       draft = user.corDraft;
+    }
+    if (!draft) {
+      draft = body.draft;
     }
     if (!draft) {
       return json(

@@ -37,5 +37,5 @@ export async function onRequestGet(context) {
     }
   }
 
-  return json({ keyPresent: true, keyPrefix: apiKey.slice(0, 6) + "...", models: results });
+  return json({ keyPresent: true, models: results });
 }
