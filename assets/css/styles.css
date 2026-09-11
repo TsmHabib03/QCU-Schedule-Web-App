@@ -2554,6 +2554,8 @@ body[data-page="workspace"] .section-stack > * { min-width: 0; }
   .brand-logo { width: 34px; height: 34px; }
   .brand-name, .brand-sub { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; }
   .header-right { gap: 6px; min-width: 0; }
+  .header-clock { display: none; }
+  .signout-btn { min-height: 36px; padding: 6px 9px; }
   .header-clock { min-width: 0; }
   .clock-day, .clock-date { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .qc-logo { width: 30px; height: 30px; }

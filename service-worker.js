@@ -1,4 +1,4 @@
-const CACHE_NAME = "qcu-schedule-v62";
+const CACHE_NAME = "qcu-schedule-v63";
 const STATIC_ASSETS = [
   "./",
   "index.html",
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
   "manifest.json",
   "assets/css/styles.css",
   "assets/js/app.js",
+  "assets/js/lucide.min.js",
   "assets/js/status.js",
   "assets/js/onboarding.js",
   "assets/images/QCU college of computer studies logo.jpg",
@@ -103,7 +104,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   // For static assets: network first, then cache.
-  // { cache: "no-store" } is critical ???????? without it the SW's own fetch() reads
+  // { cache: "no-store" } is critical — without it the SW's own fetch() reads
   // from the browser HTTP cache and can return stale HTML/CSS/JS even while
   // online, which then gets written into CACHE_NAME and served as "fresh".
   // This was the bug behind needing Ctrl+Shift+R to see new deployments.

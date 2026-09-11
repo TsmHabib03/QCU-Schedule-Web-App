@@ -581,6 +581,12 @@ function renderHome() {
   setText("hero-class-count", `${todaysClasses.length}`);
   setText("hero-today-date", QCU_TIME.dateLabel(now));
 
+  // Real values are ready — swap the hero skeleton out for the stats.
+  const heroStats = document.querySelector(".home-hero-stats");
+  const heroSkeleton = document.getElementById("hero-skeleton");
+  if (heroStats) heroStats.style.display = "";
+  if (heroSkeleton) heroSkeleton.style.display = "none";
+
   const weekEl = document.getElementById("home-week-strip");
   if (weekEl) setInnerHTML(weekEl, weekStripTemplate(now));
 
@@ -1989,6 +1995,12 @@ window.signOut = function () {
 async function init() {
   if (window.__QCU_INIT_STARTED) return;
   window.__QCU_INIT_STARTED = true;
+
+  // Paint the static shell (header + bottom nav) immediately, before the
+  // dashboard fetch — nav items are static and formatBrandSub() tolerates a
+  // null state, so the nav no longer disappears while data loads.
+  renderShell();
+  iconify();
 
   // Fetch authenticated dashboard data (single endpoint)
   try {

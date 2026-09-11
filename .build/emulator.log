@@ -1,0 +1,7 @@
+
+Apps Script emulator: http://127.0.0.1:8791/exec
+Sheets: 34   Secret: local-emulator-secret
+
+Point the Functions at it:
+  APPS_SCRIPT_URL=http://127.0.0.1:8791/exec APPS_SCRIPT_SECRET=local-emulator-secret npm run dev
+

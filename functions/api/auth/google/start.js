@@ -41,7 +41,12 @@ export async function onRequestGet(context) {
     const nonce = encodeBytes(nonceBytes);
 
     const url = new URL(context.request.url);
-    const returnTo = url.searchParams.get("returnTo") || "/";
+    // Only preserve same-origin application paths. Never seal an external URL
+    // into the state cookie because it becomes a post-login open redirect.
+    const requestedReturnTo = url.searchParams.get("returnTo") || "/";
+    const returnTo = requestedReturnTo.startsWith("/") && !requestedReturnTo.startsWith("//")
+      ? requestedReturnTo
+      : "/";
 
     const stateData = { state, nonce, returnTo, createdAt: new Date().toISOString() };
     const stateCookie = await seal(stateData, config.sessionSecret);

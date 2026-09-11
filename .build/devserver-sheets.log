@@ -1,0 +1,46 @@
+Academic catalog seeded: 1 campuses, 7 depts, 13 programs, 38 subjects
+Synthetic students seeded: 3 users with enrollments, schedules, and entries
+My-Schedule development server: http://127.0.0.1:8797
+GET /api/v1/tasks
+POST /api/v1/tasks
+POST /api/v1/tasks
+GET /api/v1/tasks
+PATCH /api/v1/tasks/tsk_455e0a87b897ea55eba7e2cb4684eeef
+GET /api/v1/tasks
+PATCH /api/v1/tasks/tsk_455e0a87b897ea55eba7e2cb4684eeef
+DELETE /api/v1/tasks/tsk_455e0a87b897ea55eba7e2cb4684eeef
+DELETE /api/v1/tasks/tsk_4d6b2ef6d82c34c581c8c261f8d077bd
+GET /api/v1/tasks
+PATCH /api/v1/tasks/tsk_4d6b2ef6d82c34c581c8c261f8d077bd
+POST /api/v1/notes
+POST /api/v1/notes
+GET /api/v1/notes
+PATCH /api/v1/notes/nt_9aa66550d9466bbf9779173859bcaa99
+GET /api/v1/notes
+PATCH /api/v1/notes/nt_9aa66550d9466bbf9779173859bcaa99
+DELETE /api/v1/notes/nt_148923d7d9924ee1749f95967a5c54f9
+GET /api/v1/notes
+POST /api/v1/tasks
+POST /api/v1/notes
+GET /api/v1/tasks
+POST /api/v1/tasks
+POST /api/v1/tasks
+GET /api/v1/tasks
+PATCH /api/v1/tasks/tsk_73a80dc07e74b88235cb2ffd3ed333d7
+GET /api/v1/tasks
+PATCH /api/v1/tasks/tsk_73a80dc07e74b88235cb2ffd3ed333d7
+DELETE /api/v1/tasks/tsk_73a80dc07e74b88235cb2ffd3ed333d7
+DELETE /api/v1/tasks/tsk_e354ed4b37c2fada67860ed2cbe1a3d2
+GET /api/v1/tasks
+PATCH /api/v1/tasks/tsk_e354ed4b37c2fada67860ed2cbe1a3d2
+POST /api/v1/notes
+POST /api/v1/notes
+GET /api/v1/notes
+PATCH /api/v1/notes/nt_ab912c1dc530b036f83c42c6ab88ed64
+GET /api/v1/notes
+PATCH /api/v1/notes/nt_ab912c1dc530b036f83c42c6ab88ed64
+DELETE /api/v1/notes/nt_1ffff4c9c0375374cf1aaa173680b473
+GET /api/v1/notes
+POST /api/v1/tasks
+POST /api/v1/notes
+GET /api/v1/tasks

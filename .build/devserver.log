@@ -1,0 +1,25 @@
+Academic catalog seeded: 1 campuses, 7 depts, 13 programs, 38 subjects
+Synthetic students seeded: 3 users with enrollments, schedules, and entries
+My-Schedule development server: http://127.0.0.1:8799
+GET /api/v1/health
+GET /api/v1/tasks
+POST /api/v1/tasks
+POST /api/v1/tasks
+GET /api/v1/tasks
+PATCH /api/v1/tasks/tsk_c5d4e99e28d07b9159b794314592f5eb
+GET /api/v1/tasks
+PATCH /api/v1/tasks/tsk_c5d4e99e28d07b9159b794314592f5eb
+DELETE /api/v1/tasks/tsk_c5d4e99e28d07b9159b794314592f5eb
+DELETE /api/v1/tasks/tsk_508254befcfa28cdff2ea378c92c301d
+GET /api/v1/tasks
+PATCH /api/v1/tasks/tsk_508254befcfa28cdff2ea378c92c301d
+POST /api/v1/notes
+POST /api/v1/notes
+GET /api/v1/notes
+PATCH /api/v1/notes/nt_903771e121353f194ef34efafa073100
+GET /api/v1/notes
+PATCH /api/v1/notes/nt_903771e121353f194ef34efafa073100
+DELETE /api/v1/notes/nt_89ddccf02cca58e5239822a4044cf4a8
+GET /api/v1/notes
+POST /api/v1/tasks
+POST /api/v1/notes

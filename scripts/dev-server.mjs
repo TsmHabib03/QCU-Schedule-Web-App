@@ -13,7 +13,7 @@ import { onRequestGet as googleUpdates } from "../functions/api/google/updates.j
 import { onRequestGet as authGoogleStart } from "../functions/api/auth/google/start.js";
 import { onRequestGet as authGoogleCallback } from "../functions/api/auth/google/callback.js";
 import { onRequestGet as authSession } from "../functions/api/auth/session.js";
-import { onRequestPost as authLogout } from "../functions/api/auth/logout.js";
+import { onRequestGet as authLogoutGet, onRequestPost as authLogoutPost } from "../functions/api/auth/logout.js";
 import { onRequestGet as v1Bootstrap } from "../functions/api/v1/bootstrap.js";
 import { onRequestGet as v1MeGet } from "../functions/api/v1/me.js";
 import { onRequestPatch as v1MePatch } from "../functions/api/v1/me.js";
@@ -71,7 +71,8 @@ const API_ROUTES = new Map([
   ["GET /api/auth/google/start", authGoogleStart],
   ["GET /api/auth/google/callback", authGoogleCallback],
   ["GET /api/auth/session", authSession],
-  ["POST /api/auth/logout", authLogout],
+  ["GET /api/auth/logout", authLogoutGet],
+  ["POST /api/auth/logout", authLogoutPost],
   ["GET /api/v1/bootstrap", v1Bootstrap],
   ["GET /api/v1/me", v1MeGet],
   ["PATCH /api/v1/me", v1MePatch],
@@ -368,6 +369,13 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === "/api/dev/health") {
       return sendWebResponse(res, Response.json({ status: "OK", functions: true }), request);
+    }
+
+    // Keep logout resilient to browser-added trailing slashes and ensure the
+    // navigation form used by the header always reaches the GET handler.
+    if ((url.pathname === "/api/auth/logout" || url.pathname === "/api/auth/logout/") && request.method === "GET") {
+      const response = await authLogoutGet({ request, env });
+      return sendWebResponse(res, response, request);
     }
 
     const handler = API_ROUTES.get(`${request.method} ${url.pathname}`);

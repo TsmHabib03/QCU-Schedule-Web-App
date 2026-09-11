@@ -4,51 +4,59 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#005BAC">
-  <meta name="description" content="QCU Student Portal ??? view today's schedule, current class, upcoming classes and daily progress for Quezon City University.">
+  <meta name="description" content="QCU Student Portal — view today's schedule, current class, upcoming classes and daily progress for Quezon City University.">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>QCU Schedule ??? Home</title>
+  <title>QCU Schedule — Home</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
   <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=52">
+<link rel="stylesheet" href="assets/css/styles.css?v=53">
 <script>
-  // EARLY auth check — runs BEFORE any other JS to prevent landing+dashboard overlap.
+  // Auth gate: start the session check immediately so the network round-trip
+  // overlaps page parse, but apply DOM changes only AFTER <body> exists.
+  // (Querying #auth-* in <head> returns null — that was the "stuck on Loading" bug.)
   (function () {
-    var landing = document.getElementById("auth-landing");
-    var dashboard = document.getElementById("auth-dashboard");
-    var loading = document.getElementById("auth-loading");
-    // Hide both immediately so they never overlap
-    if (landing) landing.style.display = "none";
-    if (dashboard) dashboard.style.display = "none";
-    // Check session early
     var params = new URLSearchParams(window.location.search);
     var authResult = params.get("auth");
-    if (authResult === "onboarding") { window.location.replace("/onboarding.html"); return; }
-    if (authResult === "dashboard") { if (dashboard) dashboard.style.display = "block"; if (loading) loading.style.display = "none"; window.history.replaceState({}, document.title, "/"); return; }
-    if (authResult === "denied" || authResult === "failed") { if (landing) landing.style.display = "block"; if (loading) loading.style.display = "none"; return; }
-    // No auth param — check session
-    fetch("/api/v1/bootstrap", { credentials: "include" })
+    // Kick off the bootstrap request now, unless an ?auth= param already decides routing.
+    var bootstrap = authResult ? null : fetch("/api/v1/bootstrap", { credentials: "include" })
       .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (!d.authenticated) { if (landing) landing.style.display = "block"; if (loading) loading.style.display = "none"; return; }
-        if (d.routing === "onboarding") { window.location.replace("/onboarding.html"); return; }
-        if (d.routing === "dashboard") { if (dashboard) dashboard.style.display = "block"; } else { if (landing) landing.style.display = "block"; }
-        if (loading) loading.style.display = "none";
+      .catch(function () { return { authenticated: false, routing: "login" }; });
+
+    function show(view) {
+      var landing = document.getElementById("auth-landing");
+      var dashboard = document.getElementById("auth-dashboard");
+      var loading = document.getElementById("auth-loading");
+      if (loading) loading.style.display = "none";
+      if (dashboard) dashboard.style.display = (view === "dashboard") ? "block" : "none";
+      if (landing) landing.style.display = (view === "dashboard") ? "none" : "block";
+    }
+
+    function run() {
+      if (authResult === "onboarding") { window.location.replace("/onboarding.html"); return; }
+      if (authResult === "dashboard") { show("dashboard"); window.history.replaceState({}, document.title, "/"); return; }
+      if (authResult === "denied" || authResult === "failed") { show("landing"); return; }
+      bootstrap.then(function (d) {
+        if (d && d.authenticated && d.routing === "onboarding") { window.location.replace("/onboarding.html"); return; }
+        show(d && d.authenticated && d.routing === "dashboard" ? "dashboard" : "landing");
         window.history.replaceState({}, document.title, "/");
-      })
-      .catch(function () { if (landing) landing.style.display = "block"; if (loading) loading.style.display = "none"; });
+      });
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run);
+    else run();
   })();
 </script>
 </head>
 <body data-page="home">
 
   <!-- PUBLIC LANDING: shown when not authenticated -->
-  <div id="auth-landing" class="app-shell" style="display:none !important;">
+  <div id="auth-landing" class="app-shell" style="display:none;">
     <header class="page-header">
       <div class="page-header-inner" style="display:flex;align-items:center;justify-content:space-between;max-width:960px;margin:0 auto;padding:0 20px;height:56px;">
         <span style="font-weight:700;font-size:15px;color:var(--navy,#0B2341);">My-Schedule</span>
@@ -102,7 +110,7 @@
   </div>
 
   <!-- AUTHENTICATED DASHBOARD: shown after login -->
-  <div id="auth-dashboard" class="app-shell" style="display:none !important;">
+  <div id="auth-dashboard" class="app-shell" style="display:none;">
     <header id="app-header" class="page-header"></header>
 
     <main class="page-container home-layout">
@@ -116,7 +124,7 @@
           </p>
           <h1 class="home-hero-title">Student Overview</h1>
           <p class="home-hero-sub">Live class status updates every second.</p>
-          <div class="home-hero-stats">
+          <div class="home-hero-stats" style="display:none;">
             
             <span class="home-hero-stat">
               <strong id="hero-class-count">0</strong>
@@ -125,11 +133,11 @@
 
             <span class="home-hero-stat-divider" aria-hidden="true"></span>
             <span class="home-hero-stat">
-              <strong id="hero-today-date">???</strong>
+              <strong id="hero-today-date">—</strong>
               <span>today</span>
             </span>
           </div>
-          <div class="home-hero-skeleton" id="hero-skeleton" style="display:none;">
+          <div class="home-hero-skeleton" id="hero-skeleton">
             <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
             <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
           </div>
@@ -154,7 +162,7 @@
       <section class="home-nownext">
         <div class="home-nownext-head">
           <h2 class="home-kicker">Class tracker</h2>
-          <span class="home-nownext-state" id="countdown-state-label">???</span>
+          <span class="home-nownext-state" id="countdown-state-label">—</span>
         </div>
         <div id="home-tracker" class="home-tracker">
           <div id="tracker-now" class="home-tracker-cell home-tracker-cell--now"></div>
@@ -207,9 +215,9 @@
     <p style="font-size:14px;color:#6b7280;">Loading&hellip;</p>
   </div>
 
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="assets/js/lucide.min.js?v=1"></script>
 <script src="assets/js/academic.js?v=41"></script>
-<script src="assets/js/app.js?v=50"></script>
+<script src="assets/js/app.js?v=51"></script>
 <script src="assets/js/install-prompt.js?v=1"></script>
   <script>
     // Optional overrides for the Home status panel (all keyless/optional).
