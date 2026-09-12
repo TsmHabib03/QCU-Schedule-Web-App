@@ -1,4 +1,4 @@
-const CACHE_NAME = "qcu-schedule-v67";
+const CACHE_NAME = "qcu-schedule-v69";
 const STATIC_ASSETS = [
   "./",
   "index.html",
@@ -45,9 +45,8 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+    caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith('qcu-schedule-') && key !== CACHE_NAME).map((key) => caches.delete(key)))).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
@@ -125,7 +124,8 @@ self.addEventListener("fetch", (event) => {
       .catch(() => {
         return caches.match(event.request).then((cached) => {
           if (cached) return cached;
-          return caches.match("offline.html");
+          if (event.request.mode === 'navigate') return caches.match("offline.html").then(page => page || new Response('You are offline.', {status:503}));
+          return new Response('Resource unavailable offline.', {status:503, headers:{'Content-Type':'text/plain'}});
         });
       })
   );

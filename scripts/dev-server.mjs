@@ -356,8 +356,8 @@ async function serveStatic(req, res, pathname) {
     });
     res.end(content);
   } catch (_) {
-    res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-    res.end("Not found");
+    res.writeHead(404, { "Content-Type": "text/html; charset=utf-8", "Cache-Control":"no-store" });
+    res.end(await readFile(resolve(ROOT, '404.html')));
   }
 }
 

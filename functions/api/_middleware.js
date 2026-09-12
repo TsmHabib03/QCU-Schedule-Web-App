@@ -2,6 +2,7 @@ import { readPlatformSession, json } from './auth/_lib.js';
 import { callAction, isConfigured } from './repo/sheets-adapter.js';
 
 export async function onRequest(context) {
+  const started = Date.now();
   const path = new URL(context.request.url).pathname;
   if (!['GET', 'HEAD', 'OPTIONS'].includes(context.request.method) &&
       context.request.headers.get('Origin') !== new URL(context.request.url).origin) {
@@ -18,8 +19,18 @@ export async function onRequest(context) {
       return json({ error: 'Account access could not be verified.' }, ['FORBIDDEN','UNAUTHENTICATED'].includes(error.code) ? 403 : 503);
     }
   }
-  const response = await context.next();
+  let response;
+  try { response = await context.next(); }
+  catch (error) {
+    console.error('API request failed', path, error.code || error.name);
+    response = json({ status:'SERVICE_UNAVAILABLE', error:'The service is temporarily unavailable. Please retry.' }, 503);
+  }
+  if (response.status === 404) {
+    response = json({ status:'NOT_FOUND', error:'API endpoint not found.' }, 404);
+  }
   const secured = new Response(response.body, response);
   secured.headers.set('Cache-Control', 'no-store');
+  secured.headers.append('Server-Timing', `api;dur=${Date.now()-started}`);
+  if (context.data?.databaseMs !== undefined) secured.headers.append('Server-Timing', `database;dur=${context.data.databaseMs}`);
   return secured;
 }

@@ -51,7 +51,7 @@ Browser visual inspection and real Google/Drive/live deployment smoke tests must
 
 ## Current Apps Script deployment URL
 
-`https://script.google.com/macros/s/AKfycbzLvziOhBbX3ZG1rp1szZWa2AP-wCL4acehRjeTjKc55AV_5u6gsloDXB4iKZhR82jr7A/exec`
+`https://script.google.com/macros/s/AKfycbws152zcFH7ZBqf9ocBbg6jCMu-JjewHxA6o1QjLFNDkqLuccITDmbJU98slUpG49pTqA/exec`
 
 The local `.dev.vars` and example configuration use this URL. Set Cloudflare Pages `APPS_SCRIPT_URL` to this same value before the next deployment. An attempted remote update could not authenticate because Wrangler had no Cloudflare API token.
 

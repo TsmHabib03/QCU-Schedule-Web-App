@@ -6,6 +6,7 @@ import {
   json,
 } from "../../auth/_lib.js";
 import { CorRecords } from "../../repo/index.js";
+import { jobError } from './_jobs.js';
 
 export async function onRequestGet(context) {
   try {
@@ -17,7 +18,9 @@ export async function onRequestGet(context) {
     const { user } = resolved;
 
     // Find user's active COR record (Maps or session fallback)
-    const corRecordId = user.corRecordId;
+    const params = new URL(context.request.url).searchParams;
+    const requested = params.get('requestId') ? CorRecords.getByRequestId(user.userId,params.get('requestId')) : null;
+    const corRecordId = requested?.id || (params.has('requestId') ? null : CorRecords.getActiveByUserId(user.userId)?.id || user.corRecordId);
     if (!corRecordId) {
       return json({
         status: "OK",
@@ -40,6 +43,9 @@ export async function onRequestGet(context) {
         failureCode: record.failureCode,
         failureStage: record.failureStage,
         draftVersion: record.draftVersion,
+        requestId: record.requestId,
+        canResume: !record.leaseUntil || record.leaseUntil <= Date.now(),
+        fileMissing: !!context.env.APPS_SCRIPT_URL && !record.driveFileId && !!record.requestId && ['ACCEPTED','QUEUED','PROCESSING'].includes(record.status),
       });
     }
 
@@ -66,6 +72,7 @@ export async function onRequestGet(context) {
       importStatus: null,
     });
   } catch (error) {
+    if (error.code) return jobError(error);
     console.error("COR status check failed:", String(error?.message || error));
     return json({ status: "ERROR", error: "Failed to check status" }, 500);
   }

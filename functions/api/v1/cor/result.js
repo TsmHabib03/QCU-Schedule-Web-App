@@ -15,6 +15,8 @@ export async function onRequestGet(context) {
     }
 
     const { user } = resolved;
+    const pending = CorRecords.getActiveByUserId(user.userId);
+    if (pending) user.corRecordId = pending.id;
 
     if (!user.corRecordId) {
       return json(

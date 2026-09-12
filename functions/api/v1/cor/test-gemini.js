@@ -6,6 +6,9 @@ import { resolveUser, json } from "../../auth/_lib.js";
 const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.1-flash-lite"];
 
 export async function onRequestGet(context) {
+  if (!['localhost','127.0.0.1','[::1]'].includes(new URL(context.request.url).hostname)) {
+    return json({status:'NOT_FOUND',error:'API endpoint not found.'},404);
+  }
   const resolved = await resolveUser(context);
   if (!resolved) return json({ error: "Not authenticated" }, 401);
 

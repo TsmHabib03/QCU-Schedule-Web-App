@@ -447,9 +447,13 @@ async function hydrateRepo(context, session) {
   if (path.startsWith('/api/auth/google/')) kinds = ['users'];
   else if (path === '/api/v1/me') kinds = ['users','profiles'];
   else if (path === '/api/v1/bootstrap') kinds = ['users','profiles','enrollments'];
+  else if (path.startsWith('/api/v1/cor/') && !path.endsWith('/confirm')) kinds = ['users','corRecords','corDrafts'];
+  else if (path === '/api/v1/onboarding/status') kinds = ['users','corRecords'];
   else if (path.startsWith('/api/v1/tasks')) kinds = ['users','tasks','enrollmentSubjects','scheduleEntries'];
   else if (path.startsWith('/api/v1/notes')) kinds = ['users','notes','enrollmentSubjects','scheduleEntries'];
-  return Repo.hydrate(context.env, actor, kinds);
+  const started = Date.now();
+  try { return await Repo.hydrate(context.env, actor, kinds); }
+  finally { context.data ||= {}; context.data.databaseMs = (context.data.databaseMs || 0) + Date.now()-started; }
 }
 
 /**

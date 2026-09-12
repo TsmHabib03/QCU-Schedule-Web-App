@@ -10,6 +10,7 @@ import {
 } from "../../auth/_lib.js";
 import { CorRecords, CorFiles, CorDrafts, Concurrency, Users } from "../../repo/index.js";
 import { extractWithGemini, geminiResultToDraft } from "./_gemini.js";
+import { isConfigured, jobCall, jobError, encodeBytes } from './_jobs.js';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MiB
 const ALLOWED_TYPES = {
@@ -166,25 +167,6 @@ function validateFileSignature(bytes, extension) {
 }
 
 // ---------------------------------------------------------------------------
-// Rate limiting (simple in-memory)
-// ---------------------------------------------------------------------------
-const _uploadTimestamps = new Map(); // userId -> [timestamps]
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 5;
-
-function checkRateLimit(userId) {
-  const now = Date.now();
-  const timestamps = _uploadTimestamps.get(userId) || [];
-  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW);
-  if (recent.length >= RATE_LIMIT_MAX) {
-    return false;
-  }
-  recent.push(now);
-  _uploadTimestamps.set(userId, recent);
-  return true;
-}
-
-// ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
 export async function onRequestPost(context) {
@@ -202,14 +184,6 @@ export async function onRequestPost(context) {
       return json(
         { status: "ERROR", error: `Cannot upload COR in state: ${user.state}` },
         400
-      );
-    }
-
-    // Rate limit
-    if (!checkRateLimit(user.userId)) {
-      return json(
-        { status: "RATE_LIMITED", error: "Too many upload attempts. Please wait and try again." },
-        429
       );
     }
 
@@ -255,8 +229,17 @@ export async function onRequestPost(context) {
     // requests in the same isolate cannot both pass the duplicate check.
     const contentHash = await computeHash(filePart.data);
 
+    if (isConfigured(context.env)) {
+      if (!context.env.GEMINI_API_KEY) return json({status:'SERVICE_UNAVAILABLE',error:'COR extraction is unavailable.'},503);
+      const requestId = context.request.headers.get('X-Request-ID');
+      const result = await jobCall(context, session, 'start', {
+        requestId, contentHash, filename:sanitizeFilename(rawFilename), mimeType:declaredMime, base64:encodeBytes(filePart.data),
+      });
+      return json({status:result.duplicate ? 'DUPLICATE' : 'ACCEPTED', ...result}, result.duplicate ? 200 : 201);
+    }
+
     // Check for duplicate active import
-    const existingRecord = Concurrency.getDuplicateCorRecord(user.userId);
+    const existingRecord = CorRecords.getByRequestId(user.userId, context.request.headers.get('X-Request-ID')) || Concurrency.getDuplicateCorRecord(user.userId);
     if (existingRecord) {
       return json({
         status: "DUPLICATE",
@@ -270,6 +253,13 @@ export async function onRequestPost(context) {
       return json({ status: "ERROR", error: "COR extraction is unavailable. Please try again later." }, 503);
     }
 
+    // Local development mirrors admission using repository records. Deployed
+    // requests always use the shared, locked cor.start handler above.
+    const recent = CorRecords.getRecentByUserId(user.userId, Date.now()-600000);
+    if (recent.length >= 5) {
+      return jobError({code:'RATE_LIMITED',message:'Five scans are allowed every ten minutes.',fields:{retryAfter:Math.ceil((Date.parse(recent[0].createdAt)+600000-Date.now())/1000)}});
+    }
+
     // Create COR record
     const corRecord = CorRecords.create({
       ownerUserId: user.userId,
@@ -278,6 +268,7 @@ export async function onRequestPost(context) {
       mimeType: declaredMime || (extension === ".pdf" ? "application/pdf" : extension === ".png" ? "image/png" : "image/jpeg"),
       sizeBytes: fileSize,
       contentHash,
+      requestId: context.request.headers.get('X-Request-ID'),
       status: "ACCEPTED",
     });
 
@@ -359,6 +350,7 @@ export async function onRequestPost(context) {
     resp.headers.append("Set-Cookie", sessionCookie);
     return resp;
   } catch (error) {
+    if (isConfigured(context.env)) return jobError(error);
     console.error("COR upload failed:", String(error?.message || error));
     console.error("COR upload error stack:", error?.stack || "no stack");
     return json(

@@ -86,6 +86,19 @@ coverage of every page or production failure mode.
 
 ## Validation
 
+### September 12 continuation
+
+- Connected the onboarding page to the pending durable COR backend: uploads send
+  a request ID retained for retries in the same tab, completed duplicates open
+  success, busy extraction requests poll, and expired leases can resume.
+- Missing saved files return to file selection; cancelled scans clear the retry
+  ID. The onboarding asset and service-worker cache versions were incremented.
+- COR regressions pass, including new retry ID, completed duplicate, busy scan,
+  and expired lease cases. Sheets mapping checks and all 54 existing Sheets
+  emulator checks pass. These do not verify the new Drive operations or the
+  Google Sheets REST atomic confirmation request against live services.
+- No deployment or live Google/Gemini verification was performed.
+
 - `node scripts/test-cor-regressions.mjs`: passes. Covers direct extraction,
   duplicate resume, timeout recovery, validation retry, draft handoff, confirmation
   errors, failed extraction cleanup, missing-file cleanup, auth routing, real Home

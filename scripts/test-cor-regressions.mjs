@@ -18,20 +18,22 @@ function element() {
     addEventListener(name, fn) { this.events[name] = fn; }, querySelectorAll() { return []; }, querySelector() { return element(); },
     appendChild(child) { this.children.push(child); }, replaceChildren() { this.children = []; } };
 }
-async function harness(uploadResult, stage = 'WELCOME') {
+async function harness(uploadResult, stage = 'WELCOME', overrides = {}) {
   const nodes = new Map();
   const get = id => { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); };
   const steps = ['welcome', 'upload', 'processing', 'review', 'confirm', 'success'].map(x => get('step-' + x));
   const calls = [];
   const timers = new Map();
   let timerId = 0;
-  const c = { console, FormData: class { append() {} }, sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+  const c = { console, crypto: globalThis.crypto, FormData: class { append() {} }, sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
     document: { getElementById: get, querySelectorAll: () => steps, createElement: element },
     location: {}, scrollTo() {}, setTimeout() {}, clearInterval: id => timers.delete(id), setInterval: fn => { timers.set(++timerId, fn); return timerId; },
     fetch: async (url, options) => {
       calls.push({ url, options });
       let data;
-      if (url.endsWith('/session')) data = { status: 'OK', user: { userId: 'test', name: 'Test' } };
+      if (overrides[url]) { data = overrides[url]; if (data instanceof Error) throw data; }
+      else if (url.includes('/status?requestId=')) data = overrides['/api/v1/cor/status'] || { status:'OK', hasImport:false };
+      else if (url.endsWith('/session')) data = { status: 'OK', user: { userId: 'test', name: 'Test' } };
       else if (url.endsWith('/onboarding/status')) data = { status: 'OK', stage, corRecordId: 'cor-test' };
       else if (url.endsWith('/upload')) data = uploadResult;
       else if (url.endsWith('/result')) data = { status: 'OK', hasResult: true, result: draft };
@@ -71,6 +73,50 @@ await duplicate.c.uploadCor();
 assert(duplicate.get('step-review').classList.contains('active'));
 assert(!duplicate.calls.some(x => x.url.endsWith('/process')));
 console.log('PASS duplicate upload resumes review');
+
+for (const uploadFailure of [new Error('Connection lost after save'), {status:'SERVICE_UNAVAILABLE'}]) {
+  const recovered = await harness({}, 'WELCOME', {
+    '/api/v1/cor/upload': uploadFailure,
+    '/api/v1/cor/status': {status:'OK', hasImport:true, corRecordId:'cor-test', importStatus:'REVIEW_REQUIRED'},
+  });
+  await recovered.c.uploadCor();
+  assert(recovered.get('step-review').classList.contains('active'));
+  assert(!recovered.get('upload-error').classList.contains('visible'));
+  assert(recovered.calls.some(call => call.url.includes('/status?requestId=')));
+}
+const lostConfirmation = await harness({status:'EXTRACTED',corRecordId:'cor-test',result:draft}, 'WELCOME', {
+  '/api/v1/cor/confirm':new Error('Response lost'),
+  '/api/v1/cor/status':{status:'OK',hasImport:true,corRecordId:'cor-test',importStatus:'COMPLETE'},
+});
+await lostConfirmation.c.uploadCor();
+await lostConfirmation.c.confirmAndActivate();
+assert(lostConfirmation.get('step-success').classList.contains('active'));
+console.log('PASS lost upload and confirmation responses recover saved results without false failure');
+
+const completed = await harness({ status: 'DUPLICATE', corRecordId: 'cor-test', importStatus: 'COMPLETE' });
+await completed.c.uploadCor();
+assert(completed.get('step-success').classList.contains('active'));
+assert.equal(completed.timers.size, 0);
+const retryUpload = await harness({ status: 'SERVICE_UNAVAILABLE' });
+await retryUpload.c.uploadCor();
+await retryUpload.c.uploadCor();
+const requestIds = retryUpload.calls.filter(x => x.url.endsWith('/upload')).map(x => x.options.headers['X-Request-ID']);
+assert.match(requestIds[0], /^[a-zA-Z0-9_-]{16,100}$/);
+assert.equal(requestIds[0], requestIds[1]);
+const busy = await harness({ status: 'ACCEPTED', corRecordId: 'cor-test' }, 'WELCOME', {
+  '/api/v1/cor/process': { status: 'RATE_LIMITED', retryAfter: 30 },
+});
+await busy.c.uploadCor();
+assert(busy.get('step-processing').classList.contains('active'));
+assert.equal(busy.get('upload-btn').disabled, true);
+assert.match(busy.get('processing-message').textContent, /30s/);
+const expired = await harness({}, 'PROCESSING', {
+  '/api/v1/cor/status': { status: 'OK', corRecordId: 'cor-test', importStatus: 'PROCESSING', canResume: true },
+  '/api/v1/cor/process': { status: 'REVIEW_REQUIRED', result: draft },
+});
+assert(expired.get('step-review').classList.contains('active'));
+assert.equal(expired.calls.filter(x => x.url.endsWith('/process')).length, 1);
+console.log('PASS stable upload IDs, completed duplicates, busy scans, and expired lease recovery');
 
 const pending = await harness({}, 'PROCESSING');
 for (let i = 0; i < 61; i++) { for (const fn of [...pending.timers.values()]) await fn(); }
@@ -160,3 +206,7 @@ const offline = await reply;
 assert.equal(offline.status, 503);
 assert.equal((await offline.json()).status, 'OFFLINE');
 console.log('PASS service worker preserves API failures and returns JSON offline');
+networkResponse = new Response('Missing page', {status:404});
+handlers.fetch({request:new Request('https://example.test/missing'),respondWith:promise=>{reply=promise;}});
+assert.equal((await reply).status,404);
+console.log('PASS service worker never replaces a network 404 with cached content');

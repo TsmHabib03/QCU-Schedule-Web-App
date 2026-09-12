@@ -16,6 +16,104 @@
   let pollCount = 0;
   let uploadInFlight = false;
   let pollingInFlight = false;
+  let uploadRequest = null;
+  let retryAt = 0;
+  let cooldownTimer = null;
+  async function request(url, options = {}) {
+    const response = await fetch(url, { ...options, signal: typeof AbortSignal !== 'undefined' ? AbortSignal.timeout(120000) : undefined });
+    if (response.status === 401) {
+      const error = new Error('Your session expired. Sign in again to reopen your saved import.');
+      error.sessionExpired = true;
+      throw error;
+    }
+    return response;
+  }
+  function cooldown(seconds) {
+    retryAt = Date.now() + Math.max(1, Number(seconds) || 10) * 1000;
+    if (cooldownTimer) clearInterval(cooldownTimer);
+    const update = () => {
+      const remaining = Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
+      uploadBtn.disabled = remaining > 0 || uploadInFlight || !selectedFile;
+      document.getElementById('processing-retry').disabled = remaining > 0;
+      const message = remaining ? `Scan limit reached. You can retry in ${remaining}s. Your saved result is still available.` : 'You can now retry your scan.';
+      if (currentStep === 'processing') document.getElementById('processing-message').textContent = message;
+      else showError(message);
+      if (!remaining) { clearInterval(cooldownTimer); cooldownTimer = null; }
+    };
+    update();
+    cooldownTimer = setInterval(update, 1000);
+  }
+  function pauseRecovery(message, sessionExpired = false) {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+    goToStep('processing');
+    document.getElementById('processing-message').textContent = message;
+    document.getElementById('processing-retry').hidden = sessionExpired;
+    document.getElementById('processing-sign-in').hidden = !sessionExpired;
+    document.getElementById('processing-spinner').hidden = true;
+  }
+  async function recoverUpload(error) {
+    uploadInFlight = false;
+    if (error?.sessionExpired) return pauseRecovery(error.message, true);
+    goToStep('processing');
+    document.getElementById('processing-message').textContent = 'Checking whether your import was saved…';
+    try {
+      const suffix = uploadRequest?.id ? '?requestId=' + encodeURIComponent(uploadRequest.id) : '';
+      const response = await request('/api/v1/cor/status' + suffix, { credentials: 'include' });
+      const data = await response.json();
+      if (data.status !== 'OK') throw new Error('Your saved status could not be checked.');
+      if (data.hasImport === false) {
+        // Absence may race a save still running on the server. Keep the same ID.
+        pauseRecovery('The upload has not appeared yet. Check again, or select the same file to resume safely.');
+        document.getElementById('processing-select-file').hidden = false;
+        return;
+      }
+      corRecordId = data.corRecordId || corRecordId;
+      if (data.importStatus === 'COMPLETE') { clearUploadRequest(); goToStep('success'); }
+      else if (data.importStatus === 'REVIEW_REQUIRED') { await loadResult(); goToStep('review'); }
+      else startPolling();
+    } catch (e) {
+      pauseRecovery(e.sessionExpired ? e.message : 'We could not check your saved import. Reconnect and check again; your request ID is preserved.', e.sessionExpired);
+    }
+  }
+  function sendUpload(formData, id, fill, label) {
+    if (typeof XMLHttpRequest === 'undefined') return request('/api/v1/cor/upload', { method:'POST', credentials:'include', headers:{'X-Request-ID':id}, body:formData });
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/v1/cor/upload');
+      xhr.withCredentials = true;
+      xhr.timeout = 120000;
+      xhr.setRequestHeader('X-Request-ID', id);
+      xhr.upload.onprogress = event => {
+        if (event.lengthComputable) {
+          const percent = Math.round(event.loaded / event.total * 100);
+          fill.style.width = percent + '%';
+          label.textContent = `Uploading your COR… ${percent}%`;
+        }
+      };
+      xhr.upload.onload = () => { label.textContent = 'Saving your upload…'; };
+      xhr.onload = () => {
+        if (xhr.status === 401) { const e = new Error('Your session expired. Sign in again to reopen your saved import.'); e.sessionExpired = true; reject(e); }
+        else resolve({ status:xhr.status, json:async () => JSON.parse(xhr.responseText) });
+      };
+      xhr.onerror = xhr.ontimeout = () => reject(new Error('The upload response was interrupted.'));
+      xhr.send(formData);
+    });
+  }
+  function requestIdFor(file) {
+    const owner = user?.userId || user?.email;
+    const fingerprint = JSON.stringify([file.name, file.size, file.lastModified, file.type]);
+    try { uploadRequest = JSON.parse(sessionStorage.getItem("qcu-cor-request")) || uploadRequest; } catch (_) {}
+    if (uploadRequest?.owner !== owner || uploadRequest?.fingerprint !== fingerprint) {
+      uploadRequest = { owner, fingerprint, id: crypto.randomUUID() };
+    }
+    try { sessionStorage.setItem("qcu-cor-request", JSON.stringify(uploadRequest)); } catch (_) {}
+    return uploadRequest.id;
+  }
+  function clearUploadRequest() {
+    uploadRequest = null;
+    try { sessionStorage.removeItem("qcu-cor-request"); } catch (_) {}
+  }
   function cacheDraft() {
     try { sessionStorage.setItem("qcu-cor-draft", JSON.stringify({ owner: user?.userId || user?.email, corRecordId, draft: draftResult })); } catch (_) {}
   }
@@ -43,7 +141,7 @@
     const target = document.getElementById("step-" + step);
     if (target) target.classList.add("active");
     updateTracker(step);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   };
 
   function updateTracker(step) {
@@ -61,25 +159,31 @@
 
   /* ── Sign out ────────────────────────────────────────────────────────── */
   window.signOut = async function () {
+    clearUploadRequest();
     try { sessionStorage.removeItem("qcu-cor-draft"); } catch (_) {}
-    try { await fetch("/api/auth/logout", { method: "POST" }); } catch (_) {}
+    try { await request("/api/auth/logout", { method: "POST" }); } catch (_) {}
     window.location.href = "/";
   };
 
   /* ── Session bootstrap ──────────────────────────────────────────────── */
   async function init() {
     try {
-      const resp = await fetch("/api/auth/session", { credentials: "include" });
+      const resp = await request("/api/auth/session", { credentials: "include" });
       const data = await resp.json();
       if (data.status === "OK" && data.user) {
         user = data.user;
+        try {
+          const saved = JSON.parse(sessionStorage.getItem('qcu-cor-request'));
+          if (saved?.owner === (user.userId || user.email)) uploadRequest = saved;
+        } catch (_) {}
         renderUser();
-        await checkOnboardingStatus();
+        if (uploadRequest) await recoverUpload();
+        else await checkOnboardingStatus();
       } else {
         window.location.href = "/?login=1";
       }
-    } catch (_) {
-      window.location.href = "/?login=1";
+    } catch (error) {
+      pauseRecovery('Unable to check your session. Reconnect and reload this page.', error.sessionExpired);
     }
   }
 
@@ -96,7 +200,7 @@
   /* ── Onboarding status ──────────────────────────────────────────────── */
   async function checkOnboardingStatus() {
     try {
-      const resp = await fetch("/api/v1/onboarding/status", { credentials: "include" });
+      const resp = await request("/api/v1/onboarding/status", { credentials: "include" });
       const data = await resp.json();
       if (data.status !== "OK") {
         goToStep("welcome");
@@ -114,7 +218,7 @@
         case "UPLOAD":
           corRecordId = data.corRecordId;
           goToStep("processing");
-          await processImport();
+          startPolling();
           break;
         case "REVIEW":
           corRecordId = data.corRecordId;
@@ -130,8 +234,7 @@
           goToStep("welcome");
       }
     } catch (err) {
-      goToStep("upload");
-      showError(err.message || "Could not resume your import. Please try again.");
+      pauseRecovery(err.message || 'Could not resume your import. Check again.', err.sessionExpired);
     }
   }
 
@@ -200,7 +303,7 @@
 
   /* ── Upload ──────────────────────────────────────────────────────────── */
   window.uploadCor = async function () {
-    if (!selectedFile || uploadInFlight) return;
+    if (!selectedFile || uploadInFlight || Date.now() < retryAt) return;
     uploadInFlight = true;
     hideError();
     uploadBtn.disabled = true;
@@ -209,27 +312,29 @@
     const progressFill = document.getElementById("upload-progress-fill");
     const progressText = document.getElementById("upload-progress-text");
     progress.classList.add("visible");
-    progressFill.style.width = "10%";
+    progressFill.style.width = "0%";
     progressText.textContent = "Uploading your COR...";
 
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      progressFill.style.width = "30%";
-      const resp = await fetch("/api/v1/cor/upload", {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
+      const resp = await sendUpload(formData, requestIdFor(selectedFile), progressFill, progressText);
       const data = await resp.json();
-      progressFill.style.width = "60%";
+      if (data.status === 'RATE_LIMITED') { cooldown(data.retryAfter); return; }
+      if (resp.status >= 500 || !data.status || ['SERVICE_UNAVAILABLE','OFFLINE','ERROR'].includes(data.status)) {
+        await recoverUpload();
+        return;
+      }
 
       if (data.status === "DUPLICATE") {
         corRecordId = data.corRecordId;
         draftResult = null;
         goToStep("processing");
-        if (data.importStatus === "REVIEW_REQUIRED") {
+        if (data.importStatus === "COMPLETE") {
+          clearUploadRequest();
+          goToStep("success");
+        } else if (data.importStatus === "REVIEW_REQUIRED") {
           await loadResult();
           goToStep("review");
         } else if (["ACCEPTED", "QUEUED"].includes(data.importStatus)) {
@@ -259,30 +364,40 @@
         goToStep("review");
         return;
       }
-      progressFill.style.width = "80%";
       progressText.textContent = "Upload complete. Starting extraction...";
 
       goToStep("processing");
       await processImport();
     } catch (err) {
-      uploadInFlight = false;
-      goToStep("upload");
-      showError(err.message || "Network error. Please check your connection and try again.");
+      await recoverUpload(err);
     } finally {
       uploadInFlight = false;
-      uploadBtn.disabled = !selectedFile;
+      uploadBtn.disabled = !selectedFile || Date.now() < retryAt;
       uploadBtn.classList.remove("btn-spinner");
       progress.classList.remove("visible");
     }
   };
 
   async function processImport() {
-    const resp = await fetch("/api/v1/cor/process", {
+    if (Date.now() < retryAt) return;
+    document.getElementById('processing-message').textContent = 'Reading your COR… Your existing schedule stays available until you confirm.';
+    const resp = await request("/api/v1/cor/process", {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ corRecordId }),
     });
     const data = await resp.json();
+    if (data.status === "COMPLETE") {
+      clearUploadRequest();
+      goToStep("success");
+      return;
+    }
+    if (data.status === "RATE_LIMITED") {
+      startPolling();
+      cooldown(data.retryAfter);
+      return;
+    }
+    if (data.status === "EXTRACTION_FAILED") clearUploadRequest();
     if (!["OK", "PROCESSING", "REVIEW_REQUIRED"].includes(data.status)) {
       throw new Error(data.error || "Could not start extraction. Please try again.");
     }
@@ -295,6 +410,9 @@
 
   /* ── Processing polling ──────────────────────────────────────────────── */
   function startPolling() {
+    document.getElementById('processing-select-file').hidden = true;
+    document.getElementById('processing-sign-in').hidden = true;
+    document.getElementById('processing-spinner').hidden = false;
     document.getElementById("processing-message").textContent = "We are extracting your student and class details. This may take a moment.";
     document.getElementById("processing-retry").hidden = true;
     pollCount = 0;
@@ -309,17 +427,30 @@
     if (pollCount > MAX_POLL) {
       clearInterval(pollTimer);
       pollTimer = null;
-      document.getElementById("processing-message").textContent = "Your import has not finished yet, or its status could not be checked. Check again to resume without uploading twice.";
-      document.getElementById("processing-retry").hidden = false;
+      pauseRecovery('Your import has not finished yet. Check again to resume without uploading twice.');
       return;
     }
     pollingInFlight = true;
     try {
-      const resp = await fetch("/api/v1/cor/status", { credentials: "include" });
+      const suffix = !corRecordId && uploadRequest?.id ? '?requestId=' + encodeURIComponent(uploadRequest.id) : '';
+      const resp = await request("/api/v1/cor/status" + suffix, { credentials: "include" });
       const data = await resp.json();
       if (data.status !== "OK" || currentStep !== "processing") return;
+      if (data.corRecordId) corRecordId = data.corRecordId;
+      if (data.fileMissing) {
+        goToStep("upload");
+        showError("Select the original file again to resume your saved upload.");
+        return;
+      }
 
       switch (data.importStatus || data.corStatus) {
+        case "ACCEPTED":
+        case "QUEUED":
+          await processImport();
+          break;
+        case "PROCESSING":
+          if (data.canResume) await processImport();
+          break;
         case "REVIEW_REQUIRED":
           clearInterval(pollTimer);
           pollTimer = null;
@@ -328,22 +459,23 @@
           break;
         case "CANCELLED":
         case "DELETED":
+          clearUploadRequest();
           clearInterval(pollTimer);
           pollTimer = null;
           goToStep("upload");
           break;
         case "COMPLETE":
+          clearUploadRequest();
           clearInterval(pollTimer);
           pollTimer = null;
           goToStep("success");
           break;
       }
     } catch (err) {
-      document.getElementById("processing-message").textContent = err.message || "Could not check processing status.";
-      document.getElementById("processing-retry").hidden = false;
+      pauseRecovery(err.message || 'Could not check processing status.', err.sessionExpired);
     } finally { pollingInFlight = false; }
   }
-  window.resumeProcessing = startPolling;
+  window.resumeProcessing = () => { if (Date.now() >= retryAt) recoverUpload(); };
 
   /* ── Load extraction result ──────────────────────────────────────────── */
   async function loadResult() {
@@ -354,7 +486,7 @@
       populateReviewForm(draftResult);
       return;
     }
-    const resp = await fetch("/api/v1/cor/result", { credentials: "include" });
+    const resp = await request("/api/v1/cor/result", { credentials: "include" });
     const data = await resp.json();
     if (data.status === "OK" && data.hasResult) {
       draftResult = data.result;
@@ -510,7 +642,7 @@
 
     if (saveBtn) { saveBtn.disabled = true; saveBtn.classList.add("btn-spinner"); }
     try {
-      const resp = await fetch("/api/v1/cor/review", {
+      const resp = await request("/api/v1/cor/review", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -529,7 +661,8 @@
         reviewError.classList.add("visible");
       }
     } catch (err) {
-      reviewError.textContent = "Network error. Please try again.";
+      if (err.sessionExpired) { pauseRecovery(err.message, true); return; }
+      reviewError.textContent = "Your corrections could not be confirmed as saved. They are still in this form; reconnect and try again.";
       reviewError.classList.add("visible");
     } finally {
       if (saveBtn) { saveBtn.disabled = false; saveBtn.classList.remove("btn-spinner"); }
@@ -579,7 +712,7 @@
     if (label) label.textContent = "Activating...";
 
     try {
-      const resp = await fetch("/api/v1/cor/confirm", {
+      const resp = await request("/api/v1/cor/confirm", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -588,10 +721,15 @@
       const data = await resp.json();
 
       if (data.status === "COMPLETE") {
+        clearUploadRequest();
         try { sessionStorage.removeItem("qcu-cor-draft"); } catch (_) {}
         goToStep("success");
         // Auto-redirect after 3 seconds
         setTimeout(() => { window.location.href = "/"; }, 3000);
+      } else if (resp.status >= 500 || data.status === 'SERVICE_UNAVAILABLE') {
+        await recoverUpload();
+        btn.disabled = false;
+        btn.classList.remove('btn-spinner');
       } else {
         const errEl = document.getElementById("confirm-error");
         errEl.textContent = data.error || "Could not activate. Please try again.";
@@ -601,9 +739,7 @@
         if (label) label.textContent = "Confirm and activate";
       }
     } catch (err) {
-      const errEl = document.getElementById("confirm-error");
-      errEl.textContent = "Network error. Please try again.";
-      errEl.classList.add("visible");
+      await recoverUpload(err);
       btn.disabled = false;
       btn.classList.remove("btn-spinner");
       if (label) label.textContent = "Confirm and activate";

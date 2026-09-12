@@ -704,6 +704,9 @@ function dispatch(action, actor, payload) {
     case 'admin.user.update': requireAdministrator(actor); return adminUpdateUser(actor, payload);
     case 'snapshot.read':   return handleSnapshotRead(actor, payload);
     case 'batch.write':     return handleBatchWrite(actor, payload);
+    case 'cor.start':       return handleCorJob(actor, payload, 'start');
+    case 'cor.claim':       return handleCorJob(actor, payload, 'claim');
+    case 'cor.finish':      return handleCorJob(actor, payload, 'finish');
 
     // Fine-grained actions from DATABASE.md section 15.
     case 'bootstrap.read':  return handleBootstrapRead(actor, payload);
@@ -742,6 +745,105 @@ function readOwned(kind, userId) {
  * execution. The Cloudflare repository hydrates its in-memory maps from this
  * so a request can serve dozens of synchronous reads without further calls.
  */
+function corExtra(row) {
+  try { return JSON.parse(row.extraJson || '{}'); } catch (_) { return {}; }
+}
+
+// All scan admission and lease transitions run under the same shared lock.
+// File bytes live in private Drive storage, never a cookie or a spreadsheet cell.
+function handleCorJob(actor, payload, action) {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(LOCK_TIMEOUT_MS)) throw apiError('RATE_LIMITED', 'Database busy.', { retryAfter: 10 });
+  try {
+    _sheetCache = {};
+    resolveActor(actor);
+    var rows = readOwned('corRecords', actor.userId);
+    var now = Date.now();
+    var record = rows.filter(function(r) { return r.corRecordId === payload.corRecordId; })[0];
+    if (action === 'start') {
+      if (!/^[a-zA-Z0-9_-]{16,100}$/.test(payload.requestId || '')) throw apiError('VALIDATION_FAILED', 'Invalid request ID.');
+      var existing = rows.filter(function(r) {
+        var x = corExtra(r);
+        return x.requestId === payload.requestId || (x.requestIds || []).indexOf(payload.requestId) >= 0 || (x.contentHash === payload.contentHash && !['CANCELLED','DELETED'].includes(r.status)) || !['COMPLETE','CANCELLED','DELETED'].includes(r.status);
+      })[0];
+      if (existing) {
+        var saved = corExtra(existing);
+        if (saved.requestId === payload.requestId && saved.contentHash !== payload.contentHash) throw apiError('CONFLICT','This request belongs to a different file.');
+        saved.requestIds = (saved.requestIds || []).filter(function(id) { return id !== payload.requestId; }).slice(-99).concat([payload.requestId]);
+        existing.extraJson = JSON.stringify(saved);
+        applyOps([{kind:'corRecords',id:existing.corRecordId,row:existing}],actor.userId);
+        if (saved.contentHash === payload.contentHash && !saved.driveFileId && existing.status === 'ACCEPTED') {
+          var retryBytes = Utilities.base64Decode(payload.base64 || '');
+          if (!retryBytes.length || retryBytes.length > 10485760 || saved.contentHash !== payload.contentHash) throw apiError('VALIDATION_FAILED','Select the original file to resume.');
+          var retryFile = DriveApp.createFile(Utilities.newBlob(retryBytes,payload.mimeType,existing.corRecordId));
+          retryFile.setSharing(DriveApp.Access.PRIVATE,DriveApp.Permission.NONE);
+          saved.driveFileId = retryFile.getId();
+          existing.extraJson = JSON.stringify(saved);
+          applyOps([{kind:'corRecords',id:existing.corRecordId,row:existing}],actor.userId);
+        }
+        return { corRecordId: existing.corRecordId, importStatus: existing.status, duplicate: true };
+      }
+      var recent = rows.filter(function(r) { return now - Date.parse(r.createdAt) < 600000; }).sort(function(a,b) { return Date.parse(a.createdAt)-Date.parse(b.createdAt); });
+      if (recent.length >= 5) throw apiError('RATE_LIMITED', 'Five scans are allowed every ten minutes.', { retryAfter: Math.max(1, Math.ceil((Date.parse(recent[0].createdAt) + 600000 - now)/1000)) });
+      var bytes = Utilities.base64Decode(payload.base64 || '');
+      if (!bytes.length || bytes.length > 10485760) throw apiError('VALIDATION_FAILED', 'Invalid file size.');
+      var id = 'cor_' + Utilities.getUuid();
+      // Reserve before file I/O: an interrupted save remains discoverable.
+      record = { corRecordId: id, ownerUserId: actor.userId, status: 'ACCEPTED', createdAt: new Date(now).toISOString(), extraJson: JSON.stringify({ requestId: payload.requestId, contentHash: payload.contentHash, filename: payload.filename, mimeType: payload.mimeType, sizeBytes: bytes.length }) };
+      applyOps([{kind:'corRecords',id:id,row:record}], actor.userId);
+      var file = DriveApp.createFile(Utilities.newBlob(bytes, payload.mimeType, id));
+      file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+      var extra = corExtra(record);
+      extra.driveFileId = file.getId();
+      record.extraJson = JSON.stringify(extra);
+      applyOps([{kind:'corRecords',id:id,row:record}], actor.userId);
+      return { corRecordId:id, importStatus:'ACCEPTED' };
+    }
+    if (!record) throw apiError('NOT_FOUND', 'Import not found.');
+    var meta = corExtra(record);
+    if (action === 'claim') {
+      if (['COMPLETE','REVIEW_REQUIRED'].includes(record.status)) return { importStatus:record.status };
+      if (meta.leaseUntil > now) return { importStatus:'PROCESSING', retryAfter:Math.ceil((meta.leaseUntil-now)/1000) };
+      if (!meta.driveFileId) throw apiError('FILE_MISSING', 'The file was not saved. Select the file again to resume this request.');
+      if (!['ACCEPTED','QUEUED','PROCESSING'].includes(record.status)) throw apiError('VALIDATION_FAILED', 'This scan cannot be processed.');
+      var attempts = [];
+      rows.forEach(function(r) { attempts = attempts.concat(corExtra(r).extractionAttempts || []); });
+      attempts = attempts.filter(function(t) { return now - t < 600000; }).sort(function(a,b) { return a-b; });
+      if (attempts.length >= 5) throw apiError('RATE_LIMITED', 'Five extraction attempts are allowed every ten minutes.', { retryAfter: Math.max(1, Math.ceil((attempts[0] + 600000 - now)/1000)) });
+      meta.extractionAttempts = (meta.extractionAttempts || []).filter(function(t) { return now-t < 600000; }).concat([now]);
+      meta.leaseUntil = now + 180000;
+      meta.leaseToken = Utilities.getUuid();
+      record.status = 'PROCESSING';
+      record.extraJson = JSON.stringify(meta);
+      applyOps([{kind:'corRecords',id:record.corRecordId,row:record}], actor.userId);
+      return { importStatus:'PROCESSING', leaseToken:meta.leaseToken, mimeType:meta.mimeType, base64:Utilities.base64Encode(DriveApp.getFileById(meta.driveFileId).getBlob().getBytes()) };
+    }
+    if (meta.leaseToken !== payload.leaseToken) throw apiError('CONFLICT', 'A newer scan owns this import.');
+    if (record.status === 'REVIEW_REQUIRED') return { importStatus:record.status };
+    var ops = [];
+    if (payload.draft) {
+      var draftJson = JSON.stringify(payload.draft);
+      if (draftJson.length > 45000) throw apiError('PAYLOAD_TOO_LARGE', 'Extraction result too large.');
+      ops.push({ kind:'corDrafts', id:record.corRecordId, row:{corRecordId:record.corRecordId,ownerUserId:actor.userId,draftVersion:1,draftJson:draftJson} });
+      record.status = 'REVIEW_REQUIRED';
+    } else {
+      record.status = 'CANCELLED';
+      meta.failureCode = 'EXTRACTION_FAILED';
+    }
+    meta.leaseUntil = 0;
+    record.extraJson = JSON.stringify(meta);
+    ops.push({kind:'corRecords',id:record.corRecordId,row:record});
+    var user = readRows('Users','googleSub',actor.googleSub)[0];
+    var ux = corExtra(user);
+    ux.corRecordId = record.corRecordId;
+    user.extraJson = JSON.stringify(ux);
+    if (user.onboardingState !== 'ACTIVE') user.onboardingState = 'ONBOARDING';
+    ops.push({kind:'users',id:actor.userId,row:user});
+    applyOps(ops, actor.userId);
+    return { importStatus:record.status };
+  } finally { lock.releaseLock(); }
+}
+
 function handleSnapshotRead(actor, payload) {
   var registry = getEntityRegistry();
   var kinds = payload && payload.kinds && payload.kinds.length
@@ -812,10 +914,49 @@ function handleBatchWrite(actor, payload) {
     resolveActor(actor); // Recheck account status inside the write lock.
     assertOwnership(safeOps, actor.userId);
     protectUserFields(safeOps, actor);
+    var completion = safeOps.filter(function(op) { return op.kind === 'corRecords' && op.row && op.row.status === 'COMPLETE'; })[0];
+    if (completion) {
+      var current = readOwned('corRecords',actor.userId).filter(function(r) { return r.corRecordId === completion.id; })[0];
+      if (!current) throw apiError('NOT_FOUND','Import not found.');
+      if (current.status === 'COMPLETE') throw apiError('ALREADY_COMPLETE','This import has already been confirmed.');
+      if (current.status !== 'REVIEW_REQUIRED') throw apiError('CONFLICT','Import is not ready for confirmation.');
+      // A single Sheets batchUpdate is atomic across all affected worksheets.
+      return applyAtomicOps(safeOps,actor.userId);
+    }
+    safeOps.filter(function(op) { return op.kind === 'corRecords' || op.kind === 'corDrafts'; }).forEach(function(op) {
+      var current = readOwned('corRecords',actor.userId).filter(function(r) { return r.corRecordId === op.id; })[0];
+      if (current && current.status !== 'REVIEW_REQUIRED') throw apiError('CONFLICT','This import is no longer open for review. Reopen its saved status.');
+    });
     return applyOps(safeOps, actor.userId);
   } finally {
     lock.releaseLock();
   }
+}
+
+function applyAtomicOps(ops, actorUserId) {
+  var registry = getEntityRegistry();
+  var requests = [];
+  ops.forEach(function(op) {
+    var entity = registry[op.kind];
+    var data = getSheetData(entity.sheet);
+    if (!data.sheet || op.remove) throw apiError('VALIDATION_FAILED','Confirmation storage is unavailable.');
+    var row = op.row;
+    row[entity.pk] = op.id;
+    row.updatedBy = actorUserId;
+    row.updatedAt = new Date().toISOString();
+    var offset = data.index[String(op.id)];
+    var values = objectToRow(data.header,row).map(function(value) {
+      return {userEnteredValue: typeof value === 'boolean' ? {boolValue:value} : typeof value === 'number' ? {numberValue:value} : {stringValue:String(value == null ? '' : value)}};
+    });
+    if (offset === undefined) requests.push({appendCells:{sheetId:data.sheet.getSheetId(),rows:[{values:values}],fields:'userEnteredValue'}});
+    else requests.push({updateCells:{range:{sheetId:data.sheet.getSheetId(),startRowIndex:offset+1,endRowIndex:offset+2,startColumnIndex:0,endColumnIndex:data.header.length},rows:[{values:values}],fields:'userEnteredValue'}});
+  });
+  var response = UrlFetchApp.fetch('https://sheets.googleapis.com/v4/spreadsheets/' + SpreadsheetApp.getActiveSpreadsheet().getId() + ':batchUpdate', {
+    method:'post',contentType:'application/json',headers:{Authorization:'Bearer ' + ScriptApp.getOAuthToken()},payload:JSON.stringify({requests:requests}),muteHttpExceptions:true
+  });
+  if (response.getResponseCode() !== 200) throw apiError('INTERNAL_ERROR','Schedule confirmation could not be saved. Check status before retrying.');
+  _sheetCache = {};
+  return {applied:ops.length,skipped:[]};
 }
 
 /** Reject any op whose existing row belongs to a different user. */

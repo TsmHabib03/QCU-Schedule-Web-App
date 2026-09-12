@@ -15,6 +15,8 @@ export async function onRequestGet(context) {
     }
 
     const { user } = resolved;
+    const pending = CorRecords.getActiveByUserId(user.userId);
+    if (pending) user.corRecordId = pending.id;
 
     // Determine onboarding stage
     let stage;
@@ -22,7 +24,7 @@ export async function onRequestGet(context) {
     let corRecordId = user.corRecordId || null;
     let corStatus = null;
 
-    if (user.state === "ACTIVE") {
+    if (user.state === "ACTIVE" && !pending) {
       stage = "COMPLETE";
       nextAction = null;
     } else if (user.corRecordId) {

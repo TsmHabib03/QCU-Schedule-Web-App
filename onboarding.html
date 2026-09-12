@@ -345,7 +345,7 @@
           <div class="upload-progress-bar">
             <div class="upload-progress-fill" id="upload-progress-fill" style="width:0%"></div>
           </div>
-          <div class="upload-progress-text" id="upload-progress-text">Uploading...</div>
+          <div class="upload-progress-text" id="upload-progress-text" role="status" aria-live="polite">Uploading...</div>
         </div>
 
         <div class="upload-error" id="upload-error"></div>
@@ -358,10 +358,11 @@
 
       <!-- Step 2b: Processing -->
       <section class="onboarding-step" id="step-processing">
-        <div class="processing-spinner"></div>
+        <div class="processing-spinner" id="processing-spinner" aria-hidden="true"></div>
         <h2 class="processing-title">Processing your COR</h2>
         <p class="processing-text" id="processing-message" role="status">We are extracting your student and class details. This may take a moment.</p>
         <div class="btn-row"><button class="btn-secondary" id="processing-retry" hidden onclick="resumeProcessing()">Check again</button></div>
+        <div class="btn-row"><a class="btn-primary" id="processing-sign-in" hidden href="/?login=1">Sign in again</a><button class="btn-secondary" id="processing-select-file" hidden onclick="goToStep('upload')">Select original file</button></div>
       </section>
 
       <!-- Step 3: Review -->
@@ -488,6 +489,6 @@
     </main>
   </div>
 
-  <script src="assets/js/onboarding.js?v=2"></script>
+  <script src="assets/js/onboarding.js?v=3"></script>
 </body>
 </html>

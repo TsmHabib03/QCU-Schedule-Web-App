@@ -354,6 +354,13 @@ export const Users = {
 // ---------------------------------------------------------------------------
 
 export const CorRecords = {
+  getRecentByUserId(userId, since) {
+    return Array.from(_corRecords.values()).filter(r => r.ownerUserId === userId && Date.parse(r.createdAt) >= since).sort((a,b) => Date.parse(a.createdAt)-Date.parse(b.createdAt));
+  },
+  getByRequestId(userId, requestId) {
+    if (!requestId) return null;
+    return Array.from(_corRecords.values()).find(r => r.ownerUserId === userId && (r.requestId === requestId || r.requestIds?.includes(requestId))) || null;
+  },
   /** Create a new COR record. Returns the record. */
   create(fields) {
     const ts = now();
@@ -365,6 +372,7 @@ export const CorRecords = {
       mimeType: fields.mimeType,
       sizeBytes: fields.sizeBytes,
       contentHash: fields.contentHash || null,
+      requestId: fields.requestId || null,
       status: fields.status || "ACCEPTED",
       pipelineVersion: fields.pipelineVersion || "dev-mock-1",
       extractionSchemaVersion: fields.extractionSchemaVersion || "1",

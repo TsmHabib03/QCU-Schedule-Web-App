@@ -568,6 +568,12 @@ function countdownTemplate(item, label) {
 
 /* ── Home Page ───────────────────────────────────────── */
 function renderHome() {
+  if (state.error && !state.dashboard) {
+    const skeleton = document.getElementById('hero-skeleton');
+    if (skeleton) skeleton.style.display = 'none';
+    setInnerHTML(document.getElementById('today-grid'), '<p class="empty-state">Your schedule could not be loaded. Use the recovery action above.</p>');
+    return;
+  }
   const now = new Date();
   const today = QCU_TIME.weekday(now);
   const hour = Math.floor(QCU_TIME.minutes(now) / 60);
@@ -779,6 +785,10 @@ function floorShort(floor) {
 function renderSchedule() {
   const rows = document.getElementById("schedule-rows");
   if (!rows) return;
+  if (state.error && !state.dashboard) {
+    setInnerHTML(rows, '<tr><td colspan="6">Your schedule could not be loaded. Use the recovery action above.</td></tr>');
+    return;
+  }
   const now   = new Date();
   const today = QCU_TIME.weekday(now);
 
@@ -1082,15 +1092,75 @@ function allSubjects() {
 /* ── Task Manager (API-backed) ────────────────────────── */
 const TASKS_KEY = "qcu-tasks";
 let _tasksCache = null;
+const loadErrors = new Map();
+function loadNotice(key, message, retry) {
+  let notice = document.getElementById('load-notice-' + key);
+  if (!notice) {
+    notice = document.createElement('div');
+    notice.id = 'load-notice-' + key;
+    notice.className = 'load-notice';
+    notice.setAttribute('role', 'status');
+    (document.querySelector('.page-container') || document.querySelector('main') || document.body).prepend(notice);
+  }
+  notice.replaceChildren();
+  notice.hidden = !message;
+  if (!message) return;
+  const text = document.createElement('span');
+  text.textContent = message;
+  notice.appendChild(text);
+  if (retry) {
+    const button = document.createElement('button');
+    button.className = 'btn-secondary';
+    button.textContent = 'Try again';
+    button.onclick = retry;
+    notice.appendChild(button);
+  }
+}
+async function readWithFeedback(url, key, retry, hasContent = false) {
+  const started = performance.now();
+  const target = document.getElementById(key === 'tasks' ? 'task-list' : key === 'notes' ? 'note-list' : '');
+  const initialLists = key === 'dashboard' && !hasContent ? ['task-list','note-list'].map(id => document.getElementById(id)).filter(Boolean) : [];
+  for (const list of initialLists) {
+    list.innerHTML = '<div class="loading-placeholder" aria-label="Loading"><span class="skeleton-line"></span><span class="skeleton-line"></span><span class="skeleton-line"></span></div>';
+    list.setAttribute('aria-busy','true');
+  }
+  if (target && !hasContent) {
+    target.innerHTML = '<div class="loading-placeholder" aria-label="Loading"><span class="skeleton-line"></span><span class="skeleton-line"></span><span class="skeleton-line"></span></div>';
+    target.setAttribute('aria-busy','true');
+  }
+  loadNotice(key, hasContent ? 'Refreshing…' : 'Loading…');
+  const slow = setTimeout(() => loadNotice(key, 'This is taking longer than usual. Still checking…'), 8000);
+  try {
+    const response = await fetch(url, {credentials:'include', cache:'no-store', signal:AbortSignal.timeout(35000)});
+    if (!response.ok) {
+      const error = new Error(response.status === 401 ? 'Your session expired. Sign in again.' : response.status === 429 ? `Too many requests. Retry after ${response.headers.get('Retry-After') || 'a few'} seconds.` : 'The service is unavailable. Please try again.');
+      error.status = response.status;
+      throw error;
+    }
+    const data = await response.json();
+    if (['tasks','notes'].includes(key) && !Array.isArray(data.data)) throw new Error('The service returned an unexpected result. Please retry.');
+    loadErrors.delete(key);
+    loadNotice(key, '');
+    return data;
+  } catch (error) {
+    const message = navigator.onLine === false ? 'You are offline. Reconnect and try again.' : error.message;
+    loadErrors.set(key, message);
+    loadNotice(key, (hasContent ? 'Refresh failed. Showing your last loaded content. ' : '') + message, error.status === 401 ? () => { location.href='/?login=1'; } : retry);
+    throw error;
+  } finally {
+    clearTimeout(slow);
+    for (const list of initialLists) { list.removeAttribute('aria-busy'); list.querySelector('.loading-placeholder')?.remove(); }
+    if (target) { target.removeAttribute('aria-busy'); if (!hasContent) target.querySelector('.loading-placeholder')?.remove(); }
+    performance.measure('qcu-' + key, {start:started, end:performance.now()});
+  }
+}
 let _tasksFetching = false;
 
 async function fetchTasksFromApi() {
   if (_tasksFetching) return _tasksCache || [];
   _tasksFetching = true;
   try {
-    const r = await fetch("/api/v1/tasks", { credentials: "include", cache: "no-store" });
-    if (!r.ok) return _tasksCache || [];
-    const d = await r.json();
+    const d = await readWithFeedback('/api/v1/tasks', 'tasks', async () => { await fetchTasksFromApi(); renderTasks(); }, _tasksCache !== null);
     _tasksCache = Array.isArray(d.data) ? d.data : [];
     return _tasksCache;
   } catch { return _tasksCache || []; }
@@ -1115,7 +1185,7 @@ async function addTask(data) {
         dueDate: data.deadline || null,
       }),
     });
-    if (r.ok) { _tasksCache = null; }
+    if (r.ok) { await fetchTasksFromApi(); }
   } catch {}
 }
 
@@ -1133,14 +1203,14 @@ async function updateTask(id, data) {
       credentials: "include",
       body: JSON.stringify(payload),
     });
-    if (r.ok) { _tasksCache = null; }
+    if (r.ok) { await fetchTasksFromApi(); }
   } catch {}
 }
 
 async function deleteTask(id) {
   try {
     const r = await fetch(`/api/v1/tasks/${id}`, { method: "DELETE", credentials: "include" });
-    if (r.ok) { _tasksCache = null; }
+    if (r.ok) { await fetchTasksFromApi(); }
   } catch {}
 }
 
@@ -1156,7 +1226,7 @@ async function toggleTask(id) {
       credentials: "include",
       body: JSON.stringify({ status: newStatus }),
     });
-    if (r.ok) { _tasksCache = null; }
+    if (r.ok) { await fetchTasksFromApi(); }
   } catch {}
 }
 
@@ -1244,6 +1314,8 @@ function taskCardTemplate(t) {
 function renderTasks() {
   const list = document.getElementById("task-list");
   if (!list) return;
+  if (_tasksFetching && _tasksCache === null) return;
+  if (_tasksCache === null && (loadErrors.has('tasks') || loadErrors.has('dashboard'))) { list.replaceChildren(); return; }
 
   const subjectSelect = document.getElementById("task-filter-subject");
   if (subjectSelect && subjectSelect.children.length <= 1) {
@@ -1349,7 +1421,7 @@ function openTaskModal(task) {
     try {
       if (isEdit) await updateTask(taskId, { title: data.title, description: data.description, subjectId: data.subject || null, priority: data.priority, deadline: data.deadline || null });
       else await addTask({ title: data.title, description: data.description, subjectId: data.subject || null, priority: data.priority, deadline: data.deadline || null });
-      _tasksCache = null;
+
       closeTaskModal();
       renderTasks();
     } finally {
@@ -1372,9 +1444,7 @@ async function fetchNotesFromApi() {
   if (_notesFetching) return _notesCache || [];
   _notesFetching = true;
   try {
-    const r = await fetch("/api/v1/notes", { credentials: "include", cache: "no-store" });
-    if (!r.ok) return _notesCache || [];
-    const d = await r.json();
+    const d = await readWithFeedback('/api/v1/notes', 'notes', async () => { await fetchNotesFromApi(); renderNotes(); }, _notesCache !== null);
     _notesCache = Array.isArray(d.data) ? d.data : [];
     return _notesCache;
   } catch { return _notesCache || []; }
@@ -1397,7 +1467,7 @@ async function addNote(data) {
         subjectId: data.subjectId || null,
       }),
     });
-    if (r.ok) { _notesCache = null; }
+    if (r.ok) { await fetchNotesFromApi(); }
   } catch {}
 }
 
@@ -1413,14 +1483,14 @@ async function updateNote(id, data) {
       credentials: "include",
       body: JSON.stringify(payload),
     });
-    if (r.ok) { _notesCache = null; }
+    if (r.ok) { await fetchNotesFromApi(); }
   } catch {}
 }
 
 async function deleteNote(id) {
   try {
     const r = await fetch(`/api/v1/notes/${id}`, { method: "DELETE", credentials: "include" });
-    if (r.ok) { _notesCache = null; }
+    if (r.ok) { await fetchNotesFromApi(); }
   } catch {}
 }
 
@@ -1479,6 +1549,8 @@ function noteCardTemplate(n) {
 function renderNotes() {
   const list = document.getElementById("note-list");
   if (!list) return;
+  if (_notesFetching && _notesCache === null) return;
+  if (_notesCache === null && (loadErrors.has('notes') || loadErrors.has('dashboard'))) { list.replaceChildren(); return; }
 
   const subjectSelect = document.getElementById("note-filter-subject");
   if (subjectSelect && subjectSelect.children.length <= 1) {
@@ -1567,7 +1639,7 @@ function openNoteModal(note) {
     try {
       if (isEdit) await updateNote(noteId, { title: data.title, body: data.body, subjectId: data.subject || null });
       else await addNote({ title: data.title, body: data.body, subjectId: data.subject || null });
-      _notesCache = null;
+
       closeNoteModal();
       renderNotes();
     } finally {
@@ -1596,9 +1668,7 @@ function tick() {
 
 /* ── Schedule CRUD API ─────────────────────────────── */
 async function fetchScheduleFromApi() {
-  const resp = await fetch("/api/v1/schedule", { credentials: "include" });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return await resp.json();
+  return readWithFeedback('/api/v1/schedule', 'schedule', reloadSchedule, state.schedule.length > 0);
 }
 
 async function createScheduleEntry(payload) {
@@ -2004,10 +2074,10 @@ async function init() {
 
   // Fetch authenticated dashboard data (single endpoint)
   try {
-    const resp = await fetch("/api/v1/dashboard", { credentials: "include" });
-    const data = await resp.json();
+    const data = await readWithFeedback('/api/v1/dashboard', 'dashboard', () => location.reload(), !!state.dashboard);
 
     if (data.status === "UNAUTHENTICATED") {
+      loadNotice('dashboard', 'Sign in to see your schedule.', () => { location.href='/?login=1'; });
       // Not logged in — show shell with defaults, no schedule
       state.loading = false;
       renderShell();
@@ -2016,6 +2086,7 @@ async function init() {
     }
 
     if (data.status === "INCOMPLETE") {
+      loadNotice('dashboard', 'Finish reviewing your COR to see your schedule.', () => { location.href='/onboarding.html'; });
       // Logged in but not yet onboarded
       state.loading = false;
       renderShell();
@@ -2024,12 +2095,14 @@ async function init() {
     }
 
     if (data.status === "DEACTIVATED") {
+      loadNotice('dashboard', 'Your account is deactivated. Contact your administrator.');
       state.loading = false;
       renderShell();
       tick();
       return;
     }
 
+    if (data.status !== 'OK') throw new Error('Dashboard data is unavailable.');
     if (data.status === "OK") {
       state.dashboard = data;
       state.profile = data.profile || null;
@@ -2054,9 +2127,7 @@ async function init() {
   } catch (e) {
     console.warn("Dashboard load failed:", e);
     state.error = "Failed to load schedule data";
-    // Fall back to empty state
-    state.schedule = [];
-    state.buildings = [];
+    if (!loadErrors.has('dashboard')) loadNotice('dashboard', 'Could not load the dashboard. ' + e.message, () => location.reload());
   }
 
   state.loading = false;
@@ -2115,12 +2186,12 @@ async function init() {
       if (!btn) return;
       const action = btn.dataset.action;
       const id = btn.dataset.id;
-      if (action === "toggle") { await toggleTask(id); _tasksCache = null; renderTasks(); }
+      if (action === "toggle") { await toggleTask(id); renderTasks(); }
       if (action === "edit") {
         const task = (_tasksCache || []).find(t => (t.taskId || t.id) === id);
         if (task) openTaskModal(task);
       }
-      if (action === "delete") { await deleteTask(id); _tasksCache = null; renderTasks(); }
+      if (action === "delete") { await deleteTask(id); renderTasks(); }
     });
   }
 
@@ -2169,7 +2240,7 @@ async function init() {
         const note = (_notesCache || []).find(n => (n.noteId || n.id) === id);
         if (note) openNoteModal(note);
       }
-      if (action === "delete-note") { await deleteNote(id); _notesCache = null; renderNotes(); }
+      if (action === "delete-note") { await deleteNote(id); renderNotes(); }
     });
   }
 
@@ -2198,7 +2269,7 @@ async function init() {
         panel.classList.toggle("is-active", active);
       });
       if (updateUrl) history.replaceState({}, "", `${location.pathname}#${view}`);
-      await Promise.all([fetchTasksFromApi(), fetchNotesFromApi()]);
+      await Promise.all([_tasksCache === null ? fetchTasksFromApi() : null, _notesCache === null ? fetchNotesFromApi() : null]);
       renderTasks();
       renderNotes();
       iconify();

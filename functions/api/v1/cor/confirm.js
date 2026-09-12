@@ -29,6 +29,7 @@ import {
   CatalogSeed,
   Departments,
 } from "../../repo/index.js";
+import { jobError } from './_jobs.js';
 
 // In-memory stores for confirmed data — NOW DELEGATED TO REPO
 // (Profiles, Enrollments, EnrollmentSubjects, Schedules, ScheduleEntries
@@ -142,8 +143,11 @@ function validateDraft(draft, catalog) {
 // Commit logic — create all records in one operation (via repository)
 // ---------------------------------------------------------------------------
 function commitRecords(user, draft, _catalog) {
+  const previousSchedule = Schedules.getActiveByUserId(user.userId);
+  const previousEnrollment = Enrollments.getActiveByUserId(user.userId);
   // 1. Create Student Profile
   const profile = Profiles.create({
+    profileId: `prf_${user.corRecordId}`,
     userId: user.userId,
     studentNumber: val(draft.studentInfo.studentNumber),
     firstName: val(draft.studentInfo.firstName),
@@ -172,6 +176,7 @@ function commitRecords(user, draft, _catalog) {
 
   // 3. Create Enrollment
   const enrollment = Enrollments.create({
+    enrollmentId: `enr_${user.corRecordId}`,
     userId: user.userId,
     profileId: profile.profileId,
     termId: matchedTerm?.termId || null,
@@ -186,6 +191,7 @@ function commitRecords(user, draft, _catalog) {
 
   // 4. Create Enrollment Subjects and Schedule
   const schedule = Schedules.create({
+    scheduleId: `sch_${user.corRecordId}`,
     enrollmentId: enrollment.enrollmentId,
     userId: user.userId,
     sourceType: "COR_IMPORT",
@@ -193,8 +199,9 @@ function commitRecords(user, draft, _catalog) {
   });
 
   let entryIndex = 0;
-  for (const subject of draft.subjects) {
+  for (const [subjectIndex, subject] of draft.subjects.entries()) {
     const enrollmentSubject = EnrollmentSubjects.create({
+      ensId: `ens_${user.corRecordId}_${subjectIndex}`,
       enrollmentId: enrollment.enrollmentId,
       userId: user.userId,
       subjectCodeSnapshot: val(subject.subjectCode),
@@ -216,6 +223,7 @@ function commitRecords(user, draft, _catalog) {
         const startVal = val(meeting.time?.start) || val(meeting.startTime);
         const endVal = val(meeting.time?.end) || val(meeting.endTime);
         ScheduleEntries.create({
+          smeId: `sme_${user.corRecordId}_${entryIndex}`,
           scheduleId: schedule.scheduleId,
           enrollmentId: enrollment.enrollmentId,
           userId: user.userId,
@@ -234,6 +242,8 @@ function commitRecords(user, draft, _catalog) {
   }
 
   // 5. Update COR record to COMPLETE
+  if (previousSchedule && previousSchedule.scheduleId !== schedule.scheduleId) Schedules.update(previousSchedule,{isActive:false,status:'ARCHIVED'});
+  if (previousEnrollment && previousEnrollment.enrollmentId !== enrollment.enrollmentId) Enrollments.update(previousEnrollment,{status:'ARCHIVED'});
   const corRecord = CorRecords.getById(user.corRecordId);
   if (corRecord) {
     CorRecords.update(corRecord, { status: "COMPLETE" });
@@ -283,8 +293,15 @@ export async function onRequestPost(context) {
     }
 
     const { user, session } = resolved;
+    const body = await context.request.json().catch(() => ({}));
+    const requested = CorRecords.getById(body.corRecordId || user.corRecordId);
+    if (requested && requested.ownerUserId === user.userId && requested.status === 'COMPLETE') {
+      return json({status:'COMPLETE',corRecordId:requested.id,scheduleId:`sch_${requested.id}`,message:'This COR is already confirmed.'});
+    }
+    const pending = CorRecords.getActiveByUserId(user.userId);
+    if (pending) user.corRecordId = pending.id;
 
-    if (user.state !== "ONBOARDING" || !user.corRecordId) {
+    if (!["ONBOARDING","ACTIVE"].includes(user.state) || !user.corRecordId) {
       return json(
         { status: "ERROR", error: "No active COR import to confirm." },
         400
@@ -301,7 +318,6 @@ export async function onRequestPost(context) {
     }
 
     // --- Get extraction draft (Maps or session fallback) ---
-    const body = await context.request.json().catch(() => ({}));
     if (body.corRecordId && body.corRecordId !== user.corRecordId) {
       return json({ status: "ERROR", error: "This COR import is no longer active." }, 409);
     }
@@ -537,6 +553,8 @@ export async function onRequestPost(context) {
     resp.headers.append("Set-Cookie", sessionCookie);
     return resp;
   } catch (error) {
+    if (error.code === 'ALREADY_COMPLETE') return json({status:'COMPLETE',message:'This COR is already confirmed.'});
+    if (error.code) return jobError(error);
     console.error("COR confirmation failed:", String(error?.message || error));
     return json(
       { status: "ERROR", error: "Failed to confirm COR. Please try again." },
