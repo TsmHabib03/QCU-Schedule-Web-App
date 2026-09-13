@@ -1,7 +1,9 @@
 // Shared Gemini extraction functions for COR processing.
 // Used by both upload.js (immediate extraction) and process.js (on-demand).
+// Model list verified 2026-09: 2.0-flash and 2.5-flash are retired (404 for
+// new users) — keep only live models, fastest first.
 
-export const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-3.1-flash-lite"];
+export const GEMINI_MODELS = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"];
 
 export async function extractWithGemini(imageBytes, mimeType, apiKey) {
   let binary = "";
@@ -83,9 +85,11 @@ Rules:
             { text: prompt },
             { inline_data: { mime_type: mimeType, data: base64 } }
           ]}],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+          // Thinking models spend output tokens on internal reasoning, so the
+          // budget must comfortably cover reasoning plus the full COR JSON.
+          generationConfig: { temperature: 0.1, maxOutputTokens: 16384 }
         }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(45000),
       });
 
       if (!response.ok) {
@@ -96,14 +100,33 @@ Rules:
       }
 
       const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        lastError = `${model}: No JSON in response`;
+      const candidate = data.candidates?.[0];
+      // Thinking models can return several parts; join every text part instead
+      // of trusting parts[0] (which may be empty or contain only reasoning).
+      const text = (candidate?.content?.parts || [])
+        .map(part => part?.text || "")
+        .join("")
+        .trim();
+      const finishReason = candidate?.finishReason;
+      if (!text) {
+        lastError = `${model}: empty response (${finishReason || "no finish reason"})`;
+        console.error(`Gemini ${model} returned no text (${finishReason})`);
         continue;
       }
-      console.log("Gemini model", model, "succeeded");
-      return JSON.parse(jsonMatch[0]);
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        lastError = `${model}: No JSON in response (${finishReason || ""})`;
+        continue;
+      }
+      try {
+        console.log("Gemini model", model, "succeeded");
+        return JSON.parse(jsonMatch[0]);
+      } catch (parseError) {
+        // Truncated JSON (MAX_TOKENS mid-object) — fall through to next model
+        // instead of crashing the whole extraction loop.
+        lastError = `${model}: truncated JSON (${finishReason || "parse error"})`;
+        console.error(`Gemini ${model}: JSON parse failed (${finishReason})`);
+      }
     } catch (err) {
       console.error(`Gemini ${model} error:`, err.message);
       lastError = `${model}: ${err.message}`;

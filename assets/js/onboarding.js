@@ -227,6 +227,8 @@
   function updateTracker(step) {
     const mapping = { welcome: 0, upload: 1, processing: 1, review: 2, confirm: 3, success: 4 };
     const idx = mapping[step] ?? 0;
+    const progressLabel = document.getElementById('setup-progress-label');
+    if (progressLabel) progressLabel.textContent = step === 'success' ? 'Setup complete' : `Step ${Math.min(idx + 1, 4)} of 4`;
     tracker.querySelectorAll(".stage-item").forEach((el, i) => {
       el.classList.remove("active", "completed");
       if (i < idx) el.classList.add("completed");

@@ -9,14 +9,12 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>QCU Schedule — Home</title>
+  <link rel="preload" href="assets/fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
   <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/css/styles.css?v=55">
-<link rel="stylesheet" href="assets/css/admin-entry.css?v=1">
+<link rel="stylesheet" href="assets/css/entry.css?v=1">
 <script>
   // Auth gate: start the session check immediately so the network round-trip
   // overlaps page parse, but apply DOM changes only AFTER <body> exists.
@@ -133,64 +131,85 @@
 <body data-page="home">
 
   <!-- PUBLIC LANDING: shown when not authenticated -->
-  <div id="auth-landing" class="app-shell" style="display:none;">
-    <header class="page-header">
-      <div class="page-header-inner" style="display:flex;align-items:center;justify-content:space-between;max-width:960px;margin:0 auto;padding:0 20px;height:56px;">
-        <span style="font-weight:700;font-size:15px;color:var(--navy,#0B2341);">My-Schedule</span>
-        <nav style="display:flex;gap:16px;font-size:13px;">
-          <a href="privacy.html" style="color:var(--navy,#0B2341);text-decoration:none;">Privacy</a>
-          <a href="terms.html" style="color:var(--navy,#0B2341);text-decoration:none;">Terms</a>
+  <div id="auth-landing" class="civic-entry" style="display:none;">
+    <a class="entry-skip" href="#landing-main">Skip to content</a>
+    <div class="civic-rule" aria-hidden="true"></div>
+    <header class="entry-header">
+      <div class="entry-container entry-header-inner">
+        <a class="entry-brand" href="/" aria-label="My-Schedule home">
+          <img src="assets/images/QCU college of computer studies logo.jpg" alt="QCU College of Computer Studies" width="43" height="43">
+          <span><strong>My-Schedule</strong><small>Quezon City University</small></span>
+        </a>
+        <nav class="entry-nav" aria-label="Main navigation">
+          <a class="nav-about" href="#features">Explore the app</a>
+          <a class="nav-privacy" href="privacy.html">Privacy</a>
+          <a class="nav-privacy" href="terms.html">Terms</a>
+          <a class="nav-signin" href="#google-login-btn">Student sign in <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
         </nav>
       </div>
     </header>
-
-    <main class="page-container" style="max-width:640px;margin:0 auto;padding:40px 20px;text-align:center;">
-      <div style="margin-bottom:24px;">
-        <img src="assets/images/QCU college of computer studies logo.jpg" alt="QCU" style="width:72px;height:72px;border-radius:12px;object-fit:cover;">
-      </div>
-      <h1 style="font-size:28px;font-weight:800;color:var(--navy,#0B2341);margin:0 0 8px;">My-Schedule</h1>
-      <p style="font-size:17px;color:#374151;margin:0 0 32px;">Your QCU schedule, organized.</p>
-
-      <a id="google-login-btn" href="/api/auth/google/start" style="
-        display:inline-flex;align-items:center;gap:10px;
-        background:#005BAC;color:#fff;font-weight:600;font-size:15px;
-        padding:12px 28px;border-radius:8px;text-decoration:none;
-        border:none;cursor:pointer;transition:background 0.15s;
-      ">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#fff"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#fff"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#fff"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#fff"/></svg>
-        Continue with Google
-      </a>
-
-      <div class="admin-entry"><span class="admin-entry-label">PORTAL MANAGEMENT</span><a class="admin-signin" href="/api/auth/google/start?returnTo=%2Fadmin.html"><span>Administrator sign in</span><span aria-hidden="true">&rarr;</span></a><small>Restricted to the authorized administrator account.</small></div>
-
-      <p id="auth-error-msg" role="alert" style="color:#dc2626;font-size:14px;margin-top:16px;display:none;"></p>
-      <a id="auth-retry" href="/" style="display:none;margin-top:12px;text-decoration:underline;">Try again</a>
-      <section id="auth-finish" hidden aria-label="Finish signing in" style="margin-top:24px;">
-        <p id="auth-finish-message" role="status" aria-live="polite" style="margin-bottom:16px;line-height:1.6;"></p>
-        <button id="auth-finish-retry" class="action-button" type="button">Finish signing in</button>
+    <main id="landing-main" class="entry-container">
+      <section class="landing-hero" aria-labelledby="landing-title">
+        <div>
+          <p class="hero-eyebrow"><i data-lucide="graduation-cap" aria-hidden="true"></i> Made for the QCU student day</p>
+          <h1 id="landing-title" class="hero-title">Your schedule.<span>Your next chapter.</span></h1>
+          <p class="hero-description">Classes, tasks, and campus life, all in one place. Make room for what matters at Quezon City University.</p>
+          <div class="hero-actions">
+            <a id="google-login-btn" class="entry-primary" href="/api/auth/google/start">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="currentColor"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="currentColor"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="currentColor"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="currentColor"/></svg>
+              Continue with Google
+            </a>
+            <a class="entry-secondary" href="#how-it-works">How it works <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+          </div>
+          <p id="auth-error-msg" class="entry-alert" role="alert" style="display:none;"></p>
+          <a id="auth-retry" class="entry-retry" href="/" style="display:none;">Try again</a>
+          <section id="auth-finish" class="entry-finish" hidden aria-label="Finish signing in">
+            <p id="auth-finish-message" role="status" aria-live="polite"></p>
+            <button id="auth-finish-retry" class="entry-primary" type="button">Finish signing in</button>
+          </section>
+        </div>
+        <figure class="hero-visual">
+          <img class="hero-campus" src="assets/images/QCU-BUILDING-1024x683-1.jpg" alt="Quezon City University academic building under a blue sky" width="1024" height="683" fetchpriority="high">
+          <figcaption class="hero-visual-caption">
+            <span class="entry-icon"><i data-lucide="calendar-check-2" aria-hidden="true"></i></span>
+            <div><strong>A little more organized. A lot more ready.</strong><p>Your next class is just a glance away.</p></div>
+            <i data-lucide="arrow-up-right" aria-hidden="true"></i>
+          </figcaption>
+        </figure>
       </section>
-
-      <section style="margin-top:48px;text-align:left;">
-        <div style="display:grid;gap:20px;">
-          <div style="padding:16px;border:1px solid #e5e7eb;border-radius:8px;">
-            <strong style="font-size:14px;color:var(--navy,#0B2341);">Schedule organizer</strong>
-            <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">See your classes for today and the full week at a glance.</p>
-          </div>
-          <div style="padding:16px;border:1px solid #e5e7eb;border-radius:8px;">
-            <strong style="font-size:14px;color:var(--navy,#0B2341);">COR import</strong>
-            <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Upload your COR and review your schedule before confirming.</p>
-          </div>
-          <div style="padding:16px;border:1px solid #e5e7eb;border-radius:8px;">
-            <strong style="font-size:14px;color:var(--navy,#0B2341);">Tasks and notes</strong>
-            <p style="font-size:13px;color:#6b7280;margin:4px 0 0;">Keep your to-do list and class notes in your personal workspace.</p>
+      <div class="civic-community">
+        <div class="community-identity">
+          <img src="assets/images/Quezon_City_Government.png" alt="Quezon City Government seal" width="44" height="44">
+          <span class="community-divider" aria-hidden="true"></span>
+          <img src="assets/images/cropped-logo.jpg" alt="Quezon City University seal" width="44" height="44">
+          <div><strong>Rooted in Quezon City.</strong><small>Built around the QCU community.</small></div>
+        </div>
+        <p class="community-note">Your campus. Your classes. Your time.</p>
+      </div>
+      <section id="features" class="landing-features" aria-labelledby="features-title">
+        <h2 id="features-title" class="entry-section-title">Less juggling. More learning.</h2>
+        <p class="entry-section-description">Everything you need to find your rhythm, from your first class to your last deadline.</p>
+        <div class="feature-layout">
+          <article class="feature-schedule">
+            <div class="feature-heading"><span class="entry-icon"><i data-lucide="calendar-days" aria-hidden="true"></i></span><h3>Your week, clearly organized</h3></div>
+            <p>See today's classes and your full weekly schedule. Know what's next, when it starts, and where you need to be.</p>
+            <div class="feature-highlights"><span><i data-lucide="clock-3" aria-hidden="true"></i> Daily overview</span><span><i data-lucide="calendar-range" aria-hidden="true"></i> Weekly schedule</span><span><i data-lucide="map-pin" aria-hidden="true"></i> Campus buildings</span></div>
+          </article>
+          <div class="feature-stack">
+            <article class="feature-row"><span class="entry-icon"><i data-lucide="file-up" aria-hidden="true"></i></span><div><h3>From COR to calendar</h3><p>Upload your Certificate of Registration, review your class details, and make your schedule your own.</p></div></article>
+            <article class="feature-row"><span class="entry-icon"><i data-lucide="notebook-pen" aria-hidden="true"></i></span><div><h3>A place for your tasks and notes</h3><p>Keep deadlines, to-dos, and class notes together in your personal workspace.</p></div></article>
           </div>
         </div>
+        <div id="how-it-works" class="entry-how">
+          <div><h3>One sign-in. A simpler semester.</h3><p>Continue with Google, upload your COR, then review and confirm your details. Your student dashboard is ready when you are.</p></div>
+          <details class="entry-faq"><summary>What do I need to get started? <i data-lucide="chevron-down" aria-hidden="true"></i></summary><p>Have your Google account and current Certificate of Registration ready. You can upload a PDF, JPG, or PNG up to 10 MB. You'll review the detected details before confirming your schedule.</p></details>
+        </div>
       </section>
-
-      <footer style="margin-top:48px;padding:16px 0;font-size:12px;color:#9ca3af;">
-        QCU Schedule &middot; <a href="privacy.html" style="color:#6b7280;">Privacy</a> &middot; <a href="terms.html" style="color:#6b7280;">Terms</a>
-      </footer>
     </main>
+    <footer class="entry-footer"><div class="entry-container entry-footer-inner">
+      <p>My-Schedule <span aria-hidden="true">&middot;</span> For the QCU student community</p>
+      <div class="entry-footer-links"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a class="entry-admin" href="/api/auth/google/start?returnTo=%2Fadmin.html"><i data-lucide="shield" aria-hidden="true"></i> Administrator sign in</a></div>
+    </div></footer>
   </div>
 
   <!-- AUTHENTICATED DASHBOARD: shown after login -->
@@ -294,6 +313,7 @@
   <div id="auth-loading" class="app-shell loading-auth" aria-busy="true"><header class="page-header"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header><main class="page-container section-stack" role="status"><span class="loading-sr">Loading your portal?</span><div class="loading-auth-heading" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards-grid" aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div><div class="loading-auth-summary" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-week"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></main><div class="bottom-nav" aria-hidden="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></div></div>
 
   <script src="assets/js/lucide.min.js?v=1"></script>
+  <script>if (window.lucide) window.lucide.createIcons();</script>
 <script src="assets/js/academic.js?v=41"></script>
 <script src="assets/js/app.js?v=53"></script>
 <script src="assets/js/install-prompt.js?v=1"></script>

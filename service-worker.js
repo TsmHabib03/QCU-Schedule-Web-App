@@ -1,4 +1,4 @@
-const CACHE_NAME = "qcu-schedule-v72";
+const CACHE_NAME = "qcu-schedule-v73";
 const STATIC_ASSETS = [
   "./",
   "index.html",
@@ -13,6 +13,8 @@ const STATIC_ASSETS = [
   "manifest.json",
   "assets/css/styles.css",
   "assets/css/styles.css?v=55",
+  "assets/css/entry.css?v=1",
+  "assets/fonts/public-sans-latin-wght-normal.woff2",
   "assets/css/recovery.css?v=1",
   "assets/js/recovery.js?v=1",
   "assets/css/loading.css",
@@ -21,9 +23,11 @@ const STATIC_ASSETS = [
   "assets/js/lucide.min.js",
   "assets/js/status.js",
   "assets/js/onboarding.js",
+  "assets/js/onboarding.js?v=6",
   "assets/images/QCU college of computer studies logo.jpg",
   "assets/images/Quezon_City_Government.png",
   "assets/images/cropped-logo.jpg",
+  "assets/images/QCU-BUILDING-1024x683-1.jpg",
   "data/buildings.json",
   "data/academic-catalog.json"
 ];

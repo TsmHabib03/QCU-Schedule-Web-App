@@ -6,300 +6,68 @@
   <meta name="theme-color" content="#005BAC">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>Set Up Your Schedule - My-Schedule</title>
+  <link rel="preload" href="assets/fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/styles.css?v=55">
-  <style>
-    /* Onboarding-specific styles */
-    .onboarding-shell { min-height: 100dvh; display: flex; flex-direction: column; }
-    .onboarding-header {
-      background: #fff; border-bottom: 1px solid var(--border,#E5E7EB);
-      padding: 0 20px; height: 56px; display: flex; align-items: center; justify-content: space-between;
-      position: sticky; top: 0; z-index: 10;
-    }
-    .onboarding-header-brand { font-weight: 700; font-size: 15px; color: var(--navy,#0B2341); }
-    .onboarding-header-user { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; font-size: 13px; color: var(--muted,#5F6368); }
-    #header-user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .onboarding-header-brand, .onboarding-header-signout { flex-shrink: 0; }
-    .onboarding-header { gap: 12px; }
-    .onboarding-header-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-    .onboarding-header-signout {
-      background: none; border: 1px solid var(--border,#E5E7EB); border-radius: var(--radius-sm,4px);
-      padding: 4px 10px; font-size: 12px; color: var(--muted,#5F6368); cursor: pointer;
-    }
-    .onboarding-header-signout:hover { background: var(--bg-soft,#EEF1F5); }
-
-    /* Stage tracker */
-    .stage-tracker {
-      display: flex; align-items: center; justify-content: center; gap: 0;
-      padding: 20px 20px 0; max-width: 600px; margin: 0 auto; width: 100%;
-    }
-    .stage-item {
-      display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600;
-      color: var(--muted,#9CA3AF); white-space: nowrap;
-    }
-    .stage-item.active { color: var(--blue,#005BAC); }
-    .stage-item.completed { color: var(--success,#2E7D32); }
-    .stage-dot {
-      width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 700; border: 2px solid var(--border,#E5E7EB); background: #fff; flex-shrink: 0;
-    }
-    .stage-item.active .stage-dot { border-color: var(--blue,#005BAC); background: var(--blue,#005BAC); color: #fff; }
-    .stage-item.completed .stage-dot { border-color: var(--success,#2E7D32); background: var(--success,#2E7D32); color: #fff; }
-    .stage-connector {
-      width: 32px; height: 2px; background: var(--border,#E5E7EB); flex-shrink: 0; margin: 0 4px;
-    }
-    .stage-connector.active { background: var(--blue,#005BAC); }
-
-    /* Main content */
-    .onboarding-main {
-      flex: 1; display: flex; flex-direction: column; align-items: center;
-      padding: 24px 20px 40px; max-width: 640px; margin: 0 auto; width: 100%;
-    }
-
-    /* Step containers */
-    .onboarding-step { display: none; width: 100%; }
-    .onboarding-step.active { display: block; }
-    .onboarding-step :is(h1, h2)[tabindex="-1"]:focus { outline: none; }
-
-    /* Welcome step */
-    .welcome-icon { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; margin-bottom: 20px; }
-    .welcome-title { font-size: 24px; font-weight: 800; color: var(--navy,#0A3D6E); margin: 0 0 8px; text-align: center; }
-    .welcome-subtitle { font-size: 15px; color: var(--muted,#5F6368); margin: 0 0 32px; text-align: center; line-height: 1.6; }
-    .welcome-features { display: grid; gap: 12px; margin-bottom: 32px; }
-    .welcome-feature {
-      padding: 14px 16px; border: 1px solid var(--border,#E5E7EB); border-radius: var(--radius,8px);
-      display: flex; align-items: flex-start; gap: 12px;
-    }
-    .welcome-feature-icon {
-      width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
-      background: var(--blue-soft,#E8F2FC); color: var(--blue,#005BAC); font-size: 16px; flex-shrink: 0;
-    }
-    .welcome-feature-text { font-size: 13px; color: var(--text,#202124); line-height: 1.5; }
-    .welcome-feature-text strong { display: block; font-size: 14px; margin-bottom: 2px; }
-
-    /* Buttons */
-    .btn-primary {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      background: var(--blue,#005BAC); color: #fff; font-weight: 600; font-size: 15px;
-      padding: 12px 24px; border-radius: var(--radius,8px); border: none; cursor: pointer;
-      transition: background 0.15s; width: 100%; text-decoration: none;
-    }
-    .btn-primary:hover { background: var(--blue-dark,#0A4DA2); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-secondary {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      background: #fff; color: var(--text,#202124); font-weight: 600; font-size: 14px;
-      padding: 10px 20px; border-radius: var(--radius,8px); border: 1px solid var(--border,#E5E7EB);
-      cursor: pointer; transition: background 0.15s; width: 100%; text-decoration: none;
-    }
-    .btn-secondary:hover { background: var(--bg-soft,#EEF1F5); }
-    .btn-ghost {
-      background: none; border: none; color: var(--muted,#5F6368); font-size: 13px;
-      cursor: pointer; padding: 8px; text-decoration: none;
-    }
-    .btn-ghost:hover { color: var(--text,#202124); }
-    .btn-row { display: grid; gap: 10px; margin-top: 24px; }
-    .btn-row-secondary { display: flex; justify-content: center; gap: 16px; margin-top: 16px; }
-
-    /* Upload step */
-    .upload-zone {
-      border: 2px dashed var(--border,#E5E7EB); border-radius: var(--radius,8px);
-      padding: 40px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s;
-      background: #fff;
-    }
-    .upload-zone:hover, .upload-zone.dragover { border-color: var(--blue,#005BAC); background: var(--blue-soft,#E8F2FC); }
-    .upload-zone-icon { font-size: 36px; color: var(--blue,#005BAC); margin-bottom: 12px; }
-    .upload-zone-text { font-size: 14px; color: var(--muted,#5F6368); margin-bottom: 4px; }
-    .upload-zone-hint { font-size: 14px; color: var(--muted,#5F6368); }
-    .upload-zone:focus-visible, .onboarding-step button:focus-visible, .onboarding-step a:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
-    .upload-zone[aria-disabled="true"] { opacity: .6; cursor: wait; pointer-events: none; }
-    .onboarding-step button:disabled { opacity: .6; cursor: wait; }
-    .onboarding-step [hidden] { display: none !important; }
-    .upload-file-input { display: none; }
-    .upload-file-summary {
-      display: none; padding: 16px; background: var(--bg-soft,#EEF1F5); border-radius: var(--radius,8px);
-      margin-top: 16px; text-align: left;
-    }
-    .upload-file-summary.visible { display: block; }
-    .upload-file-name { font-size: 14px; font-weight: 600; color: var(--text,#202124); word-break: break-all; }
-    .upload-file-meta { font-size: 12px; color: var(--muted,#5F6368); margin-top: 4px; }
-    .upload-file-remove {
-      background: none; border: none; color: var(--red,#C62828); font-size: 12px;
-      cursor: pointer; padding: 4px 0; margin-top: 8px;
-    }
-    .upload-privacy {
-      font-size: 12px; color: var(--muted,#9CA3AF); line-height: 1.5;
-      margin-top: 16px; padding: 12px; background: var(--blue-soft,#E8F2FC); border-radius: var(--radius-sm,4px);
-    }
-    .upload-progress {
-      display: none; margin-top: 16px;
-    }
-    .upload-progress.visible { display: block; }
-    .upload-progress-bar {
-      height: 6px; background: var(--bg-soft,#EEF1F5); border-radius: 3px; overflow: hidden;
-    }
-    .upload-progress-fill {
-      height: 100%; background: var(--blue,#005BAC); border-radius: 3px;
-    }
-    .upload-progress-text { font-size: 12px; color: var(--muted,#5F6368); margin-top: 6px; text-align: center; }
-    .upload-error {
-      display: none; padding: 12px; background: var(--red-soft,#FEECEC); border-radius: var(--radius-sm,4px);
-      font-size: 13px; color: var(--red,#C62828); margin-top: 12px;
-    }
-    .upload-error.visible { display: block; }
-    .upload-error { line-height: 1.6; }
-    .review-draft-status { font-size: 14px; line-height: 1.6; color: var(--muted); margin-bottom: 20px; }
-    #review-fields { border: 0; padding: 0; min-width: 0; }
-    .review-input[aria-invalid="true"], .review-select[aria-invalid="true"] { border-color: var(--red); }
-
-    /* Processing step */
-    .processing-spinner {
-      width: 48px; height: 48px; border: 4px solid var(--bg-soft,#EEF1F5);
-      border-top-color: var(--blue,#005BAC); border-radius: 50%;
-      animation: spin 0.8s linear infinite; margin: 0 auto 20px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .processing-title { font-size: 18px; font-weight: 700; color: var(--navy,#0A3D6E); text-align: center; margin-bottom: 8px; }
-    .processing-text { font-size: 14px; color: var(--muted,#5F6368); text-align: center; }
-
-    /* Review step */
-    .review-section { margin-bottom: 24px; }
-    .review-section-title {
-      font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-      color: var(--muted,#5F6368); margin-bottom: 10px;
-    }
-    .review-card {
-      background: #fff; border: 1px solid var(--border,#E5E7EB); border-radius: var(--radius,8px);
-      padding: 16px;
-    }
-    .review-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-    .review-field:last-child { margin-bottom: 0; }
-    .review-label { font-size: 11px; font-weight: 600; color: var(--muted,#5F6368); text-transform: uppercase; letter-spacing: 0.3px; }
-    .review-input {
-      border: 1px solid var(--border,#E5E7EB); border-radius: var(--radius-sm,4px);
-      padding: 10px; font-size: 16px; color: var(--text,#202124); background: #fff;
-      width: 100%;
-    }
-    .review-input:focus { outline: none; border-color: var(--blue,#005BAC); box-shadow: 0 0 0 2px var(--blue-soft,#E8F2FC); }
-    .review-select {
-      border: 1px solid var(--border,#E5E7EB); border-radius: var(--radius-sm,4px);
-      padding: 10px; font-size: 16px; color: var(--text,#202124); background: #fff;
-      width: 100%; appearance: auto;
-    }
-    .review-confidence {
-      font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 3px;
-      display: inline-block; margin-left: 6px;
-    }
-    .confidence-high { background: var(--success-soft,#E8F5E9); color: var(--success,#2E7D32); }
-    .confidence-medium { background: var(--gold-soft,#FEF9E7); color: #755600; }
-    .confidence-low { background: var(--red-soft,#FEECEC); color: var(--red,#C62828); }
-
-    /* Subject table */
-    .subject-list { display: grid; gap: 12px; }
-    .subject-card {
-      background: #fff; border: 1px solid var(--border,#E5E7EB); border-radius: var(--radius,8px);
-      padding: 14px;
-    }
-    .subject-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
-    .subject-card, .confirm-summary-value { overflow-wrap: anywhere; min-width: 0; }
-    .subject-code { font-size: 14px; font-weight: 700; color: var(--navy,#0A3D6E); }
-    .subject-units { font-size: 12px; color: var(--muted,#5F6368); margin-left: auto; }
-    .subject-name { font-size: 13px; color: var(--text,#202124); margin-bottom: 8px; }
-    .subject-schedule { font-size: 12px; color: var(--muted,#5F6368); }
-    .subject-schedule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
-    .subject-day {
-      display: inline-block; padding: 2px 6px; background: var(--blue-soft,#E8F2FC);
-      border-radius: 3px; font-size: 11px; font-weight: 600; color: var(--blue,#005BAC);
-      min-width: 40px; text-align: center;
-    }
-    .subject-room { font-size: 12px; color: var(--muted,#5F6368); margin-top: 6px; }
-
-    /* Confirm step */
-    .confirm-icon { font-size: 48px; text-align: center; margin-bottom: 16px; }
-    .confirm-title { font-size: 20px; font-weight: 800; color: var(--navy,#0A3D6E); text-align: center; margin-bottom: 8px; }
-    .confirm-text { font-size: 14px; color: var(--muted,#5F6368); text-align: center; line-height: 1.6; margin-bottom: 24px; }
-    .confirm-summary {
-      background: var(--bg-soft,#EEF1F5); border-radius: var(--radius,8px); padding: 16px;
-      margin-bottom: 24px;
-    }
-    .confirm-summary-row { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(0, 2fr); gap: 16px; font-size: 14px; padding: 6px 0; }
-    .confirm-summary-label { color: var(--muted,#5F6368); }
-    .confirm-summary-value { font-weight: 600; color: var(--text,#202124); }
-
-    /* Success step */
-    .success-check {
-      width: 64px; height: 64px; border-radius: 50%; background: var(--success-soft,#E8F5E9);
-      display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
-      font-size: 32px; color: var(--success,#2E7D32);
-    }
-    .success-title { font-size: 20px; font-weight: 800; color: var(--navy,#0A3D6E); text-align: center; margin-bottom: 8px; }
-    .success-text { font-size: 14px; color: var(--muted,#5F6368); text-align: center; line-height: 1.6; margin-bottom: 24px; }
-
-    /* Responsive */
-    @media (max-width: 480px) {
-      .stage-item { flex-direction: column; gap: 4px; font-size: 11px; }
-      .stage-connector { flex: 1; min-width: 8px; width: auto; }
-      .onboarding-header { padding-inline: 12px; }
-      .onboarding-header-avatar { display: none !important; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .processing-spinner { animation: none; }
-      .upload-progress-fill { transition: none; }
-    }
-    @media (min-width: 640px) {
-      .onboarding-main { padding: 32px 24px 48px; }
-      .stage-tracker { padding: 24px 24px 0; }
-    }
-  </style>
+  <link rel="stylesheet" href="assets/css/entry.css?v=1">
   <link rel="stylesheet" href="assets/css/loading.css?v=1">
   <script src="assets/js/loading.js?v=1"></script>
 </head>
-<body>
+<body class="civic-entry">
+  <a class="entry-skip" href="#onboarding-main">Skip to setup</a>
   <noscript><p class="missing-page">JavaScript is needed to upload and review your COR. Enable it in your browser, then reload this page. <a href="/">Return home</a></p></noscript>
   <div class="onboarding-shell">
+    <div class="civic-rule" aria-hidden="true"></div>
     <!-- Header -->
     <header class="onboarding-header" data-loading-cover="onboarding" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></div>
-      <span class="onboarding-header-brand">My-Schedule</span>
+      <div class="entry-container entry-header-inner">
+      <a class="entry-brand onboarding-header-brand" href="/" aria-label="My-Schedule home"><img src="assets/images/QCU college of computer studies logo.jpg" alt="QCU College of Computer Studies" width="43" height="43"><span><strong>My-Schedule</strong><small>Quezon City University</small></span></a>
       <div class="onboarding-header-user">
         <span id="header-user-name"></span>
         <img id="header-user-avatar" class="onboarding-header-avatar" src="/assets/images/cropped-logo.jpg" alt="" style="display:none;">
         <button class="onboarding-header-signout" onclick="signOut()">Sign out</button>
       </div>
+      </div>
     </header>
 
+    <div class="entry-container onboarding-layout">
+    <aside class="onboarding-aside" aria-label="Your setup progress">
+      <h2 class="setup-aside-heading">A fresh start, organized.</h2>
+      <p class="setup-aside-description">Let's turn your COR into a schedule that keeps up with you.</p>
     <!-- Stage Tracker -->
-    <nav class="stage-tracker" id="stage-tracker" data-loading-cover="onboarding" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="loading-cover-nav"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div></div>
+    <nav class="stage-tracker" id="stage-tracker" aria-label="Setup steps" data-loading-cover="onboarding" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="loading-cover-nav"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div></div>
       <div class="stage-item active" data-step="welcome">
         <span class="stage-dot">1</span>
-        <span>Welcome</span>
+        <span class="stage-copy">Welcome<small>A quick introduction</small></span>
       </div>
       <div class="stage-connector"></div>
       <div class="stage-item" data-step="upload">
         <span class="stage-dot">2</span>
-        <span>Upload COR</span>
+        <span class="stage-copy">Upload COR<small>Add your registration</small></span>
       </div>
       <div class="stage-connector"></div>
       <div class="stage-item" data-step="review">
         <span class="stage-dot">3</span>
-        <span>Review</span>
+        <span class="stage-copy">Review<small>Check your class details</small></span>
       </div>
       <div class="stage-connector"></div>
       <div class="stage-item" data-step="confirm">
         <span class="stage-dot">4</span>
-        <span>Confirm</span>
+        <span class="stage-copy">Confirm<small>Make it your schedule</small></span>
       </div>
     </nav>
 
+      <figure class="setup-campus"><img src="assets/images/QCU-BUILDING-1024x683-1.jpg" alt="Quezon City University academic building" width="1024" height="683"><figcaption><p><i data-lucide="map-pin" aria-hidden="true"></i> Quezon City University</p></figcaption></figure>
+      <div class="setup-support"><i data-lucide="shield-check" aria-hidden="true"></i><p>You're in control of your details.<br><a href="privacy.html">Read our privacy policy</a></p></div>
+    </aside>
     <!-- Main Content -->
-    <main class="onboarding-main" data-loading-cover="onboarding" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards " aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div></div>
+    <main id="onboarding-main" class="onboarding-main" data-loading-cover="onboarding" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards " aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div></div>
 
+      <div class="setup-card-meta"><span id="setup-progress-label" role="status" aria-live="polite">Step 1 of 4</span><span><i data-lucide="graduation-cap" aria-hidden="true"></i> Student setup</span></div>
       <!-- Step 1: Welcome -->
       <section class="onboarding-step active" id="step-welcome">
-        <div style="text-align:center;">
+        <div class="welcome-icon-wrap">
           <img src="assets/images/QCU college of computer studies logo.jpg" alt="QCU" class="welcome-icon">
         </div>
         <h1 class="welcome-title">Set up your student schedule</h1>
@@ -310,21 +78,21 @@
 
         <div class="welcome-features">
           <div class="welcome-feature">
-            <div class="welcome-feature-icon">&#128196;</div>
+            <div class="welcome-feature-icon"><i data-lucide="file-up" aria-hidden="true"></i></div>
             <div class="welcome-feature-text">
               <strong>COR upload</strong>
               Upload a PDF, JPG, or PNG of your Certificate of Registration.
             </div>
           </div>
           <div class="welcome-feature">
-            <div class="welcome-feature-icon">&#9989;</div>
+            <div class="welcome-feature-icon"><i data-lucide="list-checks" aria-hidden="true"></i></div>
             <div class="welcome-feature-text">
               <strong>Review and confirm</strong>
               Detected information remains a draft until you review and approve it.
             </div>
           </div>
           <div class="welcome-feature">
-            <div class="welcome-feature-icon">&#128274;</div>
+            <div class="welcome-feature-icon"><i data-lucide="shield-check" aria-hidden="true"></i></div>
             <div class="welcome-feature-text">
               <strong>Private and secure</strong>
               My-Schedule does not store a password. Your data stays private.
@@ -332,6 +100,7 @@
           </div>
         </div>
 
+        <p class="setup-before"><i data-lucide="lightbulb" aria-hidden="true"></i> Before you start, have your current COR ready.</p>
         <div class="btn-row">
           <button class="btn-primary" id="welcome-start-btn" onclick="goToStep('upload')">Upload your COR</button>
         </div>
@@ -343,13 +112,13 @@
 
       <!-- Step 2: Upload COR -->
       <section class="onboarding-step" id="step-upload">
-        <h2 class="welcome-title" style="font-size:20px;">Upload your COR</h2>
-        <p class="welcome-subtitle" style="font-size:14px;margin-bottom:20px;">
+        <h2 class="welcome-title">Upload your COR</h2>
+        <p class="welcome-subtitle">
           Use a clear copy of your Certificate of Registration with the entire subject table visible.
         </p>
 
         <div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Choose COR file" aria-describedby="upload-file-hint upload-error" onclick="if (!document.getElementById('file-input').disabled) document.getElementById('file-input').click()">
-          <div class="upload-zone-icon">&#128194;</div>
+          <div class="upload-zone-icon"><i data-lucide="cloud-upload" aria-hidden="true"></i></div>
           <div class="upload-zone-text" id="upload-zone-text">Choose a file or drag it here</div>
           <div class="upload-zone-hint" id="upload-file-hint">PDF, JPG, or PNG &middot; Max 10 MB</div>
         </div>
@@ -393,8 +162,8 @@
 
       <!-- Step 3: Review -->
       <section class="onboarding-step" id="step-review">
-        <h2 class="welcome-title" style="font-size:20px;">Review your information</h2>
-        <p class="welcome-subtitle" style="font-size:14px;margin-bottom:20px;">
+        <h2 class="welcome-title">Review your information</h2>
+        <p class="welcome-subtitle">
           Check your personal and enrollment details. Compare the detected subjects with your COR before continuing. Fields marked * are required.
         </p>
         <p class="review-draft-status" id="review-draft-status" role="status"></p>
@@ -485,7 +254,7 @@
 
       <!-- Step 4: Confirm -->
       <section class="onboarding-step" id="step-confirm">
-        <div class="confirm-icon">&#128221;</div>
+        <div class="confirm-icon"><i data-lucide="clipboard-check" aria-hidden="true"></i></div>
         <h2 class="confirm-title">Confirm and finish</h2>
         <p class="confirm-text">
           Review the summary below. Once confirmed, your student profile and schedule
@@ -503,7 +272,7 @@
 
       <!-- Success -->
       <section class="onboarding-step" id="step-success">
-        <div class="success-check">&#10003;</div>
+        <div class="success-check"><i data-lucide="check" aria-hidden="true"></i></div>
         <h2 class="success-title">You are all set!</h2>
         <p class="success-text">
           Your student profile and schedule are saved. Open your dashboard when you are ready.
@@ -514,8 +283,12 @@
       </section>
 
     </main>
+    </div>
+    <footer class="entry-footer onboarding-footer"><div class="entry-container entry-footer-inner"><p>My-Schedule &middot; For the QCU student community</p><div class="entry-footer-links"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div></div></footer>
   </div>
 
-  <script src="assets/js/onboarding.js?v=5"></script>
+  <script src="assets/js/lucide.min.js?v=1"></script>
+  <script>if (window.lucide) window.lucide.createIcons();</script>
+  <script src="assets/js/onboarding.js?v=6"></script>
 </body>
 </html>

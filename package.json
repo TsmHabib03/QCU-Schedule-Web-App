@@ -7,7 +7,7 @@
   "scripts": {
     "test:cor": "node scripts/test-cor-regressions.mjs && node scripts/test-cor-jobs.mjs && node scripts/test-loading-states.mjs",
     "test:loading": "node scripts/test-loading-states.mjs && node scripts/test-responsive-loading.mjs",
-    "build": "echo 'Static site \u00e2\u20ac\u201d no build required'",
+    "build": "npm run build:css",
     "dev": "node scripts/dev-server.mjs",
     "dev:wrangler": "wrangler pages dev . --port 8790",
     "google:configure": "node scripts/configure-google-oauth.mjs",
@@ -21,10 +21,15 @@
     "admin:check": "node scripts/check-admin-deployment.mjs",
     "test:admin:browser": "node scripts/test-admin-browser.mjs",
     "test:ux": "node scripts/test-ux-api.mjs && node scripts/test-recovery-routes.mjs && node scripts/test-cor-browser.mjs",
-    "test:auth": "node scripts/test-auth-recovery.mjs"
+    "test:auth": "node scripts/test-auth-recovery.mjs",
+    "build:css": "tailwindcss -i ./assets/css/entry.tailwind.css -o ./assets/css/entry.css --minify",
+    "watch:css": "tailwindcss -i ./assets/css/entry.tailwind.css -o ./assets/css/entry.css --watch"
   },
   "devDependencies": {
+    "@fontsource-variable/public-sans": "^5.3.0",
+    "@tailwindcss/cli": "^4.3.3",
     "playwright": "^1.63.0",
+    "tailwindcss": "^4.3.3",
     "wrangler": "^4.125.0"
   },
   "dependencies": {
