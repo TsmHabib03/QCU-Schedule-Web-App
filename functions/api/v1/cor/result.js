@@ -6,6 +6,7 @@ import {
   json,
 } from "../../auth/_lib.js";
 import { CorRecords, CorDrafts } from "../../repo/index.js";
+import { jobError } from './_jobs.js';
 
 export async function onRequestGet(context) {
   try {
@@ -76,6 +77,7 @@ export async function onRequestGet(context) {
       result: draft,
     });
   } catch (error) {
+    if (error.code) return jobError(error);
     console.error("COR result fetch failed:", String(error?.message || error));
     return json({ status: "ERROR", error: "Failed to fetch result" }, 500);
   }

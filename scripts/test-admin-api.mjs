@@ -24,8 +24,16 @@ try {
  let response=await onRequestGet(context(adminCookie)); assert.equal(response.status,200);
  const data=await response.json(); const user=data.users.find(u=>u.email===student.email);
  const csrfCookie=response.headers.get('Set-Cookie').split(';')[0];
+ const secondTab=await onRequestGet(context(adminCookie+'; '+csrfCookie));
+ assert.equal((await secondTab.json()).csrfToken,data.csrfToken,'Opening another admin view must not invalidate an existing form');
+ const expiredAdmin=await cookie({...admin,issuedAt:Date.now()-3600001});
+ const expiredResponse=await onRequestGet(context(expiredAdmin));
+ assert.equal(expiredResponse.status,401);
+ assert.equal((await expiredResponse.json()).code,'UNAUTHENTICATED');
  const body={operation:'suspend',userId:user.userId,version:user.version,reason:'API test',mutationId:crypto.randomUUID()};
- assert.equal((await onRequestPost(context(adminCookie,'POST',body,{Origin:origin}))).status,403);
+ const missingCsrf=await onRequestPost(context(adminCookie,'POST',body,{Origin:origin}));
+ assert.equal(missingCsrf.status,403);
+ assert.equal((await missingCsrf.json()).code,'CSRF_INVALID');
  assert.equal((await onRequestPost(context(adminCookie+'; '+csrfCookie,'POST',body,{Origin:'https://evil.test','X-CSRF-Token':data.csrfToken}))).status,403);
  response=await onRequestPost(context(adminCookie+'; '+csrfCookie,'POST',body,{Origin:origin,'X-CSRF-Token':data.csrfToken})); assert.equal(response.status,200);
  assert.equal((await middleware({env,request:new Request(origin+'/api/google/updates',{headers:{Cookie:studentCookie}}),next:()=>new Response('unexpected')})).status,403);

@@ -81,11 +81,9 @@ export async function onRequestGet(context) {
       } : null,
     });
   } catch (error) {
-    console.error("Bootstrap failed:", String(error?.message || error));
-    return json({
-      status: "UNAUTHENTICATED",
-      authenticated: false,
-      routing: "login",
-    });
+    if (error.code === 'UNAUTHENTICATED') return json({ status: 'UNAUTHENTICATED', authenticated: false, routing: 'login' }, 401);
+    if (error.code === 'FORBIDDEN') return json({ status: 'FORBIDDEN', error: 'Account access is unavailable. Contact your administrator.' }, 403);
+    console.error('Bootstrap failed:', error.code || error.name);
+    return json({ status: 'SERVICE_UNAVAILABLE', error: 'Your account could not be loaded. Please try again.' }, 503);
   }
 }

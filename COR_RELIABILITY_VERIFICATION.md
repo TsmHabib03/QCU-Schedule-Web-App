@@ -1,6 +1,6 @@
 # COR reliability implementation — 2026-09-12
 
-Implemented in the working tree, building on the COR job and atomic-confirmation changes already present. Not deployed.
+Implemented in the working tree, building on the COR job and atomic-confirmation changes already present. The Apps Script deployment was verified on September 13. Frontend and Cloudflare Functions updates are not deployed. See [the current UX verification report](UX_RELIABILITY_VERIFICATION.md) for the updated behavior, browser results, and deployment steps.
 
 ## Behavior
 
@@ -9,7 +9,7 @@ Implemented in the working tree, building on the COR job and atomic-confirmation
 - Confirmation uses deterministic identifiers and an atomic Sheets batch under the shared lock. Repeated confirmation returns the completed result. The prior schedule stays active until confirmation succeeds. A stale review cannot regress a completed import.
 - Upload bytes report actual progress when XMLHttpRequest is available. Saving the upload and reading the COR have separate messages. Network errors and unexpected responses trigger saved-status recovery. Scan cooldowns show a countdown. Polling ends with a check-again action; individual requests have deadlines.
 - Shared loading feedback includes slow, offline, expired-session, error and retry outcomes. Skeleton animation supports reduced motion. Task/note refresh failures retain loaded content; workspace opening reuses dashboard data.
-- Missing pages use `404.html`; missing APIs return JSON with HTTP 404. Service-worker errors retain their HTTP status, API offline failures return JSON, and failed asset requests never receive offline HTML. Cache version is v69.
+- Missing pages use `404.html`; missing APIs return JSON with HTTP 404. Service-worker errors retain their HTTP status, API offline failures return JSON, and failed asset requests never receive offline HTML. Cache version is v71.
 - `Server-Timing` exposes API/database durations and extraction/save durations. Browser Performance measures use `qcu-dashboard`, `qcu-schedule`, `qcu-tasks`, and `qcu-notes`. No personal data is logged by this instrumentation.
 
 ## Verified locally
@@ -37,12 +37,12 @@ Local route samples were 61 ms (missing HTML), 6 ms (missing API), 9 ms (onboard
 ### Continuation verification (September 12)
 
 - Re-ran `npm.cmd run test:cor`, `npm.cmd run test:admin`, and `npm.cmd run sheets:test-mapping`: all passed.
-- Retried the browser connection. The tool failed before opening a tab with `codex/sandbox-state-meta: missing field sandboxPolicy`. Mobile, visual, and real service-worker upgrade checks remain unverified.
+- The integrated browser tool failed with missing sandbox metadata. On September 13, standalone Playwright verified desktop/mobile UX and failure recovery. Real production service-worker upgrade checks still require deployment.
 - No live Google service writes or deployment were performed in this continuation. The staging checks below still need a working browser and a staging account with a disposable COR.
 
 1. Update the Apps Script deployment from `setup-database.gs` before deploying Pages. The deployment needs private Drive access and Sheets API access for atomic confirmation. Run setupDatabase if schema setup is needed; preserve existing records. Keep APPS_SCRIPT_URL and APPS_SCRIPT_SECRET configured in Pages. The localhost fallback is an ephemeral development store and is not a deployment option.
 2. On a staging account with a disposable COR, verify real Drive storage, Gemini extraction, and atomic replacement of an existing schedule. Interrupt upload/confirmation responses, refresh during extraction, and retry from two tabs. Verify that old schedule rows remain active when confirmation fails. Mocks do not prove Google service permissions or availability.
 3. Capture real dashboard/database/extraction/save timing samples from Server-Timing before setting latency targets.
-4. Verify mobile widths, screen-reader announcements, reduced motion, slow upload progress, offline reconnection, and a real service-worker upgrade from v68 to v69. Browser automation could not start in this session because the browser tool reported missing sandbox metadata; visual/mobile checks remain unverified.
+4. Verify screen-reader announcements and a real service-worker upgrade to v71 after deployment. Desktop/mobile rendering, reduced motion, interrupted uploads and offline API responses have passed local automated checks; see the current UX verification report.
 
 Release only after these live checks meet the requested criteria: no false upload failures in recovery cases, no duplicate imports or schedule confirmation, enforced scan limits, and no indefinite loaders. This is not a claim that all unknown production bugs are fixed.

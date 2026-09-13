@@ -1,0 +1,22 @@
+.recovery-page {
+  width: min(100%, 600px);
+  margin: 0 auto;
+  padding: clamp(48px, 12vh, 120px) 24px 48px;
+  text-align: center;
+  line-height: 1.6;
+}
+.recovery-page img { display: block; margin: 0 auto 28px; }
+.recovery-page h1 { font-size: clamp(26px, 5vw, 36px); line-height: 1.2; color: var(--navy, #0A3D6E); margin-bottom: 16px; }
+.recovery-page p { color: var(--muted, #5F6368); font-size: 16px; margin-bottom: 24px; }
+.recovery-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+.recovery-actions a, .recovery-actions button {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 10px 18px; border-radius: 4px;
+  border: 1px solid var(--border, #E5E7EB); font: inherit; font-weight: 600;
+  text-decoration: none; cursor: pointer; background: #fff; color: var(--text, #202124);
+}
+.recovery-actions .btn-primary { background: var(--blue, #005BAC); color: #fff; border-color: var(--blue, #005BAC); }
+.recovery-actions :is(a, button):focus-visible { outline: 2px solid var(--blue, #005BAC); outline-offset: 4px; }
+.recovery-page small { display: block; color: var(--muted, #5F6368); font-size: 14px; }
+.recovery-page [hidden] { display: none !important; }
+@media (max-width: 380px) { .recovery-actions { flex-direction: column; } }

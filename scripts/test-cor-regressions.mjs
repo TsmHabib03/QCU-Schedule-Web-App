@@ -12,10 +12,12 @@ const source = readFileSync(new URL('../assets/js/onboarding.js', import.meta.ur
 const draft = { studentInfo: { firstName: { value: 'Test' }, lastName: { value: 'Student' }, studentNumber: { value: '123' } }, enrollmentInfo: { program: 'BSCS', yearLevel: 1, term: 'First' }, subjects: [{ subjectCode: 'CS101', subjectName: 'Computing', units: 3, schedule: [] }] };
 function element() {
   const classes = new Set();
+  const attributes = new Map();
   let value = '';
   return { get value() { return value; }, set value(v) { value = String(v); }, disabled: false, hidden: false, style: {}, textContent: '', innerHTML: '', children: [], events: {},
     classList: { add: x => classes.add(x), remove: x => classes.delete(x), contains: x => classes.has(x), toggle: (x, b) => b ? classes.add(x) : classes.delete(x) },
     addEventListener(name, fn) { this.events[name] = fn; }, querySelectorAll() { return []; }, querySelector() { return element(); },
+    getAttribute(name) { return attributes.get(name) ?? null; }, setAttribute(name,value) { attributes.set(name,value); }, removeAttribute(name) { attributes.delete(name); }, hasAttribute(name) { return attributes.has(name); },
     appendChild(child) { this.children.push(child); }, replaceChildren() { this.children = []; } };
 }
 async function harness(uploadResult, stage = 'WELCOME', overrides = {}) {
@@ -26,7 +28,8 @@ async function harness(uploadResult, stage = 'WELCOME', overrides = {}) {
   const timers = new Map();
   let timerId = 0;
   const c = { console, crypto: globalThis.crypto, FormData: class { append() {} }, sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
-    document: { getElementById: get, querySelectorAll: () => steps, createElement: element },
+    document: { getElementById: get, querySelectorAll: selector => selector.includes('data-loading-') ? [] : steps, createElement: element },
+    addEventListener() {},
     location: {}, scrollTo() {}, setTimeout() {}, clearInterval: id => timers.delete(id), setInterval: fn => { timers.set(++timerId, fn); return timerId; },
     fetch: async (url, options) => {
       calls.push({ url, options });
@@ -44,6 +47,7 @@ async function harness(uploadResult, stage = 'WELCOME', overrides = {}) {
       return { json: async () => data };
     } };
   c.window = c;
+  vm.runInNewContext(readFileSync(new URL('../assets/js/loading.js',import.meta.url),'utf8'),c);
   vm.runInNewContext(source, c);
   await new Promise(setImmediate);
   get('file-input').files = [{ name: 'cor.pdf', type: 'application/pdf', size: 12 }];
@@ -55,7 +59,7 @@ const extracted = await harness({ status: 'EXTRACTED', corRecordId: 'cor-test', 
 await extracted.c.uploadCor();
 assert(extracted.get('step-review').classList.contains('active'));
 assert(!extracted.calls.some(x => x.url.endsWith('/process')));
-assert.equal(extracted.get('review-program').children[0].value, 'BSCS');
+assert.equal(extracted.get('review-program').value, 'BSCS');
 extracted.get('review-firstName').value = '';
 await extracted.c.saveAndConfirm();
 assert.equal(extracted.get('review-save-btn').disabled, false);
@@ -164,7 +168,7 @@ const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const authScript = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 for (const query of ['', '?auth=dashboard', '?auth=unexpected']) {
   const nodes = new Map(['auth-landing', 'auth-dashboard', 'auth-loading'].map(id => [id, element()]));
-  const c = { URLSearchParams, fetch: async () => ({ json: async () => ({ authenticated: false }) }), document: { readyState: 'complete', getElementById: id => nodes.get(id) }, location: { search: query }, history: { replaceState() {} } };
+  const c = { URLSearchParams, AbortSignal, fetch: async () => ({ json: async () => ({ authenticated: false }) }), document: { readyState: 'complete', getElementById: id => nodes.get(id) }, location: { search: query }, history: { replaceState() {} } };
   c.window = c;
   vm.runInNewContext(authScript, c);
   await new Promise(setImmediate);

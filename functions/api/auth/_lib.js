@@ -303,7 +303,15 @@ export async function validateCsrf(context, token) {
   if (!data || data.t !== token) return false;
   // CSRF token valid for 10 minutes
   const created = new Date(data.c).getTime();
-  return Date.now() - created < 10 * 60 * 1000;
+  const age = Date.now() - created;
+  return age >= 0 && age < 10 * 60 * 1000;
+}
+
+// Reuse the live token so opening details or a second admin tab does not
+// invalidate forms already open in another tab.
+export async function currentCsrfToken(context) {
+  const data = await unseal(getCookie(context.request, CSRF_COOKIE), context.env.GOOGLE_SESSION_SECRET);
+  return data?.t && await validateCsrf(context, data.t) ? data.t : generateCsrfToken();
 }
 
 // ---------------------------------------------------------------------------

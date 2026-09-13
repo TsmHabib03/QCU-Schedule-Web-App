@@ -1,6 +1,5 @@
 // POST /api/v1/cor/upload
-// Accepts a COR file upload, validates it, stores in dev mock, creates COR record.
-// On CF Pages: immediately extracts COR data via Gemini and saves draft in session cookie.
+// Validates the file and starts a durable import. Local development extracts inline.
 
 import {
   resolveUser,
@@ -13,11 +12,7 @@ import { extractWithGemini, geminiResultToDraft } from "./_gemini.js";
 import { isConfigured, jobCall, jobError, encodeBytes } from './_jobs.js';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MiB
-const ALLOWED_TYPES = {
-  "application/pdf": [".pdf"],
-  "image/jpeg": [".jpg", ".jpeg"],
-  "image/png": [".png"],
-};
+const MIME_BY_EXTENSION = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' };
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".jpg", ".jpeg", ".png"]);
 
 function computeHash(bytes) {
@@ -39,92 +34,16 @@ function sanitizeFilename(filename) {
 }
 
 // ---------------------------------------------------------------------------
-// Multipart parser (boundary from Content-Type)
-// ---------------------------------------------------------------------------
-async function parseMultipart(request) {
-  const contentType = request.headers.get("Content-Type") || "";
-  const boundaryMatch = contentType.match(/boundary=(.+)/i);
-  if (!boundaryMatch) throw new Error("MISSING_BOUNDARY");
-
-  const boundary = boundaryMatch[1];
-  const body = await request.arrayBuffer();
-  const decoder = new TextDecoder();
-
-  // Simple boundary-based parser for single-file uploads
-  const boundaryBytes = new TextEncoder().encode(`--${boundary}`);
-  const endBytes = new TextEncoder().encode(`--${boundary}--`);
-  const bodyBytes = new Uint8Array(body);
-
-  // Find parts by scanning for boundary markers
-  const parts = [];
-  let searchStart = 0;
-
-  while (searchStart < bodyBytes.length) {
-    // Find next boundary
-    const boundaryIdx = findBytes(bodyBytes, boundaryBytes, searchStart);
-    if (boundaryIdx < 0) break;
-
-    // Find end of headers (double CRLF)
-    const headerStart = boundaryIdx + boundaryBytes.length + 2; // skip \r\n
-    const headerEnd = findBytes(bodyBytes, new Uint8Array([13, 10, 13, 10]), headerStart);
-    if (headerEnd < 0) break;
-
-    const headerText = decoder.decode(bodyBytes.slice(headerStart, headerEnd));
-
-    // Find next boundary (start of next part or end)
-    const nextBoundary = findBytes(bodyBytes, boundaryBytes, headerEnd + 4);
-    if (nextBoundary < 0) break;
-
-    // Data is between header end and next boundary (minus trailing \r\n)
-    const dataStart = headerEnd + 4;
-    const dataEnd = nextBoundary - 2; // before \r\n before boundary
-
-    const headers = {};
-    for (const line of headerText.split("\r\n")) {
-      const colonIdx = line.indexOf(":");
-      if (colonIdx > 0) {
-        headers[line.slice(0, colonIdx).trim().toLowerCase()] = line.slice(colonIdx + 1).trim();
-      }
-    }
-
-    parts.push({
-      headers,
-      data: bodyBytes.slice(dataStart, dataEnd),
-    });
-
-    searchStart = nextBoundary;
-  }
-
-  return parts;
-}
-
-function findBytes(haystack, needle, start = 0) {
-  for (let i = start; i <= haystack.length - needle.length; i++) {
-    let match = true;
-    for (let j = 0; j < needle.length; j++) {
-      if (haystack[i + j] !== needle[j]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) return i;
-  }
-  return -1;
-}
-
-// ---------------------------------------------------------------------------
 // File validation
 // ---------------------------------------------------------------------------
 function validateFile(extension, mimeType, fileSize) {
   if (!ALLOWED_EXTENSIONS.has(extension)) {
     return { valid: false, error: "UNSUPPORTED_FILE_TYPE", message: "Choose a PDF, JPG, or PNG file." };
   }
-  if (!ALLOWED_TYPES[mimeType]) {
-    // Some browsers send wrong MIME; check extension as fallback
-    const extToMime = { ".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png" };
-    if (extToMime[extension] !== mimeType) {
-      return { valid: false, error: "UNSUPPORTED_FILE_TYPE", message: "Choose a PDF, JPG, or PNG file." };
-    }
+  // Missing/generic browser MIME is allowed only with the expected extension
+  // and a matching file signature (checked before storing or extracting).
+  if (mimeType && mimeType !== 'application/octet-stream' && mimeType !== MIME_BY_EXTENSION[extension]) {
+    return { valid: false, error: "UNSUPPORTED_FILE_TYPE", message: "Choose a PDF, JPG, or PNG file." };
   }
   if (fileSize > MAX_FILE_SIZE) {
     return { valid: false, error: "PAYLOAD_TOO_LARGE", message: "This file is larger than the allowed limit (10 MB)." };
@@ -188,36 +107,38 @@ export async function onRequestPost(context) {
     }
 
     // Parse multipart form data
-    const parts = await parseMultipart(context.request);
-    const filePart = parts.find((p) =>
-      p.headers["content-disposition"]?.includes("name=\"file\"")
-    );
-
-    if (!filePart || !filePart.data || filePart.data.length === 0) {
+    if (Number(context.request.headers.get('Content-Length')) > MAX_FILE_SIZE + 65536) {
+      return json({ status: 'PAYLOAD_TOO_LARGE', error: 'Choose a file smaller than 10 MB.' }, 413);
+    }
+    let form;
+    try { form = await context.request.formData(); }
+    catch (_) { return json({ status: 'INVALID_UPLOAD', error: 'Choose your COR file and upload it again.' }, 400); }
+    const files = form.getAll('file');
+    const file = files[0];
+    if (files.length !== 1 || !file || typeof file.arrayBuffer !== 'function') {
       return json(
-        { status: "ERROR", error: "No file provided. Please select a COR file to upload." },
+        { status: "INVALID_UPLOAD", error: "Select one COR file to upload." },
         400
       );
     }
 
-    const rawFilename = filePart.headers["content-disposition"]?.match(
-      /filename="([^"]+)"/
-    )?.[1] || "cor_upload";
+    const rawFilename = file.name || 'cor_upload';
 
     const extension = getExtension(rawFilename);
-    const declaredMime = filePart.headers["content-type"] || "";
-    const fileSize = filePart.data.length;
+    const declaredMime = (file.type || '').toLowerCase();
+    const fileSize = file.size;
 
     // Validate file type and size
     const fileValidation = validateFile(extension, declaredMime, fileSize);
     if (!fileValidation.valid) {
       return json(
         { status: fileValidation.error, error: fileValidation.message },
-        400
+        fileValidation.error === 'PAYLOAD_TOO_LARGE' ? 413 : 400
       );
     }
 
     // Validate file signature (magic bytes)
+    const filePart = { data: new Uint8Array(await file.arrayBuffer()) };
     if (!validateFileSignature(filePart.data, extension)) {
       return json(
         { status: "FILE_CORRUPT", error: "We could not read this file. Try exporting or photographing it again." },
@@ -228,12 +149,13 @@ export async function onRequestPost(context) {
     // Finish asynchronous hashing before checking/creating the record so two
     // requests in the same isolate cannot both pass the duplicate check.
     const contentHash = await computeHash(filePart.data);
+    const mimeType = MIME_BY_EXTENSION[extension];
 
     if (isConfigured(context.env)) {
       if (!context.env.GEMINI_API_KEY) return json({status:'SERVICE_UNAVAILABLE',error:'COR extraction is unavailable.'},503);
       const requestId = context.request.headers.get('X-Request-ID');
       const result = await jobCall(context, session, 'start', {
-        requestId, contentHash, filename:sanitizeFilename(rawFilename), mimeType:declaredMime, base64:encodeBytes(filePart.data),
+        requestId, contentHash, filename:sanitizeFilename(rawFilename), mimeType, base64:encodeBytes(filePart.data),
       });
       return json({status:result.duplicate ? 'DUPLICATE' : 'ACCEPTED', ...result}, result.duplicate ? 200 : 201);
     }
@@ -265,7 +187,7 @@ export async function onRequestPost(context) {
       ownerUserId: user.userId,
       filename: sanitizeFilename(rawFilename),
       originalFilename: rawFilename,
-      mimeType: declaredMime || (extension === ".pdf" ? "application/pdf" : extension === ".png" ? "image/png" : "image/jpeg"),
+      mimeType,
       sizeBytes: fileSize,
       contentHash,
       requestId: context.request.headers.get('X-Request-ID'),

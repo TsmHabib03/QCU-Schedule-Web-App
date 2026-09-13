@@ -276,6 +276,8 @@ function orderedSchedule(now = new Date()) {
 
 /* ── Shell (header + nav) ────────────────────────────── */
 function renderShell() {
+  if (state.loading) return;
+  window.QCULoading.finish('dashboard');
   const navItems = [
     ["home",      "index.html",     "layout-dashboard", "Home"],
     ["campus-eta", "campus-eta.html", "bus",             "Bus"],
@@ -304,7 +306,7 @@ function renderShell() {
             <p id="live-time" class="clock-time">00:00</p>
           </div>
           <img class="qc-logo" src="assets/images/Quezon_City_Government.png" alt="QC Government logo">
-          <button class="signout-btn" onclick="signOut()" title="Sign out" aria-label="Sign out">
+          <button class="signout-btn" onclick="signOut(this)" title="Sign out" aria-label="Sign out">
             Sign out
           </button>
         </div>
@@ -323,6 +325,7 @@ function renderShell() {
           </a>`).join("")}
       </div>`;
   }
+  window.QCULoading.finish('shell');
 }
 
 /* ── Provenance Badge ──────────────────────────────── */
@@ -1121,14 +1124,14 @@ async function readWithFeedback(url, key, retry, hasContent = false) {
   const target = document.getElementById(key === 'tasks' ? 'task-list' : key === 'notes' ? 'note-list' : '');
   const initialLists = key === 'dashboard' && !hasContent ? ['task-list','note-list'].map(id => document.getElementById(id)).filter(Boolean) : [];
   for (const list of initialLists) {
-    list.innerHTML = '<div class="loading-placeholder" aria-label="Loading"><span class="skeleton-line"></span><span class="skeleton-line"></span><span class="skeleton-line"></span></div>';
+    list.innerHTML = window.QCULoading.cards();
     list.setAttribute('aria-busy','true');
   }
   if (target && !hasContent) {
-    target.innerHTML = '<div class="loading-placeholder" aria-label="Loading"><span class="skeleton-line"></span><span class="skeleton-line"></span><span class="skeleton-line"></span></div>';
+    target.innerHTML = window.QCULoading.cards();
     target.setAttribute('aria-busy','true');
   }
-  loadNotice(key, hasContent ? 'Refreshing…' : 'Loading…');
+  loadNotice(key, hasContent ? 'Refreshing…' : '');
   const slow = setTimeout(() => loadNotice(key, 'This is taking longer than usual. Still checking…'), 8000);
   try {
     const response = await fetch(url, {credentials:'include', cache:'no-store', signal:AbortSignal.timeout(35000)});
@@ -1409,7 +1412,8 @@ function openTaskModal(task) {
   document.getElementById("task-form").addEventListener("submit", async e => {
     e.preventDefault();
     const submitBtn = e.target.querySelector('[type="submit"]');
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.classList.add("btn-spinner"); }
+    if (submitBtn?.disabled) return;
+    window.QCULoading.button(submitBtn, true);
     const data = {
       title: document.getElementById("tf-title").value.trim(),
       description: document.getElementById("tf-desc").value.trim(),
@@ -1417,7 +1421,7 @@ function openTaskModal(task) {
       priority: document.getElementById("tf-priority").value,
       deadline: document.getElementById("tf-deadline").value
     };
-    if (!data.title) { if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove("btn-spinner"); } return; }
+    if (!data.title) { window.QCULoading.button(submitBtn, false); return; }
     try {
       if (isEdit) await updateTask(taskId, { title: data.title, description: data.description, subjectId: data.subject || null, priority: data.priority, deadline: data.deadline || null });
       else await addTask({ title: data.title, description: data.description, subjectId: data.subject || null, priority: data.priority, deadline: data.deadline || null });
@@ -1425,7 +1429,7 @@ function openTaskModal(task) {
       closeTaskModal();
       renderTasks();
     } finally {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove("btn-spinner"); }
+      window.QCULoading.button(submitBtn, false);
     }
   });
 }
@@ -1629,13 +1633,14 @@ function openNoteModal(note) {
   document.getElementById("note-form").addEventListener("submit", async e => {
     e.preventDefault();
     const submitBtn = e.target.querySelector('[type="submit"]');
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.classList.add("btn-spinner"); }
+    if (submitBtn?.disabled) return;
+    window.QCULoading.button(submitBtn, true);
     const data = {
       title: document.getElementById("nf-title").value.trim(),
       subject: document.getElementById("nf-subject").value,
       body: document.getElementById("nf-body").value.trim()
     };
-    if (!data.title) { if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove("btn-spinner"); } return; }
+    if (!data.title) { window.QCULoading.button(submitBtn, false); return; }
     try {
       if (isEdit) await updateNote(noteId, { title: data.title, body: data.body, subjectId: data.subject || null });
       else await addNote({ title: data.title, body: data.body, subjectId: data.subject || null });
@@ -1643,7 +1648,7 @@ function openNoteModal(note) {
       closeNoteModal();
       renderNotes();
     } finally {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove("btn-spinner"); }
+      window.QCULoading.button(submitBtn, false);
     }
   });
 }
@@ -1933,7 +1938,8 @@ async function handleCrudSubmit(existingEntry) {
   const errorEl = document.getElementById("crud-error");
   const saveBtn = document.getElementById("crud-save-btn");
   if (errorEl) { errorEl.style.display = "none"; errorEl.textContent = ""; }
-  if (saveBtn) saveBtn.disabled = true;
+  if (saveBtn?.disabled) return;
+  window.QCULoading.button(saveBtn, true);
 
   try {
     const subjectVal = document.getElementById("crud-subject")?.value || "";
@@ -1992,7 +1998,7 @@ async function handleCrudSubmit(existingEntry) {
       errorEl.style.display = "block";
     }
   } finally {
-    if (saveBtn) saveBtn.disabled = false;
+    window.QCULoading.button(saveBtn, false);
   }
 }
 
@@ -2003,7 +2009,7 @@ function confirmDeleteEntry(entry) {
   );
   if (!confirmed) return;
 
-  performDeleteEntry(entry);
+  window.QCULoading.action(document.getElementById("crud-delete-btn"), () => performDeleteEntry(entry));
 }
 
 async function performDeleteEntry(entry) {
@@ -2055,7 +2061,8 @@ function closeCrudModal() {
 }
 
 /* ── Sign Out ────────────────────────────────────── */
-window.signOut = function () {
+window.signOut = function (button) {
+  window.QCULoading.button(button, true);
   // GET /api/auth/logout does a 302 redirect that clears all cookies
   // reliably before landing on the login page.
   window.location.href = "/api/auth/logout";
@@ -2066,11 +2073,10 @@ async function init() {
   if (window.__QCU_INIT_STARTED) return;
   window.__QCU_INIT_STARTED = true;
 
-  // Paint the static shell (header + bottom nav) immediately, before the
-  // dashboard fetch — nav items are static and formatBrandSub() tolerates a
-  // null state, so the nav no longer disappears while data loads.
+  // HTML contains responsive placeholders until the profile and data are ready.
   renderShell();
   iconify();
+  if (page === "google") window.QCUGoogleIntegration?.init();
 
   // Fetch authenticated dashboard data (single endpoint)
   try {
@@ -2138,7 +2144,6 @@ async function init() {
 
   if (page === "buildings") renderBuildings();
   if (page === "settings")  renderSettings();
-  if (page === "google")    window.QCUGoogleIntegration?.init();
 
   /* ── Modal close handlers ─────────────────────────── */
   ["building-modal", "day-modal", "task-modal", "note-modal", "crud-modal"].forEach(id => {
@@ -2186,12 +2191,12 @@ async function init() {
       if (!btn) return;
       const action = btn.dataset.action;
       const id = btn.dataset.id;
-      if (action === "toggle") { await toggleTask(id); renderTasks(); }
+      if (action === "toggle") { await window.QCULoading.action(btn, () => toggleTask(id)); renderTasks(); }
       if (action === "edit") {
         const task = (_tasksCache || []).find(t => (t.taskId || t.id) === id);
         if (task) openTaskModal(task);
       }
-      if (action === "delete") { await deleteTask(id); renderTasks(); }
+      if (action === "delete") { await window.QCULoading.action(btn, () => deleteTask(id)); renderTasks(); }
     });
   }
 
@@ -2240,7 +2245,7 @@ async function init() {
         const note = (_notesCache || []).find(n => (n.noteId || n.id) === id);
         if (note) openNoteModal(note);
       }
-      if (action === "delete-note") { await deleteNote(id); renderNotes(); }
+      if (action === "delete-note") { await window.QCULoading.action(btn, () => deleteNote(id)); renderNotes(); }
     });
   }
 

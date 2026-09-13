@@ -11,6 +11,7 @@ import {
   json,
 } from "../../auth/_lib.js";
 import { CorRecords, CorDrafts } from "../../repo/index.js";
+import { jobError } from './_jobs.js';
 
 export async function onRequestPost(context) {
   try {
@@ -94,7 +95,7 @@ export async function onRequestPost(context) {
       studentInfo: body.studentInfo,
       enrollmentInfo: body.enrollmentInfo,
       subjects: body.subjects,
-      totalUnits: body.subjects.reduce((sum, s) => sum + (typeof s.units === "object" ? (s.units?.value || 0) : (s.units || 0)), 0),
+      totalUnits: body.subjects.reduce((sum, s) => sum + (Number(value(s.units)) || 0), 0),
       lastReviewedAt: new Date().toISOString(),
     };
 
@@ -123,6 +124,7 @@ export async function onRequestPost(context) {
 
     return resp;
   } catch (error) {
+    if (error.code) return jobError(error);
     console.error("COR review save failed:", String(error?.message || error));
     return json(
       { status: "ERROR", error: "Failed to save corrections" },

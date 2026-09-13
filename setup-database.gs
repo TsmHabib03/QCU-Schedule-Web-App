@@ -18,7 +18,7 @@
 // JSON key ordering. `canonical` parses to:
 //   { requestId, timestamp, nonce, action, actor: { googleSub, email }, payload }
 
-var SCHEMA_VERSION = 2;
+var SCHEMA_VERSION = 3;
 var API_VERSION = 'v1';
 var MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 var LOCK_TIMEOUT_MS = 30 * 1000;
@@ -34,7 +34,7 @@ var NONCE_TTL_SECONDS = 600;
 function getSheetDefinitions() {
   var D = {};
 
-  D['Users'] = ['userId', 'googleSub', 'email', 'emailVerified', 'displayName', 'avatarUrl', 'accountStatus', 'onboardingState', 'lastLoginAt', 'suspendedReason', 'closedAt', 'sessionsRevokedAt', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'version', 'extraJson'];
+  D['Users'] = ['userId', 'googleSub', 'email', 'emailVerified', 'displayName', 'avatarUrl', 'accountStatus', 'onboardingState', 'lastLoginAt', 'suspendedReason', 'closedAt', 'sessionsRevokedAt', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'version', 'extraJson', 'purgedAt'];
   D['Student_Profiles'] = ['profileId', 'userId', 'studentNumber', 'firstName', 'middleName', 'lastName', 'suffix', 'preferredName', 'verificationStatus', 'sourceCorRecordId', 'status', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'version', 'extraJson'];
   D['Roles'] = ['roleId', 'roleKey', 'displayName', 'description', 'isSystemRole', 'status', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'version'];
   D['Capabilities'] = ['capabilityId', 'capabilityKey', 'description', 'status', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'version'];
@@ -104,7 +104,8 @@ function getEntityRegistry() {
  * existing columns, so live data survives a schema bump.
  */
 function setupDatabase() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = databaseSpreadsheet();
+  _sheetCache = {};
   var defs = getSheetDefinitions();
   var created = 0, migrated = 0, unchanged = 0;
   var names = Object.keys(defs);
@@ -132,6 +133,7 @@ function setupDatabase() {
   }
 
   recordMigration(ss, 'setupDatabase', 'Sheets created/migrated to schema v' + SCHEMA_VERSION);
+  _sheetCache = {};
 
   var summary = 'Created: ' + created + '\nMigrated: ' + migrated + '\nUnchanged: ' + unchanged;
   Logger.log('Done. ' + summary.replace(/\n/g, ', '));
@@ -143,6 +145,7 @@ function setupDatabase() {
 }
 
 function writeHeaderRow(sheet, columns) {
+  ensureSheetSize(sheet, 1, columns.length);
   var range = sheet.getRange(1, 1, 1, columns.length);
   range.setValues([columns]);
   range.setFontWeight('bold');
@@ -169,6 +172,7 @@ function addMissingColumns(sheet, columns) {
   // A brand-new sheet reports lastColumn 1 with an empty header cell.
   if (header.length === 1 && !header[0]) startCol = 1;
 
+  ensureSheetSize(sheet, 1, startCol + missing.length - 1);
   var range = sheet.getRange(1, startCol, 1, missing.length);
   range.setValues([missing]);
   range.setFontWeight('bold');
@@ -181,10 +185,8 @@ function addMissingColumns(sheet, columns) {
 function recordMigration(ss, key, description) {
   var sheet = ss.getSheetByName('Schema_Migrations');
   if (!sheet) return;
-  sheet.appendRow([
-    'mig_' + Date.now(), SCHEMA_VERSION, key, description,
-    new Date().toISOString(), 'setup-script', '', '', '', 'APPLIED'
-  ]);
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String);
+  sheet.appendRow(objectToRow(header, { migrationId: 'mig_' + Date.now(), schemaVersion: SCHEMA_VERSION, migrationKey: key, description: description, appliedAt: new Date().toISOString(), appliedBy: 'setup-script', status: 'APPLIED' }));
 }
 
 // ---------------------------------------------------------------------------
@@ -201,7 +203,7 @@ function recordMigration(ss, key, description) {
 // describe: roles, capabilities and their mapping.
 
 function seedCatalogData() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = databaseSpreadsheet();
   var ts = new Date().toISOString();
   var seeded = 0;
 
@@ -278,7 +280,10 @@ function seedRows(ss, sheetName, rows) {
     return 0;
   }
 
-  sheet.getRange(sheet.getLastRow() + 1, 1, pending.length, columns.length).setValues(pending);
+  var header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String);
+  pending = pending.map(function(row) { return objectToRow(header, rowToObject(columns, row)); });
+  ensureSheetSize(sheet, sheet.getLastRow() + pending.length, header.length);
+  sheet.getRange(sheet.getLastRow() + 1, 1, pending.length, header.length).setValues(pending);
   Logger.log('Seeded ' + pending.length + ' rows into ' + sheetName);
   return pending.length;
 }
@@ -292,10 +297,23 @@ function seedRows(ss, sheetName, rows) {
 
 var _sheetCache = {};
 
+// Bound projects work directly; standalone web apps can set SPREADSHEET_ID.
+function databaseSpreadsheet() {
+  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  var ss = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw apiError('SCHEMA_OUTDATED', 'Set SPREADSHEET_ID in Apps Script properties, then run setupDatabase().');
+  return ss;
+}
+
+function ensureSheetSize(sheet, rows, columns) {
+  if (columns > sheet.getMaxColumns()) sheet.insertColumnsAfter(sheet.getMaxColumns(), columns - sheet.getMaxColumns());
+  if (rows > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), rows - sheet.getMaxRows());
+}
+
 function getSheetData(sheetName) {
   if (_sheetCache[sheetName]) return _sheetCache[sheetName];
 
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = databaseSpreadsheet();
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
     _sheetCache[sheetName] = { sheet: null, header: [], rows: [], index: {} };
@@ -359,6 +377,7 @@ function readRows(sheetName, filterColumn, filterValue) {
   var data = getSheetData(sheetName);
   if (!data.sheet) return [];
   var colIndex = filterColumn ? data.header.indexOf(filterColumn) : -1;
+  if (filterColumn && colIndex < 0) throw apiError('SCHEMA_OUTDATED', 'Run setupDatabase() to add missing database columns.');
   var out = [];
   for (var i = 0; i < data.rows.length; i++) {
     var row = data.rows[i];
@@ -463,6 +482,7 @@ function applyOps(ops, actorUserId) {
 
     if (pending.length) {
       var startRow = data.sheet.getLastRow() + 1;
+      ensureSheetSize(data.sheet, startRow + pending.length - 1, header.length);
       data.sheet.getRange(startRow, 1, pending.length, header.length).setValues(pending);
       for (var p = 0; p < pending.length; p++) {
         data.index[String(pending[p][0])] = data.rows.length;
@@ -620,16 +640,23 @@ function doGet(e) {
   var action = e && e.parameter ? e.parameter.action : null;
   if (action === 'health') {
     var defs = getSheetDefinitions();
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = databaseSpreadsheet();
     var present = 0;
+    var missingColumns = 0;
     var names = Object.keys(defs);
     for (var i = 0; i < names.length; i++) {
-      if (ss.getSheetByName(names[i])) present++;
+      var sheet = ss.getSheetByName(names[i]);
+      if (sheet) {
+        present++;
+        var header = sheet.getLastColumn() ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String) : [];
+        missingColumns += defs[names[i]].filter(function(key) { return header.indexOf(key) < 0; }).length;
+      }
     }
     return jsonResponse({
       ok: true,
       data: {
-        status: present === names.length ? 'healthy' : 'incomplete',
+        status: present === names.length && !missingColumns ? 'healthy' : 'incomplete',
+        missingColumns: missingColumns,
         sheetsExpected: names.length,
         sheetsPresent: present,
         secretConfigured: !!PropertiesService.getScriptProperties().getProperty('APPS_SCRIPT_SECRET')
@@ -951,7 +978,7 @@ function applyAtomicOps(ops, actorUserId) {
     if (offset === undefined) requests.push({appendCells:{sheetId:data.sheet.getSheetId(),rows:[{values:values}],fields:'userEnteredValue'}});
     else requests.push({updateCells:{range:{sheetId:data.sheet.getSheetId(),startRowIndex:offset+1,endRowIndex:offset+2,startColumnIndex:0,endColumnIndex:data.header.length},rows:[{values:values}],fields:'userEnteredValue'}});
   });
-  var response = UrlFetchApp.fetch('https://sheets.googleapis.com/v4/spreadsheets/' + SpreadsheetApp.getActiveSpreadsheet().getId() + ':batchUpdate', {
+  var response = UrlFetchApp.fetch('https://sheets.googleapis.com/v4/spreadsheets/' + databaseSpreadsheet().getId() + ':batchUpdate', {
     method:'post',contentType:'application/json',headers:{Authorization:'Bearer ' + ScriptApp.getOAuthToken()},payload:JSON.stringify({requests:requests}),muteHttpExceptions:true
   });
   if (response.getResponseCode() !== 200) throw apiError('INTERNAL_ERROR','Schedule confirmation could not be saved. Check status before retrying.');
@@ -1108,6 +1135,7 @@ function handleCatalogSync(actor, payload) {
       }
 
       if (pending.length) {
+        ensureSheetSize(data.sheet, data.sheet.getLastRow() + pending.length, header.length);
         data.sheet.getRange(data.sheet.getLastRow() + 1, 1, pending.length, header.length)
           .setValues(pending);
       }
@@ -1155,14 +1183,14 @@ function handleScheduleActiveRead(actor, payload) {
 
 /** Append-only audit trail. Callers may never update or delete a row. */
 function handleAuditAppend(actor, payload) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = databaseSpreadsheet();
   var sheet = ss.getSheetByName('Audit_Log');
   if (!sheet) return { recorded: false };
 
   var events = (payload && payload.events) || [];
   if (!events.length) return { recorded: false, count: 0 };
 
-  var header = getSheetDefinitions()['Audit_Log'];
+  var header = getSheetData('Audit_Log').header;
   var rows = events.slice(0, 200).map(function (ev) {
     ev.auditEventId = ev.auditEventId || 'aud_' + Utilities.getUuid();
     ev.occurredAt = ev.occurredAt || new Date().toISOString();
@@ -1170,7 +1198,10 @@ function handleAuditAppend(actor, payload) {
     ev.actorUserId = actor.userId;
     return objectToRow(header, ev);
   });
-  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, header.length).setValues(rows);
+  var start = sheet.getLastRow() + 1;
+  ensureSheetSize(sheet, start + rows.length - 1, header.length);
+  sheet.getRange(start, 1, rows.length, header.length).setValues(rows);
+  delete _sheetCache.Audit_Log;
   return { recorded: true, count: rows.length };
 }
 
@@ -1183,26 +1214,40 @@ function requireAdministrator(actor) {
       !actor.issuedAt || Date.now() - actor.issuedAt > 3600000) {
     throw apiError('FORBIDDEN', 'Administrator sign-in required.');
   }
+  var required = {
+    Users: ['userId','googleSub','accountStatus','version','sessionsRevokedAt','suspendedReason','closedAt','purgedAt','updatedAt'],
+    Audit_Log: ['auditEventId','occurredAt','requestId','actorUserId','action','targetId','result','reason']
+  };
+  Object.keys(required).forEach(function(name) {
+    var data = getSheetData(name);
+    if (!data.sheet || required[name].some(function(key) { return data.header.indexOf(key) < 0; })) {
+      throw apiError('SCHEMA_OUTDATED', 'Run setupDatabase(), then deploy the updated Apps Script version. Existing records are preserved.');
+    }
+  });
 }
 function protectUserFields(ops, actor) {
   var current = readRows('Users', 'googleSub', actor.googleSub)[0];
   ops.forEach(function(op) {
     if (op.kind !== 'users') return;
     if (op.remove) throw apiError('FORBIDDEN', 'Use the administrator account closure workflow.');
-    ['accountStatus', 'suspendedReason', 'closedAt', 'sessionsRevokedAt'].forEach(function(key) {
+    ['accountStatus', 'suspendedReason', 'closedAt', 'sessionsRevokedAt', 'purgedAt'].forEach(function(key) {
       op.row[key] = current ? current[key] : (key === 'accountStatus' ? 'ACTIVE' : null);
     });
     // No role, status or revocation authority may be smuggled through extraJson.
     var extra = {};
     try { extra = JSON.parse(op.row.extraJson || '{}'); } catch (_) {}
-    ['role', 'accountStatus', 'sessionsRevokedAt', 'emailVerified', 'googleSub', 'email', 'userId'].forEach(function(key) { delete extra[key]; });
+    ['role', 'accountStatus', 'sessionsRevokedAt', 'purgedAt', 'emailVerified', 'googleSub', 'email', 'userId'].forEach(function(key) { delete extra[key]; });
     op.row.extraJson = JSON.stringify(extra);
     op.row.email = actor.email;
   });
 }
 function adminUserProjection(row) {
   var out = {};
-  ['userId','displayName','email','accountStatus','onboardingState','createdAt','lastLoginAt','version','suspendedReason'].forEach(function(k) { out[k] = row[k] || null; });
+  ['userId','displayName','email','accountStatus','onboardingState','createdAt','lastLoginAt','version','suspendedReason','purgedAt'].forEach(function(k) { out[k] = row[k] == null ? null : row[k]; });
+  if (row.userId) {
+    out.accountStatus = row.purgedAt ? 'DELETED' : row.accountStatus || 'ACTIVE';
+    out.version = Number(row.version) || 0;
+  }
   return out;
 }
 function adminTarget(id) {
@@ -1213,18 +1258,24 @@ function adminTarget(id) {
 }
 function adminListUsers(payload) {
   if (Object.keys(payload).some(function(k) { return ['q','status','from','to','page','campus','program','section'].indexOf(k) < 0; }) ||
-      (payload.status && ['ACTIVE','SUSPENDED','CLOSED'].indexOf(payload.status) < 0)) throw apiError('VALIDATION_FAILED', 'Invalid filters.');
-  var rows = readRows('Users');
+      (payload.status && ['ACTIVE','SUSPENDED','CLOSED','DELETED'].indexOf(payload.status) < 0)) throw apiError('VALIDATION_FAILED', 'Invalid filters.');
+  ['from','to'].forEach(function(key) {
+    if (payload[key] && (!/^\d{4}-\d{2}-\d{2}$/.test(payload[key]) || !isFinite(Date.parse(payload[key])) || new Date(payload[key]).toISOString().slice(0,10) !== payload[key])) throw apiError('VALIDATION_FAILED', 'Choose valid registration dates.');
+  });
+  if (payload.from && payload.to && payload.from > payload.to) throw apiError('VALIDATION_FAILED', 'The start date must be before the end date.');
+  var allRows = readRows('Users');
+  var currentRows = allRows.filter(function(row) { return !row.purgedAt; });
+  var rows = payload.status === 'DELETED' ? allRows.filter(function(row) { return !!row.purgedAt; }) : currentRows;
   var today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0,10);
-  var counts = { total: rows.length, today: 0, week: 0, active: 0, suspended: 0 };
-  rows.forEach(function(r) {
+  var counts = { total: currentRows.length, today: 0, week: 0, active: 0, suspended: 0 };
+  currentRows.forEach(function(r) {
     var time = Date.parse(r.createdAt);
     if (isFinite(time) && new Date(time + 8 * 3600000).toISOString().slice(0,10) === today) counts.today++;
     if (time >= Date.now() - 7 * 86400000) counts.week++;
-    if (r.onboardingState === 'ACTIVE' && r.accountStatus === 'ACTIVE') counts.active++;
+    if (r.onboardingState === 'ACTIVE' && (r.accountStatus || 'ACTIVE') === 'ACTIVE') counts.active++;
     if (r.accountStatus === 'SUSPENDED') counts.suspended++;
   });
-  var query = String(payload.q || '').toLowerCase().slice(0,100);
+  var query = String(payload.q || '').trim().toLowerCase().slice(0,100);
   var enrollments = readRows('Enrollments');
   var offerings = readRows('Program_Offerings');
   enrollments.forEach(function(e) {
@@ -1243,14 +1294,16 @@ function adminListUsers(payload) {
     if (value && !filters.sections.some(function(s) { return s.value === value; })) filters.sections.push({ value: value, label: e.sectionLabelSnapshot || value });
   });
   rows = rows.filter(function(r) {
+    var created = Date.parse(r.createdAt);
+    var registeredDate = isFinite(created) ? new Date(created + 8 * 3600000).toISOString().slice(0,10) : '';
     return (!query || [r.displayName,r.email,r.userId].join(' ').toLowerCase().indexOf(query) >= 0) &&
-      (!payload.status || r.accountStatus === payload.status) &&
-      (!payload.from || String(r.createdAt || '').slice(0,10) >= payload.from) &&
-      (!payload.to || String(r.createdAt || '').slice(0,10) <= payload.to) &&
+      (!payload.status || adminUserProjection(r).accountStatus === payload.status) &&
+      (!payload.from || registeredDate >= payload.from) &&
+      (!payload.to || (registeredDate && registeredDate <= payload.to)) &&
       (!(payload.section || payload.program || payload.campus) || enrollments.some(function(e) { return e.ownerUserId === r.userId && (!payload.section || (e.sectionId || e.sectionLabelSnapshot) === payload.section) && (!payload.program || e.programId === payload.program) && (!payload.campus || e.campusId === payload.campus); }));
   });
   rows.sort(function(a,b) { return String(b.createdAt).localeCompare(String(a.createdAt)) || String(a.userId).localeCompare(String(b.userId)); });
-  var page = Math.max(1, Math.floor(Number(payload.page) || 1));
+  var page = Math.min(Math.max(1, Math.floor(Number(payload.page) || 1)), Math.max(1, Math.ceil(rows.length / 25)));
   var audit = readRows('Audit_Log').filter(function(e) { return String(e.action).indexOf('admin.') === 0; }).slice(-15).reverse();
   return { filters: filters, counts: counts, total: rows.length, page: page, pageSize: 25, users: rows.slice((page-1)*25,page*25).map(adminUserProjection), audit: audit.map(function(e) { return { occurredAt: e.occurredAt, action: e.action, targetId: e.targetId, result: e.result }; }), refreshedAt: new Date().toISOString() };
 }
@@ -1274,7 +1327,7 @@ function adminReadUser(actor, payload) {
   var profiles = readRows('Student_Profiles', 'userId', row.userId).map(function(r) {
     return { studentNumber: r.studentNumber, firstName: r.firstName, lastName: r.lastName, verificationStatus: r.verificationStatus };
   });
-  return { user: adminUserProjection(row), protected: row.googleSub === actor.googleSub,
+  return { user: adminUserProjection(row), protected: String(row.googleSub) === actor.googleSub || !!row.purgedAt,
     profiles: profiles, dependencies: adminDependencies(row.userId),
     enrollments: projection('Enrollments', ['termId','offeringId','sectionId','sectionLabelSnapshot','yearLevel','status']),
     schedule: projection('Schedule_Entries', ['dayOfWeek','startTime','endTime','subjectId','locationText','status']),
@@ -1285,47 +1338,71 @@ function adminAudit(actor, payload, result) {
   if (!written.recorded) throw apiError('INTERNAL_ERROR', 'Audit store unavailable.');
 }
 function adminUpdateUser(actor, payload) {
-  if (Object.keys(payload).some(function(k) { return ['operation','userId','version','reason','mutationId','confirm'].indexOf(k) < 0; }) ||
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).some(function(k) { return ['operation','userId','version','reason','mutationId','confirm'].indexOf(k) < 0; }) ||
       ['suspend','reactivate','close','purge'].indexOf(payload.operation) < 0 ||
+      payload.version === null || payload.version === undefined || !Number.isSafeInteger(Number(payload.version)) || Number(payload.version) < 0 ||
       typeof payload.reason !== 'string' || payload.reason.trim().length < 3 || payload.reason.length > 500 ||
       !/^[a-zA-Z0-9-]{16,80}$/.test(payload.mutationId || '')) throw apiError('VALIDATION_FAILED', 'Action, reason and mutation ID are required.');
+  payload.reason = payload.reason.trim();
   var lock = LockService.getScriptLock();
-  if (!lock.tryLock(LOCK_TIMEOUT_MS)) throw apiError('RATE_LIMITED', 'Database busy. Please retry.');
+  if (!lock.tryLock(5000)) throw apiError('RATE_LIMITED', 'Database busy. Please retry.');
+  var started = false;
   try {
     _sheetCache = {};
     requireAdministrator(resolveActor(actor));
     var row = adminTarget(payload.userId);
-    if (row.googleSub === actor.googleSub) throw apiError('FORBIDDEN', 'You cannot modify your own administrator account.');
+    if (String(row.googleSub) === actor.googleSub) throw apiError('PROTECTED_ACCOUNT', 'You cannot modify your own administrator account.');
     var events = readRows('Audit_Log');
     var previous = events.filter(function(e) { return e.requestId === payload.mutationId && e.actorUserId === actor.userId; });
-    if (previous.some(function(e) { return e.targetId !== payload.userId || e.action !== 'admin.' + payload.operation; })) throw apiError('CONFLICT', 'Mutation ID already used.');
-    if (previous.some(function(e) { return e.result === 'SUCCESS'; })) return { ok: true, replayed: true };
+    if (previous.some(function(e) { return e.targetId !== payload.userId || e.action !== 'admin.' + payload.operation || e.reason !== payload.reason; })) throw apiError('CONFLICT', 'Mutation ID already used.');
+    if (previous.some(function(e) { return e.result === 'SUCCESS'; })) return { ok: true, replayed: true, user: adminUserProjection(row) };
+    if (row.purgedAt) throw apiError('VALIDATION_FAILED', 'This account has already been deleted.');
     if (Number(row.version) !== Number(payload.version)) throw apiError('CONFLICT', 'The account changed. Refresh its details before retrying.');
     var recent = events.filter(function(e) { return e.actorUserId === actor.userId && e.result === 'STARTED' && Date.parse(e.occurredAt) > Date.now()-60000; });
     if (recent.length >= 20) throw apiError('RATE_LIMITED', 'Too many account changes. Wait a minute.');
-    if (payload.operation === 'purge' && (row.accountStatus !== 'CLOSED' || payload.confirm !== row.userId)) throw apiError('VALIDATION_FAILED', 'Close the account first and confirm its user ID.');
+    if (payload.operation === 'purge' && payload.confirm !== row.userId) throw apiError('VALIDATION_FAILED', 'Type the exact user ID to confirm permanent deletion.');
     if (payload.operation === 'reactivate' && row.accountStatus !== 'SUSPENDED') throw apiError('VALIDATION_FAILED', 'Only suspended accounts can be reactivated.');
     if (payload.operation === 'suspend' && row.accountStatus === 'CLOSED') throw apiError('VALIDATION_FAILED', 'Closed accounts cannot be suspended.');
     adminAudit(actor, payload, 'STARTED');
+    started = true;
     if (payload.operation === 'purge') {
-      // Trash referenced files before removing their metadata; failures leave the closed account retryable.
-      readRows('Document_Assets', 'ownerUserId', row.userId).forEach(function(asset) {
-        if (asset.driveFileId) DriveApp.getFileById(String(asset.driveFileId)).setTrashed(true);
+      // Revoke access before cleanup. A Drive failure leaves a CLOSED account
+      // and all file references intact so the administrator can retry safely.
+      if (row.accountStatus !== 'CLOSED') {
+        row.accountStatus = 'CLOSED';
+        row.closedAt = new Date().toISOString();
+        row.sessionsRevokedAt = Date.now();
+        row.suspendedReason = payload.reason;
+        row.updatedAt = new Date().toISOString();
+        applyOps([{ kind: 'users', id: row.userId, row: row }], actor.userId);
+      }
+      var fileIds = {};
+      readRows('Document_Assets', 'ownerUserId', row.userId).forEach(function(asset) { if (asset.driveFileId) fileIds[String(asset.driveFileId)] = true; });
+      readRows('COR_Records', 'ownerUserId', row.userId).forEach(function(record) {
+        var extra = {}; try { extra = JSON.parse(record.extraJson || '{}'); } catch (_) {}
+        if (extra.driveFileId) fileIds[String(extra.driveFileId)] = true;
+      });
+      Object.keys(fileIds).forEach(function(id) {
+        try { DriveApp.getFileById(id).setTrashed(true); }
+        catch (_) { throw apiError('FILE_CLEANUP_FAILED', 'The account is closed, but a COR file could not be removed. Authorize Drive access in Apps Script and check file permissions, then reopen the account details and retry deletion.'); }
       });
       var defs = getSheetDefinitions();
       Object.keys(adminDependencies(row.userId)).forEach(function(name) {
         var data = getSheetData(name);
         var owner = defs[name].indexOf('ownerUserId') >= 0 ? 'ownerUserId' : 'userId';
         for (var i = data.rows.length-1; i >= 0; i--) {
-          if (String(rowToObject(data.header,data.rows[i])[owner]) === row.userId) data.sheet.deleteRow(i+2);
+          if (String(rowToObject(data.header,data.rows[i])[owner]) !== row.userId) continue;
+          var end = i;
+          while (i > 0 && String(rowToObject(data.header,data.rows[i-1])[owner]) === row.userId) i--;
+          data.sheet.deleteRows(i+2, end-i+1);
         }
         delete _sheetCache[name];
       });
       // Keep a minimal closed identity tombstone to prevent silent re-registration.
-      row = { userId: row.userId, googleSub: row.googleSub, accountStatus: 'CLOSED', closedAt: row.closedAt, createdAt: row.createdAt, sessionsRevokedAt: Date.now() };
+      row = { userId: row.userId, googleSub: row.googleSub, accountStatus: 'CLOSED', closedAt: row.closedAt, createdAt: row.createdAt, sessionsRevokedAt: Date.now(), purgedAt: new Date().toISOString() };
     } else {
       row.accountStatus = { suspend: 'SUSPENDED', reactivate: 'ACTIVE', close: 'CLOSED' }[payload.operation];
-      row.suspendedReason = payload.reason.trim();
+      row.suspendedReason = payload.operation === 'reactivate' ? null : payload.reason;
       row.sessionsRevokedAt = Date.now();
       if (payload.operation === 'close') row.closedAt = new Date().toISOString();
     }
@@ -1333,6 +1410,9 @@ function adminUpdateUser(actor, payload) {
     var result = applyOps([{ kind: 'users', id: row.userId, row: row }], actor.userId);
     if (result.skipped.length) throw apiError('INTERNAL_ERROR', 'Account update failed.');
     adminAudit(actor, payload, 'SUCCESS');
-    return { ok: true };
+    return { ok: true, user: adminUserProjection(row) };
+  } catch (error) {
+    if (started) { try { adminAudit(actor, payload, 'FAILED'); } catch (_) {} }
+    throw error;
   } finally { lock.releaseLock(); }
 }

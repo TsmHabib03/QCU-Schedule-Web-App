@@ -80,9 +80,15 @@ class FakeSheet {
   constructor(name) {
     this.name = name;
     this._rows = [];
+    this._maxColumns = 26;
+    this._maxRows = 1000;
   }
 
   getName() { return this.name; }
+  getMaxColumns() { return this._maxColumns; }
+  getMaxRows() { return this._maxRows; }
+  insertColumnsAfter(position, count) { this._maxColumns += count; return this; }
+  insertRowsAfter(position, count) { this._maxRows += count; return this; }
 
   getLastRow() {
     for (let i = this._rows.length - 1; i >= 0; i--) {
@@ -103,6 +109,7 @@ class FakeSheet {
   }
 
   getRange(row, col, numRows = 1, numCols = 1) {
+    if (row + numRows - 1 > this._maxRows || col + numCols - 1 > this._maxColumns) throw new Error('Range exceeds grid limits');
     return new FakeRange(this, row, col, numRows, numCols);
   }
 
@@ -111,6 +118,7 @@ class FakeSheet {
   }
 
   appendRow(values) {
+    this._maxRows = Math.max(this._maxRows, this.getLastRow() + 1);
     this._rows[this.getLastRow()] = values.slice();
     return this;
   }
@@ -119,12 +127,14 @@ class FakeSheet {
     this._rows.splice(position - 1, 1);
     return this;
   }
+  deleteRows(position, count) { this._rows.splice(position - 1, count); return this; }
 
   setFrozenRows() { return this; }
 }
 
 class FakeSpreadsheet {
   constructor() { this._sheets = []; }
+  getId() { return 'test-spreadsheet'; }
   getSheets() { return this._sheets.slice(); }
   getSheetByName(name) { return this._sheets.find((s) => s.name === name) || null; }
   insertSheet(name) {
@@ -142,7 +152,7 @@ class FakeSpreadsheet {
  * Load setup-database.gs and return its callable entry points.
  * Returns { doPost, doGet, setupDatabase, seedCatalogData, spreadsheet, logs }.
  */
-export async function loadAppsScript({ repoRoot, secret, properties = {} }) {
+export async function loadAppsScript({ repoRoot, secret, properties = {}, driveFiles = new Map(), standalone = false }) {
   const source = await readFile(resolve(repoRoot, "setup-database.gs"), "utf8");
   const spreadsheet = new FakeSpreadsheet();
   const logs = [];
@@ -151,14 +161,34 @@ export async function loadAppsScript({ repoRoot, secret, properties = {} }) {
 
   const globals = {
     SpreadsheetApp: {
-      getActiveSpreadsheet: () => spreadsheet,
+      getActiveSpreadsheet: () => standalone ? null : spreadsheet,
+      openById: id => { if (id !== spreadsheet.getId()) throw new Error('Spreadsheet unavailable'); return spreadsheet; },
       getUi: () => {
         // Google throws this when there is no attached UI, e.g. an API call.
         throw new Error("Cannot call SpreadsheetApp.getUi() from this context.");
       },
     },
 
+    DriveApp: {
+      Access: { PRIVATE: 'PRIVATE' },
+      Permission: { NONE: 'NONE' },
+      createFile(blob) {
+        const id = randomUUID();
+        const file = { ...blob, trashed: false };
+        driveFiles.set(id, file);
+        return { getId: () => id, setSharing(access, permission) { file.access = access; file.permission = permission; } };
+      },
+      getFileById(id) {
+        const file = driveFiles.get(id);
+        if (!file) throw new Error('File unavailable');
+        return { getBlob: () => ({ getBytes: () => file.bytes }), setTrashed(value) { if (file.failTrash) throw new Error('Drive permission denied'); file.trashed = value; } };
+      },
+    },
+
     Utilities: {
+      base64Decode: value => [...Buffer.from(value, 'base64')],
+      base64Encode: bytes => Buffer.from(bytes).toString('base64'),
+      newBlob: (bytes, mimeType, filename) => ({ bytes, mimeType, filename }),
       computeHmacSha256Signature(message, key) {
         const digest = createHmac("sha256", key).update(message, "utf8").digest();
         // Apps Script hands back signed bytes; reproduce that so the script's

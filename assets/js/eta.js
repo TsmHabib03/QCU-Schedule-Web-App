@@ -73,11 +73,11 @@ async function initETA() {
   wireScheduleTabs();
 
   const [dataResult, corridorResult] = await Promise.allSettled([
-    fetch(BUS_DATA_URL, { cache: "no-cache" }).then((r) => {
+    fetch(BUS_DATA_URL, { cache: "no-cache", signal: AbortSignal.timeout(35000) }).then((r) => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     }),
-    fetch(CORRIDOR_URL, { cache: "no-cache" }).then((r) => {
+    fetch(CORRIDOR_URL, { cache: "no-cache", signal: AbortSignal.timeout(35000) }).then((r) => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     })

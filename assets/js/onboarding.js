@@ -19,14 +19,51 @@
   let uploadRequest = null;
   let retryAt = 0;
   let cooldownTimer = null;
+  let recoveryInFlight = false;
+  let recoveryTarget = 'import';
+  let draftStored = false;
   async function request(url, options = {}) {
-    const response = await fetch(url, { ...options, signal: typeof AbortSignal !== 'undefined' ? AbortSignal.timeout(120000) : undefined });
-    if (response.status === 401) {
-      const error = new Error('Your session expired. Sign in again to reopen your saved import.');
-      error.sessionExpired = true;
-      throw error;
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), options.method === 'POST' ? 120000 : 25000) : null;
+    try {
+      const response = await fetch(url, { credentials: 'include', cache: 'no-store', ...options, signal: controller?.signal });
+      checkAccess(response.status);
+      return response;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
-    return response;
+  }
+  function checkAccess(status) {
+    if (status !== 401 && status !== 403) return;
+    const error = new Error(status === 401
+      ? 'Your session expired. Sign in again to continue your COR import.'
+      : 'Your account cannot access COR uploads. Contact your administrator for help.');
+    error.sessionExpired = status === 401;
+    error.accessDenied = status === 403;
+    throw error;
+  }
+  function responseMessage(data, status, fallback) {
+    const messages = {
+      UNSUPPORTED_FILE_TYPE: 'Choose a PDF, JPG, or PNG file.',
+      PAYLOAD_TOO_LARGE: 'This file is larger than 10 MB. Export a smaller file and try again.',
+      FILE_CORRUPT: 'This file could not be read. Export or photograph your COR again.',
+      EXTRACTION_FAILED: 'We could not read the details on this COR. Try a clearer copy with the whole page visible.',
+      FILE_MISSING: 'Select the original file again to resume your upload.',
+      NOT_FOUND: 'This saved import is no longer available. Check again or select your COR file.',
+      CONFLICT: 'This import changed in another tab. Check its saved status before continuing.',
+      OFFLINE: 'You appear to be offline. Reconnect and try again.',
+    };
+    if (messages[data.status]) return messages[data.status];
+    if (status === 429 || data.status === 'RATE_LIMITED') return 'Please wait a moment before trying again.';
+    if (status === 404) return messages.NOT_FOUND;
+    // Display validation copy only; infrastructure/provider details stay out of the UI.
+    if ([400, 422].includes(status) && data.error && /required|must have|Please correct/.test(data.error)) return data.error;
+    return fallback;
+  }
+  function recoveryError(error, fallback) {
+    if (error?.sessionExpired || error?.accessDenied) return error.message;
+    return typeof navigator !== 'undefined' && navigator.onLine === false
+      ? 'You appear to be offline. Reconnect, then check again to continue.' : fallback;
   }
   function cooldown(seconds) {
     retryAt = Date.now() + Math.max(1, Number(seconds) || 10) * 1000;
@@ -34,8 +71,8 @@
     const update = () => {
       const remaining = Math.max(0, Math.ceil((retryAt - Date.now()) / 1000));
       uploadBtn.disabled = remaining > 0 || uploadInFlight || !selectedFile;
-      document.getElementById('processing-retry').disabled = remaining > 0;
-      const message = remaining ? `Scan limit reached. You can retry in ${remaining}s. Your saved result is still available.` : 'You can now retry your scan.';
+      document.getElementById('processing-retry').disabled = remaining > 0 || recoveryInFlight;
+      const message = remaining ? `Please wait ${remaining}s before checking again.` : 'You can now check again to continue.';
       if (currentStep === 'processing') document.getElementById('processing-message').textContent = message;
       else showError(message);
       if (!remaining) { clearInterval(cooldownTimer); cooldownTimer = null; }
@@ -43,19 +80,24 @@
     update();
     cooldownTimer = setInterval(update, 1000);
   }
-  function pauseRecovery(message, sessionExpired = false) {
+  function pauseRecovery(message, sessionExpired = false, accessDenied = false) {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = null;
     goToStep('processing');
+    document.getElementById('processing-title').textContent = sessionExpired ? 'Sign in to continue' : accessDenied ? 'Account access unavailable' : 'Continue your COR import';
     document.getElementById('processing-message').textContent = message;
-    document.getElementById('processing-retry').hidden = sessionExpired;
+    document.getElementById('processing-retry').hidden = sessionExpired || accessDenied;
     document.getElementById('processing-sign-in').hidden = !sessionExpired;
+    document.getElementById('processing-select-file').hidden = true;
     document.getElementById('processing-spinner').hidden = true;
   }
   async function recoverUpload(error) {
-    uploadInFlight = false;
-    if (error?.sessionExpired) return pauseRecovery(error.message, true);
+    recoveryTarget = 'import';
+    if (error?.sessionExpired || error?.accessDenied) return pauseRecovery(error.message, error.sessionExpired, error.accessDenied);
     goToStep('processing');
+    document.getElementById('processing-spinner').hidden = false;
+    document.getElementById('processing-retry').hidden = true;
+    document.getElementById('processing-select-file').hidden = true;
     document.getElementById('processing-message').textContent = 'Checking whether your import was saved…';
     try {
       const suffix = uploadRequest?.id ? '?requestId=' + encodeURIComponent(uploadRequest.id) : '';
@@ -68,12 +110,12 @@
         document.getElementById('processing-select-file').hidden = false;
         return;
       }
-      corRecordId = data.corRecordId || corRecordId;
+      setRecord(data.corRecordId);
       if (data.importStatus === 'COMPLETE') { clearUploadRequest(); goToStep('success'); }
       else if (data.importStatus === 'REVIEW_REQUIRED') { await loadResult(); goToStep('review'); }
       else startPolling();
     } catch (e) {
-      pauseRecovery(e.sessionExpired ? e.message : 'We could not check your saved import. Reconnect and check again; your request ID is preserved.', e.sessionExpired);
+      pauseRecovery(recoveryError(e, 'We could not check your saved import. Check your connection, then check again.'), e.sessionExpired, e.accessDenied);
     }
   }
   function sendUpload(formData, id, fill, label) {
@@ -88,13 +130,14 @@
         if (event.lengthComputable) {
           const percent = Math.round(event.loaded / event.total * 100);
           fill.style.width = percent + '%';
+          document.getElementById('upload-progress-bar').setAttribute('aria-valuenow', String(percent));
           label.textContent = `Uploading your COR… ${percent}%`;
         }
       };
-      xhr.upload.onload = () => { label.textContent = 'Saving your upload…'; };
+      xhr.upload.onload = () => { label.textContent = 'File sent. Waiting for your upload to be saved…'; };
       xhr.onload = () => {
-        if (xhr.status === 401) { const e = new Error('Your session expired. Sign in again to reopen your saved import.'); e.sessionExpired = true; reject(e); }
-        else resolve({ status:xhr.status, json:async () => JSON.parse(xhr.responseText) });
+        try { checkAccess(xhr.status); resolve({ status:xhr.status, json:async () => JSON.parse(xhr.responseText) }); }
+        catch (error) { reject(error); }
       };
       xhr.onerror = xhr.ontimeout = () => reject(new Error('The upload response was interrupted.'));
       xhr.send(formData);
@@ -115,13 +158,33 @@
     try { sessionStorage.removeItem("qcu-cor-request"); } catch (_) {}
   }
   function cacheDraft() {
-    try { sessionStorage.setItem("qcu-cor-draft", JSON.stringify({ owner: user?.userId || user?.email, corRecordId, draft: draftResult })); } catch (_) {}
+    if (!user || !corRecordId || !draftResult) return;
+    try {
+      sessionStorage.setItem("qcu-cor-draft", JSON.stringify({ owner: user.userId || user.email, corRecordId, draft: draftResult }));
+      draftStored = true;
+    } catch (_) { draftStored = false; }
   }
   function restoreDraft() {
     try {
       const cached = JSON.parse(sessionStorage.getItem("qcu-cor-draft"));
       if (cached?.owner === (user?.userId || user?.email) && cached.corRecordId === corRecordId) draftResult = cached.draft;
     } catch (_) {}
+  }
+  function setRecord(id) {
+    if (!id || id === corRecordId) return;
+    corRecordId = id;
+    draftResult = null;
+  }
+  function preserveReview() {
+    if (currentStep !== 'review' || !draftResult) return;
+    for (const [group, names] of Object.entries({ studentInfo: ['studentNumber','firstName','middleName','lastName','suffix'], enrollmentInfo: ['program','campus','yearLevel','section','term','adviserName'] })) {
+      draftResult[group] = { ...draftResult[group] };
+      for (const name of names) draftResult[group][name] = { value: document.getElementById('review-' + name).value, confidence: 'high' };
+    }
+    cacheDraft();
+    document.getElementById('review-draft-status').textContent = draftStored
+      ? 'Edits kept in this tab. Select Save and continue to save them to your account.'
+      : 'Edits are only in this form. Keep this page open until you save and continue.';
   }
 
   /* ── DOM refs ────────────────────────────────────────────────────────── */
@@ -134,15 +197,32 @@
   let currentStep = "welcome";
 
   window.goToStep = function (step) {
+    if (!STEPS.includes(step)) return;
     if (uploadInFlight && (step === "welcome" || step === "upload")) return;
+    preserveReview();
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     currentStep = step;
     document.querySelectorAll(".onboarding-step").forEach((el) => el.classList.remove("active"));
     const target = document.getElementById("step-" + step);
     if (target) target.classList.add("active");
+    if (step === 'success') {
+      clearUploadRequest();
+      try { sessionStorage.removeItem('qcu-cor-draft'); } catch (_) {}
+    }
+    if (['review', 'success'].includes(step)) {
+      if (cooldownTimer) clearInterval(cooldownTimer);
+      cooldownTimer = null;
+      retryAt = 0;
+    }
     updateTracker(step);
+    focusStep();
     window.scrollTo({ top: 0, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   };
+  function focusStep() {
+    const heading = document.getElementById('step-' + currentStep)?.querySelector('h1, h2');
+    heading?.setAttribute('tabindex', '-1');
+    heading?.focus?.({ preventScroll: true });
+  }
 
   function updateTracker(step) {
     const mapping = { welcome: 0, upload: 1, processing: 1, review: 2, confirm: 3, success: 4 };
@@ -151,6 +231,8 @@
       el.classList.remove("active", "completed");
       if (i < idx) el.classList.add("completed");
       else if (i === idx) el.classList.add("active");
+      if (i === idx) el.setAttribute('aria-current', 'step');
+      else el.removeAttribute('aria-current');
     });
     tracker.querySelectorAll(".stage-connector").forEach((el, i) => {
       el.classList.toggle("active", i < idx);
@@ -159,6 +241,7 @@
 
   /* ── Sign out ────────────────────────────────────────────────────────── */
   window.signOut = async function () {
+    window.QCULoading.button(document.querySelector(".onboarding-header-signout"), true);
     clearUploadRequest();
     try { sessionStorage.removeItem("qcu-cor-draft"); } catch (_) {}
     try { await request("/api/auth/logout", { method: "POST" }); } catch (_) {}
@@ -167,6 +250,7 @@
 
   /* ── Session bootstrap ──────────────────────────────────────────────── */
   async function init() {
+    recoveryTarget = 'session';
     try {
       const resp = await request("/api/auth/session", { credentials: "include" });
       const data = await resp.json();
@@ -179,11 +263,14 @@
         renderUser();
         if (uploadRequest) await recoverUpload();
         else await checkOnboardingStatus();
-      } else {
+      } else if (data.authenticated === false || data.status === 'UNAUTHENTICATED') {
         window.location.href = "/?login=1";
-      }
+      } else throw new Error('Session unavailable');
     } catch (error) {
-      pauseRecovery('Unable to check your session. Reconnect and reload this page.', error.sessionExpired);
+      pauseRecovery(recoveryError(error, 'We could not check your session. Check your connection, then try again.'), error.sessionExpired, error.accessDenied);
+    } finally {
+      window.QCULoading.finish('onboarding');
+      focusStep();
     }
   }
 
@@ -199,13 +286,14 @@
 
   /* ── Onboarding status ──────────────────────────────────────────────── */
   async function checkOnboardingStatus() {
+    recoveryTarget = 'onboarding';
     try {
       const resp = await request("/api/v1/onboarding/status", { credentials: "include" });
       const data = await resp.json();
       if (data.status !== "OK") {
-        goToStep("welcome");
-        return;
+        throw new Error('Status unavailable');
       }
+      setRecord(data.corRecordId);
       switch (data.stage) {
         case "COMPLETE":
           goToStep("success");
@@ -234,7 +322,7 @@
           goToStep("welcome");
       }
     } catch (err) {
-      pauseRecovery(err.message || 'Could not resume your import. Check again.', err.sessionExpired);
+      pauseRecovery(recoveryError(err, 'We could not load your saved progress. Check your connection, then check again.'), err.sessionExpired, err.accessDenied);
     }
   }
 
@@ -247,7 +335,7 @@
   const uploadBtn = document.getElementById("upload-btn");
   const uploadError = document.getElementById("upload-error");
 
-  const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+  const FILE_TYPES = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' };
   const MAX_SIZE = 10 * 1024 * 1024;
 
   if (fileInput) {
@@ -257,11 +345,15 @@
   }
 
   if (uploadZone) {
+    uploadZone.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (!uploadInFlight) fileInput.click(); }
+    });
     uploadZone.addEventListener("dragover", (e) => { e.preventDefault(); uploadZone.classList.add("dragover"); });
     uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("dragover"));
     uploadZone.addEventListener("drop", (e) => {
       e.preventDefault();
       uploadZone.classList.remove("dragover");
+      if (e.dataTransfer.files.length > 1) { showError('Choose one COR file at a time.'); return; }
       if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files[0]);
     });
   }
@@ -270,8 +362,13 @@
     if (uploadInFlight) return;
     removeFile();
     hideError();
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const expectedType = FILE_TYPES[file.name.split('.').pop().toLowerCase()];
+    if (!expectedType || (file.type && file.type !== 'application/octet-stream' && file.type !== expectedType)) {
       showError("Unsupported file type. Please upload a PDF, JPG, or PNG.");
+      return;
+    }
+    if (!file.size) {
+      showError('This file is empty. Export or photograph your COR again.');
       return;
     }
     if (file.size > MAX_SIZE) {
@@ -281,11 +378,11 @@
     selectedFile = file;
     fileNameEl.textContent = file.name;
     const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-    const typeLabel = file.type === "application/pdf" ? "PDF" : file.type === "image/png" ? "PNG" : "JPG";
+    const typeLabel = expectedType === "application/pdf" ? "PDF" : expectedType === "image/png" ? "PNG" : "JPG";
     fileMetaEl.textContent = `${sizeMB} MB  \u00B7  ${typeLabel}`;
     fileSummary.classList.add("visible");
-    uploadBtn.disabled = false;
-    document.getElementById("upload-zone-text").textContent = "Click to change file";
+    uploadBtn.disabled = Date.now() < retryAt;
+    document.getElementById("upload-zone-text").textContent = "Choose a different file";
   }
 
   window.removeFile = function () {
@@ -298,21 +395,28 @@
     hideError();
   };
 
-  function showError(msg) { uploadError.textContent = msg; uploadError.classList.add("visible"); }
-  function hideError() { uploadError.classList.remove("visible"); }
+  function showError(msg) { uploadError.textContent = msg; uploadError.classList.add("visible"); uploadZone.setAttribute('aria-invalid', 'true'); }
+  function hideError() { uploadError.classList.remove("visible"); uploadZone.removeAttribute('aria-invalid'); }
+  function lockUpload(busy) {
+    fileInput.disabled = busy;
+    document.getElementById('upload-remove').disabled = busy;
+    document.getElementById('upload-back').disabled = busy;
+    uploadZone.setAttribute('aria-disabled', String(busy));
+  }
 
   /* ── Upload ──────────────────────────────────────────────────────────── */
   window.uploadCor = async function () {
     if (!selectedFile || uploadInFlight || Date.now() < retryAt) return;
     uploadInFlight = true;
+    lockUpload(true);
     hideError();
-    uploadBtn.disabled = true;
-    uploadBtn.classList.add("btn-spinner");
+    window.QCULoading.button(uploadBtn, true);
     const progress = document.getElementById("upload-progress");
     const progressFill = document.getElementById("upload-progress-fill");
     const progressText = document.getElementById("upload-progress-text");
     progress.classList.add("visible");
     progressFill.style.width = "0%";
+    document.getElementById('upload-progress-bar').setAttribute('aria-valuenow', '0');
     progressText.textContent = "Uploading your COR...";
 
     try {
@@ -328,7 +432,7 @@
       }
 
       if (data.status === "DUPLICATE") {
-        corRecordId = data.corRecordId;
+        setRecord(data.corRecordId);
         draftResult = null;
         goToStep("processing");
         if (data.importStatus === "COMPLETE") {
@@ -346,15 +450,13 @@
       }
 
       if (data.status !== "OK" && data.status !== "ACCEPTED" && data.status !== "EXTRACTED") {
-        showError(data.error || "Upload failed. Please try again.");        uploadBtn.disabled = false;
-        uploadBtn.classList.remove("btn-spinner");
-        progress.classList.remove("visible");
+        showError(responseMessage(data, resp.status, 'The upload could not start. Check your file and try again.'));
         return;
       }
 
 
 
-      corRecordId = data.corRecordId;
+      setRecord(data.corRecordId);
       // Cache the extraction result from the upload response so it can be
       // sent to /cor/review and /cor/confirm (avoids needing Maps on CF Pages).
       draftResult = data.result || null;
@@ -372,8 +474,9 @@
       await recoverUpload(err);
     } finally {
       uploadInFlight = false;
+      lockUpload(false);
+      window.QCULoading.button(uploadBtn, false);
       uploadBtn.disabled = !selectedFile || Date.now() < retryAt;
-      uploadBtn.classList.remove("btn-spinner");
       progress.classList.remove("visible");
     }
   };
@@ -397,9 +500,15 @@
       cooldown(data.retryAfter);
       return;
     }
-    if (data.status === "EXTRACTION_FAILED") clearUploadRequest();
+    if (data.status === 'EXTRACTION_FAILED' || data.status === 'FILE_MISSING') {
+      if (data.status === 'EXTRACTION_FAILED') clearUploadRequest();
+      pauseRecovery(responseMessage(data, resp.status, 'Select your COR file to continue.'));
+      document.getElementById('processing-retry').hidden = true;
+      document.getElementById('processing-select-file').hidden = false;
+      return;
+    }
     if (!["OK", "PROCESSING", "REVIEW_REQUIRED"].includes(data.status)) {
-      throw new Error(data.error || "Could not start extraction. Please try again.");
+      throw new Error('Reading could not be started.');
     }
     if (data.status === "REVIEW_REQUIRED") {
       draftResult = data.result || null;
@@ -410,6 +519,8 @@
 
   /* ── Processing polling ──────────────────────────────────────────────── */
   function startPolling() {
+    recoveryTarget = 'import';
+    document.getElementById('processing-title').textContent = 'Reading your COR';
     document.getElementById('processing-select-file').hidden = true;
     document.getElementById('processing-sign-in').hidden = true;
     document.getElementById('processing-spinner').hidden = false;
@@ -435,11 +546,21 @@
       const suffix = !corRecordId && uploadRequest?.id ? '?requestId=' + encodeURIComponent(uploadRequest.id) : '';
       const resp = await request("/api/v1/cor/status" + suffix, { credentials: "include" });
       const data = await resp.json();
-      if (data.status !== "OK" || currentStep !== "processing") return;
-      if (data.corRecordId) corRecordId = data.corRecordId;
+      if (currentStep !== "processing") return;
+      if (data.status !== 'OK') {
+        pauseRecovery(responseMessage(data, resp.status, 'We could not check your saved progress. Check your connection, then check again.'));
+        if (resp.status === 429 || data.status === 'RATE_LIMITED') cooldown(data.retryAfter);
+        return;
+      }
+      if (data.hasImport === false) {
+        pauseRecovery('Your upload has not appeared yet. Check again, or select the same file to resume safely.');
+        document.getElementById('processing-select-file').hidden = false;
+        return;
+      }
+      setRecord(data.corRecordId);
       if (data.fileMissing) {
-        goToStep("upload");
-        showError("Select the original file again to resume your saved upload.");
+        pauseRecovery('Select the original file again to resume your saved upload.');
+        document.getElementById('processing-select-file').hidden = false;
         return;
       }
 
@@ -462,7 +583,12 @@
           clearUploadRequest();
           clearInterval(pollTimer);
           pollTimer = null;
-          goToStep("upload");
+          pauseRecovery(data.failureCode ? 'We could not read this COR. Select a clearer copy with the whole page visible.' : 'This import is no longer active. Select your COR file to start again.');
+          document.getElementById('processing-retry').hidden = true;
+          document.getElementById('processing-select-file').hidden = false;
+          break;
+        case 'COMMITTING':
+          document.getElementById('processing-message').textContent = 'Saving your profile and schedule. Check again if this takes longer than expected.';
           break;
         case "COMPLETE":
           clearUploadRequest();
@@ -472,16 +598,31 @@
           break;
       }
     } catch (err) {
-      pauseRecovery(err.message || 'Could not check processing status.', err.sessionExpired);
+      pauseRecovery(recoveryError(err, 'We could not check your saved progress. Check your connection, then check again.'), err.sessionExpired, err.accessDenied);
     } finally { pollingInFlight = false; }
   }
-  window.resumeProcessing = () => { if (Date.now() >= retryAt) recoverUpload(); };
+  window.resumeProcessing = async () => {
+    if (Date.now() < retryAt || recoveryInFlight || uploadInFlight) return;
+    recoveryInFlight = true;
+    const button = document.getElementById('processing-retry');
+    window.QCULoading.button(button, true);
+    document.getElementById('processing-message').textContent = 'Checking your saved progress…';
+    try {
+      if (!user || recoveryTarget === 'session') await init();
+      else if (recoveryTarget === 'onboarding') await checkOnboardingStatus();
+      else await recoverUpload();
+    } finally {
+      recoveryInFlight = false;
+      window.QCULoading.button(button, false);
+      button.disabled = Date.now() < retryAt;
+    }
+  };
 
   /* ── Load extraction result ──────────────────────────────────────────── */
   async function loadResult() {
     if (!draftResult) restoreDraft();
     // If draft was already cached from the upload response, use it directly.
-    if (draftResult && draftResult.subjects && draftResult.subjects.length > 0) {
+    if (draftResult && Array.isArray(draftResult.subjects)) {
       cacheDraft();
       populateReviewForm(draftResult);
       return;
@@ -517,25 +658,20 @@
 
     // Programs dropdown
     const programSelect = document.getElementById("review-program");
-    if (programSelect && draft.enrollmentInfo?.program) {
-      const val = draft.enrollmentInfo.program;
-      const opt = document.createElement("option");
-      programSelect.replaceChildren();
-      opt.value = typeof val === "object" ? (val.value || "") : val;
-      opt.textContent = opt.value;
-      opt.selected = true;
-      programSelect.appendChild(opt);
-    }
+    if (programSelect) setField('review-program', draft.enrollmentInfo?.program);
 
     // Subjects
     renderSubjectList(draft.subjects || []);
+    document.getElementById('review-draft-status').textContent = draftStored
+      ? 'Draft kept in this tab. Review it before saving to your account.'
+      : 'Keep this page open until you save and continue.';
   }
 
   function setField(id, fieldObj) {
     const el = document.getElementById(id);
-    if (!el || !fieldObj) return;
+    if (!el) return;
     // Handle both full ({value, ...}) and compact (plain value) draft formats
-    el.value = (typeof fieldObj === "object" && fieldObj !== null && "value" in fieldObj) ? (fieldObj.value || "") : (fieldObj || "");
+    el.value = (typeof fieldObj === "object" && fieldObj !== null && "value" in fieldObj) ? (fieldObj.value ?? "") : (fieldObj ?? "");
   }
 
   function renderSubjectList(subjects) {
@@ -544,6 +680,11 @@
     if (!container) return;
     container.innerHTML = "";
     countEl.textContent = subjects.length;
+    if (!subjects.length) {
+      const message = document.createElement('p');
+      message.textContent = 'No subjects were detected. Choose a clearer COR with the complete subject table.';
+      container.appendChild(message);
+    }
 
     // Helper: extract value from full ({value, ...}) or compact (plain value) format
     const fv = (v) => (v && typeof v === "object" && "value" in v) ? v.value : (v || "");
@@ -552,7 +693,7 @@
       const card = document.createElement("div");
       card.className = "subject-card";
 
-      const scheduleHtml = (s.schedule || []).map((m) => {
+      const scheduleHtml = (s.schedule || s.meetings || []).map((m) => {
         const day = fv(m.day);
         const start = fv(m.time?.start) || m.startTime || "";
         const end = fv(m.time?.end) || m.endTime || "";
@@ -564,13 +705,13 @@
         </div>`;
       }).join("");
 
-      const conf = s.confidence || "medium";
+      const conf = ['high', 'medium', 'low'].includes(s.confidence) ? s.confidence : 'medium';
       const confClass = conf === "high" ? "confidence-high" : conf === "low" ? "confidence-low" : "confidence-medium";
 
       card.innerHTML = `
         <div class="subject-header">
           <span class="subject-code">${esc(fv(s.subjectCode))}</span>
-          <span class="review-confidence ${confClass}">${esc(conf)}</span>
+          <span class="review-confidence ${confClass}">${conf === 'high' ? 'Check details' : 'Needs review'}</span>
           ${fv(s.units) ? `<span class="subject-units">${esc(fv(s.units))} units</span>` : ""}
         </div>
         <div class="subject-name">${esc(fv(s.subjectName))}</div>
@@ -592,6 +733,7 @@
     reviewError.classList.remove("visible");
     const saveBtn = document.getElementById("review-save-btn");
     if (saveBtn?.disabled) return;
+    preserveReview();
 
     // Gather form values
     const studentInfo = {
@@ -605,6 +747,7 @@
     if (!studentInfo.firstName.value || !studentInfo.lastName.value || !studentInfo.studentNumber.value) {
       reviewError.textContent = "Student number, first name, and last name are required.";
       reviewError.classList.add("visible");
+      focusMissing(['studentNumber', 'firstName', 'lastName']);
       return;
     }
 
@@ -620,6 +763,7 @@
     if (!enrollmentInfo.program.value || !enrollmentInfo.yearLevel.value || !enrollmentInfo.term.value) {
       reviewError.textContent = "Program, year level, and term are required.";
       reviewError.classList.add("visible");
+      focusMissing(['program', 'yearLevel', 'term']);
       return;
     }
 
@@ -639,8 +783,15 @@
       room: s.room || {},
       matchedSubjectId: s.matchedSubjectId || null,
     }));
+    if (!subjects.length) {
+      reviewError.textContent = 'No subjects were detected. Choose a clearer COR to continue.';
+      reviewError.classList.add('visible');
+      return;
+    }
 
-    if (saveBtn) { saveBtn.disabled = true; saveBtn.classList.add("btn-spinner"); }
+    window.QCULoading.button(saveBtn, true);
+    document.getElementById('review-fields').disabled = true;
+    document.getElementById('review-back').disabled = true;
     try {
       const resp = await request("/api/v1/cor/review", {
         method: "POST",
@@ -657,21 +808,61 @@
         buildConfirmSummary(studentInfo, enrollmentInfo, subjects);
         goToStep("confirm");
       } else {
-        reviewError.textContent = data.error || "Could not save corrections.";
+        reviewError.textContent = responseMessage(data, resp.status, 'We could not save your corrections. Your edits are kept here; try again.');
         reviewError.classList.add("visible");
       }
     } catch (err) {
-      if (err.sessionExpired) { pauseRecovery(err.message, true); return; }
+      if (err.sessionExpired || err.accessDenied) { pauseRecovery(err.message, err.sessionExpired, err.accessDenied); return; }
       reviewError.textContent = "Your corrections could not be confirmed as saved. They are still in this form; reconnect and try again.";
       reviewError.classList.add("visible");
     } finally {
-      if (saveBtn) { saveBtn.disabled = false; saveBtn.classList.remove("btn-spinner"); }
+      window.QCULoading.button(saveBtn, false);
+      document.getElementById('review-fields').disabled = false;
+      document.getElementById('review-back').disabled = false;
     }
   };
 
   function getVal(id) {
     return (document.getElementById(id)?.value || "").trim();
   }
+  window.replaceCor = async function () {
+    const button = document.getElementById('review-back');
+    if (button.disabled || !corRecordId) return;
+    preserveReview();
+    window.QCULoading.button(button, true);
+    document.getElementById('review-save-btn').disabled = true;
+    document.getElementById('review-fields').disabled = true;
+    try {
+      const response = await request('/api/v1/cor/cancel', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ corRecordId }),
+      });
+      const data = await response.json();
+      if (data.status !== 'CANCELLED') { await recoverUpload(); return; }
+      clearUploadRequest();
+      draftResult = null;
+      corRecordId = null;
+      try { sessionStorage.removeItem('qcu-cor-draft'); } catch (_) {}
+      removeFile();
+      goToStep('upload');
+    } catch (error) { await recoverUpload(error); }
+    finally {
+      window.QCULoading.button(button, false);
+      document.getElementById('review-save-btn').disabled = false;
+      document.getElementById('review-fields').disabled = false;
+    }
+  };
+  function focusMissing(names) {
+    const missing = names.find(name => !getVal('review-' + name));
+    const field = document.getElementById('review-' + missing);
+    field?.setAttribute('aria-invalid', 'true');
+    field?.focus?.();
+  }
+  document.getElementById('review-form').addEventListener('input', event => {
+    event.target?.removeAttribute('aria-invalid');
+    preserveReview();
+  });
+  document.getElementById('review-form').addEventListener('change', preserveReview);
+  window.addEventListener('pagehide', preserveReview);
 
   /* ── Confirmation summary ────────────────────────────────────────────── */
   function buildConfirmSummary(si, ei, subjects) {
@@ -706,10 +897,8 @@
     const btn = document.getElementById("confirm-btn");
     if (btn.disabled) return;
     document.getElementById("confirm-error").classList.remove("visible");
-    btn.disabled = true;
-    btn.classList.add("btn-spinner");
-    const label = btn.querySelector(".btn-label");
-    if (label) label.textContent = "Activating...";
+    window.QCULoading.button(btn, true);
+    document.getElementById('confirm-back').disabled = true;
 
     try {
       const resp = await request("/api/v1/cor/confirm", {
@@ -724,25 +913,21 @@
         clearUploadRequest();
         try { sessionStorage.removeItem("qcu-cor-draft"); } catch (_) {}
         goToStep("success");
-        // Auto-redirect after 3 seconds
-        setTimeout(() => { window.location.href = "/"; }, 3000);
       } else if (resp.status >= 500 || data.status === 'SERVICE_UNAVAILABLE') {
         await recoverUpload();
-        btn.disabled = false;
-        btn.classList.remove('btn-spinner');
+        window.QCULoading.button(btn, false);
       } else {
         const errEl = document.getElementById("confirm-error");
-        errEl.textContent = data.error || "Could not activate. Please try again.";
+        errEl.textContent = responseMessage(data, resp.status, 'We could not finish setting up your schedule. Your draft is kept here; try again.');
         errEl.classList.add("visible");
-        btn.disabled = false;
-        btn.classList.remove("btn-spinner");
-        if (label) label.textContent = "Confirm and activate";
+        window.QCULoading.button(btn, false);
       }
     } catch (err) {
       await recoverUpload(err);
-      btn.disabled = false;
-      btn.classList.remove("btn-spinner");
-      if (label) label.textContent = "Confirm and activate";
+      window.QCULoading.button(btn, false);
+    } finally {
+      window.QCULoading.button(btn, false);
+      document.getElementById('confirm-back').disabled = false;
     }
   };
 

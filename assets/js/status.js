@@ -1273,24 +1273,10 @@
 
   // Loading skeleton, then first paint. Mirrors the real layout so the panel
   // settles instead of jumping while the feeds resolve.
-  paint('<div class="status-grid">' +
-        '<div class="loc-grid">' +
-          '<div class="wx-panel wx-loading"><span class="wx-status">Loading…</span></div>' +
-          '<div class="wx-panel wx-loading"><span class="wx-status">Loading…</span></div>' +
-        '</div>' +
-        '<div class="notice is-unknown"><div class="notice-main">' +
-          '<div class="notice-head">' +
-            '<span class="notice-kicker"><i data-lucide="megaphone" aria-hidden="true"></i>Class Suspension Notice</span>' +
-            '<span class="notice-status"><i data-lucide="loader" aria-hidden="true"></i>CHECKING</span>' +
-          '</div>' +
-          '<div class="notice-verdict">' +
-            '<span class="notice-seal" aria-hidden="true"><i data-lucide="scan-search"></i></span>' +
-            '<span class="notice-verdict-text">' +
-              '<span class="notice-verdict-title">Checking official sources…</span>' +
-              '<span class="notice-verdict-sub">Reading the Quezon City announcements feed.</span>' +
-            '</span>' +
-          '</div>' +
-        '</div></div></div>');
+  paint('<div role="status"><span class="loading-sr">Loading weather and class notices?</span><div class="loc-grid" aria-hidden="true">' +
+    '<div class="loading-weather">' + window.QCULoading.lines() + '</div>' +
+    '<div class="loading-weather">' + window.QCULoading.lines() + '</div></div>' +
+    '<div class="loading-weather" aria-hidden="true">' + window.QCULoading.lines() + '</div></div>');
   refresh();
 
   // Refresh on tab re-focus (cheap, respects weather TTL cache).

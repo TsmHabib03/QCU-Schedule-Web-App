@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#005BAC">
   <meta name="description" content="QCity Bus Libreng Sakay information for QCU San Bartolome commuters — Route 4 (QC Hall ↔ General Luis) corridor, published schedule, fare and stops. Schedule-based; no live bus tracking.">
   <title>QCity Bus · Libreng Sakay | QCU Portal</title>
@@ -17,12 +17,14 @@
   <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 
   <!-- CSS -->
-  <link rel="stylesheet" href="assets/css/styles.css?v=46">
+  <link rel="stylesheet" href="assets/css/styles.css?v=55">
   <link rel="stylesheet" href="assets/css/eta.css?v=40">
+  <link rel="stylesheet" href="assets/css/loading.css?v=1">
+  <script src="assets/js/loading.js?v=1"></script>
 </head>
 <body data-page="campus-eta">
   <div class="app-shell">
-    <header id="app-header" class="page-header"></header>
+    <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header>
 
     <main class="page-container section-stack">
 
@@ -231,7 +233,7 @@
 
     </main>
 
-    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation"></nav>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
   </div>
 
   <!-- MapLibre JS -->
@@ -242,8 +244,8 @@
 
   <!-- App & page scripts -->
   <script src="assets/js/academic.js?v=43"></script>
-  <script src="assets/js/app.js?v=45"></script>
-  <script src="assets/js/eta.js?v=40"></script>
+  <script src="assets/js/app.js?v=52"></script>
+  <script src="assets/js/eta.js?v=41"></script>
   <script>initETA();</script>
 </body>
 </html>

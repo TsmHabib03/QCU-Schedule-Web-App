@@ -104,6 +104,7 @@
     const endpoint = apiPath(path);
     const response = await fetch(endpoint, {
       cache: "no-store",
+      signal: AbortSignal.timeout(35000),
       credentials: endpoint.startsWith("http") ? "include" : "same-origin",
       headers: { "Content-Type": "application/json", ...(options && options.headers ? options.headers : {}) },
       ...options
@@ -242,7 +243,7 @@
               <span><i data-lucide="clock-3" aria-hidden="true"></i>Last synchronized</span>
               <strong>${syncTime}</strong>
             </div>
-            <button class="google-icon-button" type="button" data-google-action="refresh" title="Refresh Google updates" aria-label="Refresh Google updates" ${syncing ? "disabled" : ""}>
+            <button class="google-icon-button ${syncing ? "btn-spinner" : ""}" type="button" data-google-action="refresh" title="Refresh Google updates" aria-label="Refresh Google updates" ${syncing ? 'disabled aria-busy="true"' : ""}>
               <i data-lucide="refresh-cw"${syncing ? " class=\"is-spinning\"" : ""}></i>
             </button>
           </div>
@@ -252,7 +253,7 @@
               <a class="google-primary-button" href="${apiPath(`/api/google/connect?${permissions.gmail ? "gmail=1&" : ""}return=google.html%23google-integration`)}"><i data-lucide="key-round"></i>Reconnect Google</a>
             </div>` : ""}
           <div class="google-account-actions">
-            <button class="google-secondary-button" type="button" data-google-action="refresh" ${syncing ? "disabled" : ""}><i data-lucide="refresh-cw"></i>${syncing ? "Refreshing" : "Refresh Now"}</button>
+            <button class="google-secondary-button ${syncing ? "btn-spinner" : ""}" type="button" data-google-action="refresh" ${syncing ? 'disabled aria-busy="true"' : ""}><i data-lucide="refresh-cw"></i>Refresh Now</button>
             <button class="google-danger-button" type="button" data-google-action="disconnect"><i data-lucide="unlink"></i>Disconnect Account</button>
           </div>
         </div>
@@ -329,12 +330,7 @@
     ui.offline.hidden = navigator.onLine;
 
     if (syncing && !updates.length) {
-      ui.updatesList.innerHTML = `
-        <div class="google-updates-loading" aria-label="Loading Classroom updates">
-          <span class="skeleton-line skeleton-line-lg"></span>
-          <span class="skeleton-line"></span>
-          <span class="skeleton-line skeleton-line-sm"></span>
-        </div>`;
+      ui.updatesList.innerHTML = window.QCULoading.cards();
     } else if (!updates.length) {
       ui.updatesList.innerHTML = `
         <div class="google-empty-state">
@@ -342,7 +338,7 @@
           <h3>No new Classroom updates</h3>
           <p>You're all caught up. New announcements, materials, and assignments will appear here.</p>
           <span>Last checked: ${cache.checkedAt ? esc(formatDate(cache.checkedAt)) : "Not yet checked"}</span>
-          <button class="google-secondary-button" type="button" data-google-action="refresh" ${syncing || !navigator.onLine ? "disabled" : ""}><i data-lucide="refresh-cw"></i>Refresh</button>
+          <button class="google-secondary-button ${syncing ? "btn-spinner" : ""}" type="button" data-google-action="refresh" ${syncing || !navigator.onLine ? "disabled" : ""}><i data-lucide="refresh-cw"></i>Refresh</button>
         </div>`;
     } else if (!filtered.length) {
       ui.updatesList.innerHTML = `
@@ -475,8 +471,11 @@
       return;
     }
     if (!window.confirm("Disconnect this Google account from My-Schedule? Cached Classroom updates on this device will also be removed.")) return;
+    const button = document.querySelector('[data-google-action="disconnect"]');
+    window.QCULoading.button(button, true);
     try { await api("/api/google/disconnect", { method: "POST", body: "{}" }); }
     catch (_) {}
+    finally { window.QCULoading.button(button, false); }
     clearLocalCache();
     account = { connected: false, status: "not_connected" };
     showFeedback("Google account disconnected.", "info");

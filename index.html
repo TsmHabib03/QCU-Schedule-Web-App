@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#005BAC">
   <meta name="description" content="QCU Student Portal — view today's schedule, current class, upcoming classes and daily progress for Quezon City University.">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/styles.css?v=54">
+<link rel="stylesheet" href="assets/css/styles.css?v=55">
 <link rel="stylesheet" href="assets/css/admin-entry.css?v=1">
 <script>
   // Auth gate: start the session check immediately so the network round-trip
@@ -25,9 +25,9 @@
     var params = new URLSearchParams(window.location.search);
     var authResult = params.get("auth");
     // Always verify the session; URL parameters are not authentication proof.
-    var bootstrap = fetch("/api/v1/bootstrap", { credentials: "include", cache: "no-store" })
+    var bootstrap = fetch("/api/v1/bootstrap", { credentials: "include", cache: "no-store", signal: AbortSignal.timeout(35000) })
       .then(function (r) { return r.json(); })
-      .catch(function () { return { authenticated: false, routing: "login" }; });
+      .catch(function () { return { status: 'SERVICE_UNAVAILABLE' }; });
 
     function show(view) {
       var landing = document.getElementById("auth-landing");
@@ -39,16 +39,27 @@
     }
 
     function run() {
-      if (authResult === "denied" || authResult === "failed" || authResult === "admin_denied" || authResult === "backend_unavailable") {
+      if (authResult === "denied" || authResult === "failed" || authResult === "admin_denied" || authResult === "admin_expired" || authResult === "backend_unavailable") {
         show("landing");
         var error = document.getElementById("auth-error-msg");
         if (error) {
-          error.textContent = authResult === "backend_unavailable" ? "Sign-in is temporarily unavailable because the database connection needs configuration." : authResult === "admin_denied" ? "This account does not have administrator access. Choose an authorized account or use student sign-in." : authResult === "denied" ? "Google sign-in was cancelled. Please try again." : "Sign-in could not be completed. Please try again.";
+          error.textContent = authResult === "admin_expired" ? "Please sign in again to manage accounts. Your administrator session has expired." : authResult === "backend_unavailable" ? "Sign-in is temporarily unavailable because the database connection needs configuration." : authResult === "admin_denied" ? "This account does not have administrator access. Choose an authorized account or use student sign-in." : authResult === "denied" ? "Google sign-in was cancelled. Please try again." : "Sign-in could not be completed. Please try again.";
           error.style.display = "block";
         }
         return;
       }
       bootstrap.then(function (d) {
+        if (d && ['SERVICE_UNAVAILABLE', 'ERROR', 'OFFLINE', 'FORBIDDEN'].includes(d.status)) {
+          show('landing');
+          var message = document.getElementById('auth-error-msg');
+          if (message) {
+            message.textContent = d.status === 'FORBIDDEN' ? 'Your account cannot access the portal. Contact your administrator for help.' : 'We could not check your account. Check your connection and try again.';
+            message.style.display = 'block';
+          }
+          var retry = document.getElementById('auth-retry');
+          if (retry && d.status !== 'FORBIDDEN') retry.style.display = 'inline-block';
+          return;
+        }
         if (d && d.authenticated && d.routing === "admin") { window.location.replace("/admin.html"); return; }
         if (d && d.authenticated && d.routing === "onboarding") { window.location.replace("/onboarding.html"); return; }
         show(d && d.authenticated && d.routing === "dashboard" ? "dashboard" : "landing");
@@ -60,6 +71,8 @@
     else run();
   })();
 </script>
+  <link rel="stylesheet" href="assets/css/loading.css?v=1">
+  <script src="assets/js/loading.js?v=1"></script>
 </head>
 <body data-page="home">
 
@@ -92,9 +105,10 @@
         Continue with Google
       </a>
 
-      <div class="admin-entry"><span class="admin-entry-label">PORTAL MANAGEMENT</span><a class="admin-signin" href="/api/auth/google/start?returnTo=%2Fadmin.html"><span>Administrator sign in</span><span aria-hidden="true">?</span></a><small>Restricted to the authorized administrator account.</small></div>
+      <div class="admin-entry"><span class="admin-entry-label">PORTAL MANAGEMENT</span><a class="admin-signin" href="/api/auth/google/start?returnTo=%2Fadmin.html"><span>Administrator sign in</span><span aria-hidden="true">&rarr;</span></a><small>Restricted to the authorized administrator account.</small></div>
 
-      <p id="auth-error-msg" style="color:#dc2626;font-size:13px;margin-top:16px;display:none;"></p>
+      <p id="auth-error-msg" role="alert" style="color:#dc2626;font-size:14px;margin-top:16px;display:none;"></p>
+      <a id="auth-retry" href="/" style="display:none;margin-top:12px;text-decoration:underline;">Try again</a>
 
       <section style="margin-top:48px;text-align:left;">
         <div style="display:grid;gap:20px;">
@@ -121,7 +135,7 @@
 
   <!-- AUTHENTICATED DASHBOARD: shown after login -->
   <div id="auth-dashboard" class="app-shell" style="display:none;">
-    <header id="app-header" class="page-header"></header>
+    <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header>
 
     <main class="page-container home-layout">
 
@@ -161,10 +175,7 @@
       <div class="home-today-head">
         <h2 class="home-kicker">Today's schedule</h2>
       </div>
-      <div id="today-grid" class="home-today-grid">
-        <div class="skel-tile"><div class="skel-time skeleton-pulse"></div><div class="skel-subject skeleton-pulse"></div><div class="skel-meta skeleton-pulse"></div></div>
-        <div class="skel-tile"><div class="skel-time skeleton-pulse"></div><div class="skel-subject skeleton-pulse"></div><div class="skel-meta skeleton-pulse"></div></div>
-        <div class="skel-tile"><div class="skel-time skeleton-pulse"></div><div class="skel-subject skeleton-pulse"></div><div class="skel-meta skeleton-pulse"></div></div>
+      <div id="today-grid" class="home-today-grid" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards-grid" aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div>
       </div>
 
       <!-- 1c. Class Tracker + Countdown -->
@@ -174,11 +185,11 @@
           <span class="home-nownext-state" id="countdown-state-label">—</span>
         </div>
         <div id="home-tracker" class="home-tracker">
-          <div id="tracker-now" class="home-tracker-cell home-tracker-cell--now"></div>
+          <div id="tracker-now" class="home-tracker-cell home-tracker-cell--now" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
           <div class="home-tracker-arrow"><i data-lucide="arrow-right"></i></div>
-          <div id="tracker-next" class="home-tracker-cell home-tracker-cell--next"></div>
+          <div id="tracker-next" class="home-tracker-cell home-tracker-cell--next" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
         </div>
-        <div id="countdown-slot" class="home-countdown"></div>
+        <div id="countdown-slot" class="home-countdown" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
       </section>
 
       <!-- 2. Today in Quezon City: weather + class suspension -->
@@ -193,7 +204,7 @@
             <i data-lucide="arrow-right"></i>
           </a>
         </div>
-        <div id="home-week-strip" class="home-week-strip">
+        <div id="home-week-strip" class="home-week-strip" data-loading-region="dashboard" aria-busy="true">
           <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
           <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
           <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
@@ -216,24 +227,22 @@
       <div id="day-modal-content" class="modal-card"></div>
     </div>
 
-    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation"></nav>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
   </div>
 
   <!-- AUTH CHECK LOADING STATE -->
-  <div id="auth-loading" class="app-shell" style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
-    <p style="font-size:14px;color:#6b7280;">Loading&hellip;</p>
-  </div>
+  <div id="auth-loading" class="app-shell loading-auth" aria-busy="true"><header class="page-header"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header><main class="page-container section-stack" role="status"><span class="loading-sr">Loading your portal?</span><div class="loading-auth-heading" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards-grid" aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div><div class="loading-auth-summary" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-week"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></main><div class="bottom-nav" aria-hidden="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></div></div>
 
   <script src="assets/js/lucide.min.js?v=1"></script>
 <script src="assets/js/academic.js?v=41"></script>
-<script src="assets/js/app.js?v=51"></script>
+<script src="assets/js/app.js?v=52"></script>
 <script src="assets/js/install-prompt.js?v=1"></script>
   <script>
     // Optional overrides for the Home status panel (all keyless/optional).
     // Open-Meteo needs NO API key, so nothing sensitive is ever hardcoded here.
     window.QCU_STATUS_CONFIG = {};
   </script>
-  <script src="assets/js/status.js?v=42"></script>
+  <script src="assets/js/status.js?v=43"></script>
   <!-- Auth routing moved to <head> for instant execution -->
 </body>
 </html>

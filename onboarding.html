@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#005BAC">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>Set Up Your Schedule - My-Schedule</title>
@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/styles.css?v=43">
+  <link rel="stylesheet" href="assets/css/styles.css?v=55">
   <style>
     /* Onboarding-specific styles */
     .onboarding-shell { min-height: 100dvh; display: flex; flex-direction: column; }
@@ -21,7 +21,10 @@
       position: sticky; top: 0; z-index: 10;
     }
     .onboarding-header-brand { font-weight: 700; font-size: 15px; color: var(--navy,#0B2341); }
-    .onboarding-header-user { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted,#5F6368); }
+    .onboarding-header-user { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; font-size: 13px; color: var(--muted,#5F6368); }
+    #header-user-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .onboarding-header-brand, .onboarding-header-signout { flex-shrink: 0; }
+    .onboarding-header { gap: 12px; }
     .onboarding-header-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
     .onboarding-header-signout {
       background: none; border: 1px solid var(--border,#E5E7EB); border-radius: var(--radius-sm,4px);
@@ -60,6 +63,7 @@
     /* Step containers */
     .onboarding-step { display: none; width: 100%; }
     .onboarding-step.active { display: block; }
+    .onboarding-step :is(h1, h2)[tabindex="-1"]:focus { outline: none; }
 
     /* Welcome step */
     .welcome-icon { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; margin-bottom: 20px; }
@@ -110,7 +114,11 @@
     .upload-zone:hover, .upload-zone.dragover { border-color: var(--blue,#005BAC); background: var(--blue-soft,#E8F2FC); }
     .upload-zone-icon { font-size: 36px; color: var(--blue,#005BAC); margin-bottom: 12px; }
     .upload-zone-text { font-size: 14px; color: var(--muted,#5F6368); margin-bottom: 4px; }
-    .upload-zone-hint { font-size: 12px; color: var(--muted,#9CA3AF); }
+    .upload-zone-hint { font-size: 14px; color: var(--muted,#5F6368); }
+    .upload-zone:focus-visible, .onboarding-step button:focus-visible, .onboarding-step a:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+    .upload-zone[aria-disabled="true"] { opacity: .6; cursor: wait; pointer-events: none; }
+    .onboarding-step button:disabled { opacity: .6; cursor: wait; }
+    .onboarding-step [hidden] { display: none !important; }
     .upload-file-input { display: none; }
     .upload-file-summary {
       display: none; padding: 16px; background: var(--bg-soft,#EEF1F5); border-radius: var(--radius,8px);
@@ -135,7 +143,7 @@
       height: 6px; background: var(--bg-soft,#EEF1F5); border-radius: 3px; overflow: hidden;
     }
     .upload-progress-fill {
-      height: 100%; background: var(--blue,#005BAC); border-radius: 3px; transition: width 0.3s;
+      height: 100%; background: var(--blue,#005BAC); border-radius: 3px;
     }
     .upload-progress-text { font-size: 12px; color: var(--muted,#5F6368); margin-top: 6px; text-align: center; }
     .upload-error {
@@ -143,6 +151,10 @@
       font-size: 13px; color: var(--red,#C62828); margin-top: 12px;
     }
     .upload-error.visible { display: block; }
+    .upload-error { line-height: 1.6; }
+    .review-draft-status { font-size: 14px; line-height: 1.6; color: var(--muted); margin-bottom: 20px; }
+    #review-fields { border: 0; padding: 0; min-width: 0; }
+    .review-input[aria-invalid="true"], .review-select[aria-invalid="true"] { border-color: var(--red); }
 
     /* Processing step */
     .processing-spinner {
@@ -169,13 +181,13 @@
     .review-label { font-size: 11px; font-weight: 600; color: var(--muted,#5F6368); text-transform: uppercase; letter-spacing: 0.3px; }
     .review-input {
       border: 1px solid var(--border,#E5E7EB); border-radius: var(--radius-sm,4px);
-      padding: 8px 10px; font-size: 14px; color: var(--text,#202124); background: #fff;
+      padding: 10px; font-size: 16px; color: var(--text,#202124); background: #fff;
       width: 100%;
     }
     .review-input:focus { outline: none; border-color: var(--blue,#005BAC); box-shadow: 0 0 0 2px var(--blue-soft,#E8F2FC); }
     .review-select {
       border: 1px solid var(--border,#E5E7EB); border-radius: var(--radius-sm,4px);
-      padding: 8px 10px; font-size: 14px; color: var(--text,#202124); background: #fff;
+      padding: 10px; font-size: 16px; color: var(--text,#202124); background: #fff;
       width: 100%; appearance: auto;
     }
     .review-confidence {
@@ -183,7 +195,7 @@
       display: inline-block; margin-left: 6px;
     }
     .confidence-high { background: var(--success-soft,#E8F5E9); color: var(--success,#2E7D32); }
-    .confidence-medium { background: var(--gold-soft,#FEF9E7); color: var(--gold,#D4A017); }
+    .confidence-medium { background: var(--gold-soft,#FEF9E7); color: #755600; }
     .confidence-low { background: var(--red-soft,#FEECEC); color: var(--red,#C62828); }
 
     /* Subject table */
@@ -192,12 +204,13 @@
       background: #fff; border: 1px solid var(--border,#E5E7EB); border-radius: var(--radius,8px);
       padding: 14px;
     }
-    .subject-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .subject-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .subject-card, .confirm-summary-value { overflow-wrap: anywhere; min-width: 0; }
     .subject-code { font-size: 14px; font-weight: 700; color: var(--navy,#0A3D6E); }
     .subject-units { font-size: 12px; color: var(--muted,#5F6368); margin-left: auto; }
     .subject-name { font-size: 13px; color: var(--text,#202124); margin-bottom: 8px; }
     .subject-schedule { font-size: 12px; color: var(--muted,#5F6368); }
-    .subject-schedule-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .subject-schedule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
     .subject-day {
       display: inline-block; padding: 2px 6px; background: var(--blue-soft,#E8F2FC);
       border-radius: 3px; font-size: 11px; font-weight: 600; color: var(--blue,#005BAC);
@@ -213,7 +226,7 @@
       background: var(--bg-soft,#EEF1F5); border-radius: var(--radius,8px); padding: 16px;
       margin-bottom: 24px;
     }
-    .confirm-summary-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; }
+    .confirm-summary-row { display: grid; grid-template-columns: minmax(90px, 1fr) minmax(0, 2fr); gap: 16px; font-size: 14px; padding: 6px 0; }
     .confirm-summary-label { color: var(--muted,#5F6368); }
     .confirm-summary-value { font-weight: 600; color: var(--text,#202124); }
 
@@ -227,26 +240,39 @@
     .success-text { font-size: 14px; color: var(--muted,#5F6368); text-align: center; line-height: 1.6; margin-bottom: 24px; }
 
     /* Responsive */
+    @media (max-width: 480px) {
+      .stage-item { flex-direction: column; gap: 4px; font-size: 11px; }
+      .stage-connector { flex: 1; min-width: 8px; width: auto; }
+      .onboarding-header { padding-inline: 12px; }
+      .onboarding-header-avatar { display: none !important; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .processing-spinner { animation: none; }
+      .upload-progress-fill { transition: none; }
+    }
     @media (min-width: 640px) {
       .onboarding-main { padding: 32px 24px 48px; }
       .stage-tracker { padding: 24px 24px 0; }
     }
   </style>
+  <link rel="stylesheet" href="assets/css/loading.css?v=1">
+  <script src="assets/js/loading.js?v=1"></script>
 </head>
 <body>
+  <noscript><p class="missing-page">JavaScript is needed to upload and review your COR. Enable it in your browser, then reload this page. <a href="/">Return home</a></p></noscript>
   <div class="onboarding-shell">
     <!-- Header -->
-    <header class="onboarding-header">
+    <header class="onboarding-header" data-loading-cover="onboarding" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></div>
       <span class="onboarding-header-brand">My-Schedule</span>
       <div class="onboarding-header-user">
         <span id="header-user-name"></span>
-        <img id="header-user-avatar" class="onboarding-header-avatar" src="" alt="" style="display:none;">
+        <img id="header-user-avatar" class="onboarding-header-avatar" src="/assets/images/cropped-logo.jpg" alt="" style="display:none;">
         <button class="onboarding-header-signout" onclick="signOut()">Sign out</button>
       </div>
     </header>
 
     <!-- Stage Tracker -->
-    <nav class="stage-tracker" id="stage-tracker">
+    <nav class="stage-tracker" id="stage-tracker" data-loading-cover="onboarding" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="loading-cover-nav"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div></div>
       <div class="stage-item active" data-step="welcome">
         <span class="stage-dot">1</span>
         <span>Welcome</span>
@@ -269,7 +295,7 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="onboarding-main">
+    <main class="onboarding-main" data-loading-cover="onboarding" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards " aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div></div>
 
       <!-- Step 1: Welcome -->
       <section class="onboarding-step active" id="step-welcome">
@@ -319,20 +345,20 @@
       <section class="onboarding-step" id="step-upload">
         <h2 class="welcome-title" style="font-size:20px;">Upload your COR</h2>
         <p class="welcome-subtitle" style="font-size:14px;margin-bottom:20px;">
-          Select a PDF, JPG, or PNG file (max 10 MB).
+          Use a clear copy of your Certificate of Registration with the entire subject table visible.
         </p>
 
-        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Choose COR file" aria-describedby="upload-file-hint upload-error" onclick="if (!document.getElementById('file-input').disabled) document.getElementById('file-input').click()">
           <div class="upload-zone-icon">&#128194;</div>
           <div class="upload-zone-text" id="upload-zone-text">Choose a file or drag it here</div>
-          <div class="upload-zone-hint">PDF, JPG, or PNG &middot; Max 10 MB</div>
+          <div class="upload-zone-hint" id="upload-file-hint">PDF, JPG, or PNG &middot; Max 10 MB</div>
         </div>
         <input type="file" id="file-input" class="upload-file-input" accept=".pdf,.jpg,.jpeg,.png">
 
         <div class="upload-file-summary" id="file-summary">
           <div class="upload-file-name" id="file-name"></div>
           <div class="upload-file-meta" id="file-meta"></div>
-          <button class="upload-file-remove" onclick="removeFile()">Remove file</button>
+          <button class="upload-file-remove" id="upload-remove" onclick="removeFile()">Remove file</button>
         </div>
 
         <div class="upload-privacy">
@@ -342,24 +368,24 @@
         </div>
 
         <div class="upload-progress" id="upload-progress">
-          <div class="upload-progress-bar">
+          <div class="upload-progress-bar" id="upload-progress-bar" role="progressbar" aria-label="COR file transfer" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
             <div class="upload-progress-fill" id="upload-progress-fill" style="width:0%"></div>
           </div>
           <div class="upload-progress-text" id="upload-progress-text" role="status" aria-live="polite">Uploading...</div>
         </div>
 
-        <div class="upload-error" id="upload-error"></div>
+        <div class="upload-error" id="upload-error" role="alert"></div>
 
         <div class="btn-row">
           <button class="btn-primary" id="upload-btn" disabled onclick="uploadCor()"><span class="btn-label">Upload COR</span></button>
-          <button class="btn-secondary" onclick="goToStep('welcome')">Back</button>
+          <button class="btn-secondary" id="upload-back" onclick="goToStep('welcome')">Back</button>
         </div>
       </section>
 
       <!-- Step 2b: Processing -->
       <section class="onboarding-step" id="step-processing">
         <div class="processing-spinner" id="processing-spinner" aria-hidden="true"></div>
-        <h2 class="processing-title">Processing your COR</h2>
+        <h2 class="processing-title" id="processing-title">Reading your COR</h2>
         <p class="processing-text" id="processing-message" role="status">We are extracting your student and class details. This may take a moment.</p>
         <div class="btn-row"><button class="btn-secondary" id="processing-retry" hidden onclick="resumeProcessing()">Check again</button></div>
         <div class="btn-row"><a class="btn-primary" id="processing-sign-in" hidden href="/?login=1">Sign in again</a><button class="btn-secondary" id="processing-select-file" hidden onclick="goToStep('upload')">Select original file</button></div>
@@ -369,32 +395,34 @@
       <section class="onboarding-step" id="step-review">
         <h2 class="welcome-title" style="font-size:20px;">Review your information</h2>
         <p class="welcome-subtitle" style="font-size:14px;margin-bottom:20px;">
-          Check the detected details below. Edit anything that needs correction.
+          Check your personal and enrollment details. Compare the detected subjects with your COR before continuing. Fields marked * are required.
         </p>
+        <p class="review-draft-status" id="review-draft-status" role="status"></p>
 
         <form id="review-form" onsubmit="return false;">
+          <fieldset id="review-fields" aria-label="COR details">
           <!-- Student Info -->
           <div class="review-section">
             <div class="review-section-title">Student Information</div>
             <div class="review-card">
               <div class="review-field">
-                <label class="review-label">Student Number</label>
+                <label class="review-label" for="review-studentNumber">Student Number *</label>
                 <input class="review-input" name="studentNumber" id="review-studentNumber" required>
               </div>
               <div class="review-field">
-                <label class="review-label">First Name</label>
+                <label class="review-label" for="review-firstName">First Name *</label>
                 <input class="review-input" name="firstName" id="review-firstName" required>
               </div>
               <div class="review-field">
-                <label class="review-label">Middle Name</label>
+                <label class="review-label" for="review-middleName">Middle Name</label>
                 <input class="review-input" name="middleName" id="review-middleName">
               </div>
               <div class="review-field">
-                <label class="review-label">Last Name</label>
+                <label class="review-label" for="review-lastName">Last Name *</label>
                 <input class="review-input" name="lastName" id="review-lastName" required>
               </div>
               <div class="review-field">
-                <label class="review-label">Suffix</label>
+                <label class="review-label" for="review-suffix">Suffix</label>
                 <input class="review-input" name="suffix" id="review-suffix">
               </div>
             </div>
@@ -405,17 +433,15 @@
             <div class="review-section-title">Enrollment Details</div>
             <div class="review-card">
               <div class="review-field">
-                <label class="review-label">Program</label>
-                <select class="review-select" name="program" id="review-program" required>
-                  <option value="">Select program</option>
-                </select>
+                <label class="review-label" for="review-program">Program *</label>
+                <input class="review-input" name="program" id="review-program" required placeholder="e.g. BSCS">
               </div>
               <div class="review-field">
-                <label class="review-label">Campus</label>
+                <label class="review-label" for="review-campus">Campus</label>
                 <input class="review-input" name="campus" id="review-campus">
               </div>
               <div class="review-field">
-                <label class="review-label">Year Level</label>
+                <label class="review-label" for="review-yearLevel">Year Level *</label>
                 <select class="review-select" name="yearLevel" id="review-yearLevel" required>
                   <option value="">Select year</option>
                   <option value="1">1st Year</option>
@@ -426,15 +452,15 @@
                 </select>
               </div>
               <div class="review-field">
-                <label class="review-label">Section</label>
+                <label class="review-label" for="review-section">Section</label>
                 <input class="review-input" name="section" id="review-section">
               </div>
               <div class="review-field">
-                <label class="review-label">Academic Term</label>
-                <input class="review-input" name="term" id="review-term">
+                <label class="review-label" for="review-term">Academic Term *</label>
+                <input class="review-input" name="term" id="review-term" required>
               </div>
               <div class="review-field">
-                <label class="review-label">Adviser</label>
+                <label class="review-label" for="review-adviserName">Adviser</label>
                 <input class="review-input" name="adviserName" id="review-adviserName">
               </div>
             </div>
@@ -445,13 +471,15 @@
             <div class="review-section-title">Subjects (<span id="subject-count">0</span>)</div>
             <div class="subject-list" id="subject-list"></div>
           </div>
+          </fieldset>
         </form>
 
-        <div class="upload-error" id="review-error"></div>
+        <div class="upload-error" id="review-error" role="alert"></div>
 
         <div class="btn-row">
           <button class="btn-primary" id="review-save-btn" onclick="saveAndConfirm()"><span class="btn-label">Save and continue</span></button>
-          <button class="btn-secondary" onclick="goToStep('upload')">Back</button>
+          <button class="btn-secondary" id="review-back" onclick="replaceCor()" aria-describedby="replace-cor-hint">Choose a different COR</button>
+          <p class="review-draft-status" id="replace-cor-hint">This replaces the current draft. Any confirmed schedule stays unchanged.</p>
         </div>
       </section>
 
@@ -461,7 +489,7 @@
         <h2 class="confirm-title">Confirm and finish</h2>
         <p class="confirm-text">
           Review the summary below. Once confirmed, your student profile and schedule
-          will be created and you will be taken to your dashboard.
+          will be saved to your account.
         </p>
 
         <div class="confirm-summary" id="confirm-summary"></div>
@@ -469,7 +497,7 @@
         <div class="btn-row">
             <p class="upload-error" id="confirm-error" role="alert"></p>
             <button class="btn-primary" id="confirm-btn" onclick="confirmAndActivate()"><span class="btn-label">Confirm and activate</span></button>
-          <button class="btn-secondary" onclick="goToStep('review')">Back to review</button>
+          <button class="btn-secondary" id="confirm-back" onclick="goToStep('review')">Back to review</button>
         </div>
       </section>
 
@@ -478,8 +506,7 @@
         <div class="success-check">&#10003;</div>
         <h2 class="success-title">You are all set!</h2>
         <p class="success-text">
-          Your student profile and schedule have been created.
-          You will be redirected to your dashboard shortly.
+          Your student profile and schedule are saved. Open your dashboard when you are ready.
         </p>
         <div class="btn-row">
           <button class="btn-primary" onclick="window.location.href='/'">Go to Dashboard</button>
@@ -489,6 +516,6 @@
     </main>
   </div>
 
-  <script src="assets/js/onboarding.js?v=3"></script>
+  <script src="assets/js/onboarding.js?v=5"></script>
 </body>
 </html>

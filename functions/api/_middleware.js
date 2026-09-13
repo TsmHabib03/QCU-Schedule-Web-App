@@ -25,7 +25,7 @@ export async function onRequest(context) {
     console.error('API request failed', path, error.code || error.name);
     response = json({ status:'SERVICE_UNAVAILABLE', error:'The service is temporarily unavailable. Please retry.' }, 503);
   }
-  if (response.status === 404) {
+  if (response.status === 404 && !/\bapplication\/(?:[\w.-]+\+)?json\b/i.test(response.headers.get('Content-Type') || '')) {
     response = json({ status:'NOT_FOUND', error:'API endpoint not found.' }, 404);
   }
   const secured = new Response(response.body, response);

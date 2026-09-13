@@ -5,7 +5,21 @@ import { callAction } from '../functions/api/repo/sheets-adapter.js';
 const env = await loadEnv();
 const actor = { googleSub: 'configuration-check-read-only', email: '' };
 let failed = false;
-for (const action of ['admin.access', 'admin.users.list']) {
+try {
+  const url = new URL(env.APPS_SCRIPT_URL);
+  url.searchParams.set('action', 'health');
+  const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
+  const health = await response.json();
+  const version = Number(health.meta?.schemaVersion || 0);
+  if (version < 3 || health.data?.status !== 'healthy') {
+    failed = true;
+    console.error(`Published schema version: ${version}; required: 3. Database status: ${health.data?.status || 'unknown'}.`);
+  } else console.log('Published schema v3 is current and all required sheets/columns are present.');
+} catch (_) {
+  failed = true;
+  console.error('Could not read Apps Script deployment health. Check the URL and web-app access settings.');
+}
+for (const action of ['admin.access', 'admin.users.list', 'admin.user.read', 'admin.user.update']) {
   try {
     await callAction(env, action, actor, {});
     failed = true;

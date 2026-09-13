@@ -1,4 +1,5 @@
 import { onRequest as pageMiddleware } from '../functions/_middleware.js';
+import { pageErrorResponse } from '../functions/_errors.js';
 import { onRequestGet as adminUsersGet, onRequestPost as adminUsersPost } from '../functions/api/admin/users.js';
 import { onRequest as apiMiddleware } from '../functions/api/_middleware.js';
 import { createServer } from "node:http";
@@ -23,6 +24,7 @@ import { onRequestPatch as v1MePatch } from "../functions/api/v1/me.js";
 import { onRequestGet as v1Dashboard } from "../functions/api/v1/dashboard.js";
 
 import { onRequestPost as corUpload } from "../functions/api/v1/cor/upload.js";
+import { onRequestPost as corCancel } from '../functions/api/v1/cor/cancel.js';
 import { onRequestGet as corStatus } from "../functions/api/v1/cor/status.js";
 import { onRequestPost as corProcess } from "../functions/api/v1/cor/process.js";
 import { onRequestGet as corResult } from "../functions/api/v1/cor/result.js";
@@ -65,6 +67,7 @@ const PORT = Number(process.env.PORT) || 8788;
 const HOST = "127.0.0.1";
 
 const API_ROUTES = new Map([
+  ['POST /api/v1/cor/cancel', corCancel],
   ["GET /api/admin/users", adminUsersGet],
   ["POST /api/admin/users", adminUsersPost],
   ["GET /api/google/callback", googleCallback],
@@ -355,7 +358,12 @@ async function serveStatic(req, res, pathname) {
       "Cache-Control": type.startsWith("text/html") ? "no-cache" : "public, max-age=0"
     });
     res.end(content);
-  } catch (_) {
+  } catch (error) {
+    if (!['ENOENT', 'EISDIR', 'ENOTDIR'].includes(error.code)) throw error;
+    if (pathname.startsWith('/assets/') || (extname(pathname) && extname(pathname) !== '.html')) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end('Resource not found.');
+    }
     res.writeHead(404, { "Content-Type": "text/html; charset=utf-8", "Cache-Control":"no-store" });
     res.end(await readFile(resolve(ROOT, '404.html')));
   }
@@ -436,10 +444,18 @@ const server = createServer(async (req, res) => {
       const response = await pageMiddleware({ request, env, next: async () => new Response(await readFile(resolve(ROOT, 'admin.html')), { headers: { 'Content-Type': 'text/html; charset=utf-8' } }) });
       return sendWebResponse(res, response, request);
     }
-    return serveStatic(req, res, url.pathname);
+    return await serveStatic(req, res, url.pathname);
   } catch (error) {
-    res.writeHead(500, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
-    res.end(JSON.stringify({ status: "ERROR", error: String(error && error.message || error) }));
+    console.error('Request failed:', error.code || error.name);
+    if (res.headersSent) return res.end();
+    const status = error instanceof URIError ? 400 : 503;
+    if ((req.url || '').startsWith('/api/')) {
+      res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify({ status: 'SERVICE_UNAVAILABLE', error: 'This request could not be completed. Please try again.' }));
+    }
+    const response = pageErrorResponse(status, status === 400 ? 'This page address is not valid. Return home or check the link and try again.' : undefined);
+    res.writeHead(status, Object.fromEntries(response.headers));
+    res.end(await response.text());
   }
 });
 

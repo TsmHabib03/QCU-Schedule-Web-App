@@ -6,6 +6,7 @@ import {
   json,
 } from "../../auth/_lib.js";
 import { CorRecords } from "../../repo/index.js";
+import { jobError } from '../cor/_jobs.js';
 
 export async function onRequestGet(context) {
   try {
@@ -98,6 +99,7 @@ export async function onRequestGet(context) {
       },
     });
   } catch (error) {
+    if (error.code) return jobError(error);
     console.error("Onboarding status failed:", String(error?.message || error));
     return json({ status: "ERROR", error: "Failed to check onboarding status" }, 500);
   }

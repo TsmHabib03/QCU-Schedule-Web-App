@@ -9,10 +9,12 @@ function node() { return {children:[],innerHTML:'saved content',hidden:false,att
 const nodes=new Map([['task-list',node()]]), timers=new Map();
 let timer=0, response, pending, fetchOptions;
 const ctx=vm.createContext({console,Map,performance,AbortSignal,navigator:{onLine:true},location:{},
+  window:{addEventListener(){}},
   setTimeout:fn=>{timers.set(++timer,fn);return timer;},clearTimeout:id=>timers.delete(id),
   document:{getElementById:id=>nodes.get(id),createElement:node,querySelector:()=>({prepend:n=>nodes.set(n.id,n)})},renderTasks(){},
   fetch:async(url,options)=>{fetchOptions=options; if(pending) await pending; if(response instanceof Error) throw response; return response;},
 });
+vm.runInContext(readFileSync(new URL('../assets/js/loading.js',import.meta.url),'utf8'),ctx);
 vm.runInContext(section,ctx);
 response=new Response(JSON.stringify({data:[{taskId:'one',title:'Keep me'}]}),{status:200});
 await ctx.fetchTasksFromApi();

@@ -1,4 +1,4 @@
-const CACHE_NAME = "qcu-schedule-v69";
+const CACHE_NAME = "qcu-schedule-v71";
 const STATIC_ASSETS = [
   "./",
   "index.html",
@@ -6,11 +6,17 @@ const STATIC_ASSETS = [
   "buildings.html",
   "settings.html",
   "offline.html",
+  "404.html",
   "onboarding.html",
   "privacy.html",
   "terms.html",
   "manifest.json",
   "assets/css/styles.css",
+  "assets/css/styles.css?v=55",
+  "assets/css/recovery.css?v=1",
+  "assets/js/recovery.js?v=1",
+  "assets/css/loading.css",
+  "assets/js/loading.js",
   "assets/js/app.js",
   "assets/js/lucide.min.js",
   "assets/js/status.js",
@@ -124,7 +130,9 @@ self.addEventListener("fetch", (event) => {
       .catch(() => {
         return caches.match(event.request).then((cached) => {
           if (cached) return cached;
-          if (event.request.mode === 'navigate') return caches.match("offline.html").then(page => page || new Response('You are offline.', {status:503}));
+          if (event.request.mode === 'navigate') return caches.match("offline.html").then(page => page
+            ? new Response(page.body, { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
+            : new Response('You are offline. Reconnect and reload this page.', {status:503}));
           return new Response('Resource unavailable offline.', {status:503, headers:{'Content-Type':'text/plain'}});
         });
       })

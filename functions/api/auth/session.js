@@ -42,10 +42,9 @@ export async function onRequestGet(context) {
       },
     });
   } catch (error) {
-    console.error("Session check failed:", String(error?.message || error));
-    return json({
-      status: "UNAUTHENTICATED",
-      authenticated: false,
-    });
+    if (error.code === 'UNAUTHENTICATED') return json({ status: 'UNAUTHENTICATED', authenticated: false }, 401);
+    if (error.code === 'FORBIDDEN') return json({ status: 'FORBIDDEN', error: 'Account access is unavailable. Contact your administrator.' }, 403);
+    console.error('Session check failed:', error.code || error.name);
+    return json({ status: 'SERVICE_UNAVAILABLE', error: 'Your session could not be checked. Please try again.' }, 503);
   }
 }
