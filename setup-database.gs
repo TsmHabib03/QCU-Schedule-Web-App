@@ -669,7 +669,7 @@ function doGet(e) {
 }
 
 function meta(requestId) {
-  return { requestId: requestId, apiVersion: API_VERSION, schemaVersion: SCHEMA_VERSION, adminMutationRecovery: 3 };
+  return { requestId: requestId, apiVersion: API_VERSION, schemaVersion: SCHEMA_VERSION, adminMutationRecovery: 4 };
 }
 
 function jsonResponse(payload) {
@@ -1327,7 +1327,7 @@ function adminReadUser(actor, payload) {
   var profiles = readRows('Student_Profiles', 'userId', row.userId).map(function(r) {
     return { studentNumber: r.studentNumber, firstName: r.firstName, lastName: r.lastName, verificationStatus: r.verificationStatus };
   });
-  return { user: adminUserProjection(row), protected: String(row.googleSub) === actor.googleSub || !!row.purgedAt,
+  return { user: adminUserProjection(row), protected: String(row.googleSub) === actor.googleSub,
     profiles: profiles, dependencies: adminDependencies(row.userId),
     enrollments: projection('Enrollments', ['termId','offeringId','sectionId','sectionLabelSnapshot','yearLevel','status']),
     schedule: projection('Schedule_Entries', ['dayOfWeek','startTime','endTime','subjectId','locationText','status']),
@@ -1361,8 +1361,8 @@ function adminUpdateUser(actor, payload) {
       adminAudit(actor, payload, 'SUCCESS');
       return { ok: true, replayed: true, user: adminUserProjection(row) };
     }
-    if (row.purgedAt) throw apiError('VALIDATION_FAILED', 'This account has already been deleted.');
-    if (Number(row.version) !== Number(payload.version) && !(resumePurge && row.accountStatus === 'CLOSED')) throw apiError('CONFLICT', 'The account changed. Refresh its details before retrying.');
+    if (row.purgedAt && payload.operation !== 'purge_full') throw apiError('VALIDATION_FAILED', 'This account has already been deleted.');
+    if (Number(row.version) !== Number(payload.version) && !row.purgedAt && !(resumePurge && row.accountStatus === 'CLOSED')) throw apiError('CONFLICT', 'The account changed. Refresh its details before retrying.');
     var recent = events.filter(function(e) { return e.actorUserId === actor.userId && e.result === 'STARTED' && Date.parse(e.occurredAt) > Date.now()-60000; });
     if (recent.length >= 20) throw apiError('RATE_LIMITED', 'Too many account changes. Wait a minute.');
     if (payload.operation === 'purge' && payload.confirm !== row.userId) throw apiError('VALIDATION_FAILED', 'Type the exact user ID to confirm permanent deletion.');
@@ -1376,6 +1376,20 @@ function adminUpdateUser(actor, payload) {
     // identity tombstone so the person can never sign in again; `purge_full`
     // also removes the Users row so the person can register a fresh account.
     if (payload.operation === 'purge' || payload.operation === 'purge_full') {
+      if (row.purgedAt) {
+        // Recovery path: a previously blocked (tombstoned) identity is being
+        // freed. The original purge already removed every owned record and
+        // trashed its files, so all that remains is deleting the tombstone.
+        var tombstoneData = getSheetData('Users');
+        for (var t = tombstoneData.rows.length-1; t >= 0; t--) {
+          if (String(rowToObject(tombstoneData.header, tombstoneData.rows[t]).userId) === row.userId) {
+            tombstoneData.sheet.deleteRows(t+2, 1);
+          }
+        }
+        delete _sheetCache.Users;
+        adminAudit(actor, payload, 'SUCCESS');
+        return { ok: true, user: { userId: payload.userId, accountStatus: 'DELETED', purgedAt: null, recovered: true } };
+      }
       // Revoke access before cleanup. A Drive failure leaves a CLOSED account
       // and all file references intact so the administrator can retry safely.
       if (row.accountStatus !== 'CLOSED') {

@@ -105,9 +105,9 @@ async function openUser(id, button) {
     $('detail-content').replaceChildren(record('Account',[selected]),record('Profile',data.profiles),record('Enrollment',data.enrollments),record('Schedule',data.schedule),record('COR processing',data.cor),record('Records affected by deletion',[data.dependencies]));
     $('action-form').reset(); $('action-form').hidden = data.protected; $('action-message').textContent = '';
     for (const option of $('operation').options) {
-      option.disabled = option.value === 'reactivate' ? selected.accountStatus !== 'SUSPENDED' : option.value === 'suspend' ? selected.accountStatus !== 'ACTIVE' : option.value === 'close' ? selected.accountStatus === 'CLOSED' : false;
+      option.disabled = option.value === 'reactivate' ? selected.accountStatus !== 'SUSPENDED' : option.value === 'suspend' ? selected.accountStatus !== 'ACTIVE' : option.value === 'close' ? selected.accountStatus === 'CLOSED' || selected.accountStatus === 'DELETED' : option.value === 'purge' ? selected.accountStatus === 'DELETED' : false;
     }
-    $('operation').value = selected.accountStatus === 'SUSPENDED' ? 'reactivate' : selected.accountStatus === 'CLOSED' ? 'purge' : 'suspend';
+    $('operation').value = selected.accountStatus === 'SUSPENDED' ? 'reactivate' : selected.accountStatus === 'CLOSED' ? 'purge' : selected.accountStatus === 'DELETED' ? 'purge_full' : 'suspend';
     updateOperation();
     if (!$('details').open) $('details').showModal(); $('message').textContent = '';
   } catch (error) { $('message').textContent = error.message; }
@@ -122,7 +122,9 @@ function updateOperation() {
   $('apply').textContent = actionNames[$('operation').value];
   $('operation-help').textContent = deleting
     ? ($('operation').value === 'purge_full'
-      ? 'This closes the account, removes its student records and COR files (moved to Drive Trash), and removes its user row entirely. The student can register a fresh account with the same Google sign-in. The audit history remains.'
+      ? (selected && selected.accountStatus === 'DELETED'
+        ? 'This account was deleted with re-login blocked. Applying this removes the block entirely — the student can register a fresh account with the same Google sign-in. The audit history remains.'
+        : 'This closes the account, removes its student records and COR files (moved to Drive Trash), and removes its user row entirely. The student can register a fresh account with the same Google sign-in. The audit history remains.')
       : 'This closes the account, removes its student records, and moves its COR files to Drive Trash. The blocked identity and audit history remain — this Google account can never sign in again.')
     : $('operation').value === 'reactivate' ? 'The student must sign in again after reactivation.' : 'Existing sessions will be revoked immediately.';
 }

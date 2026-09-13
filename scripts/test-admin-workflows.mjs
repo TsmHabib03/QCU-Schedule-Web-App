@@ -72,7 +72,7 @@ driveFiles.get('cor-file').failTrash = false;
 assert.equal(change('purge', purgeRetry).ok, true, 'Resume the exact deletion request after cleanup changed the account version');
 assert.equal(change('purge', purgeRetry).data.replayed, true);
 assert.equal(detail().user.accountStatus, 'DELETED');
-assert.equal(detail().protected, true);
+assert.equal(detail().protected, false); // DELETED accounts are actionable so a blocked identity can be recovered with purge_full.
 assert.equal(detail().dependencies.Notes, 0);
 assert.equal(detail().dependencies.COR_Records, 0);
 assert.equal(detail().user.email, null);
@@ -100,6 +100,26 @@ const fresh = call('auth.read', {}, { googleSub: 'student2-sub', email: 'student
 assert.equal(fresh.data.isNew, true, 'identity is free to register again after purge_full');
 assert.equal(call('admin.users.list', { status: 'DELETED' }).data.users.length, 1, 'purge_full leaves no DELETED tombstone');
 console.log('PASS full deletion removes the user row and allows re-registration');
+
+// Tombstone recovery: a blocked (purged) identity can be freed with purge_full.
+const student3 = gs.spreadsheet.getSheetByName('Users');
+student3.appendRow(Array.from({ length: student3._rows[0].length }, (_, i) => i === student3._rows[0].indexOf('userId') ? 'student3' : i === student3._rows[0].indexOf('googleSub') ? 'student3-sub' : i === student3._rows[0].indexOf('accountStatus') ? 'ACTIVE' : i === student3._rows[0].indexOf('version') ? 1 : ''));
+append('Notes', { noteId: 'student3-note', ownerUserId: 'student3', body: 'Blocked then recovered' });
+const version3 = call('admin.user.read', { userId: 'student3' }).data.user.version;
+// 1) Block the account (purge keeps a tombstone).
+assert.equal(call('admin.user.update', { userId: 'student3', version: version3, operation: 'purge', confirm: 'student3', mutationId: randomUUID(), reason: 'blocked for test' }).ok, true);
+assert.equal(call('admin.user.read', { userId: 'student3' }).data.user.accountStatus, 'DELETED');
+assert.equal(call('auth.read', {}, { googleSub: 'student3-sub', issuedAt: Date.now() + 1 }).error.code, 'FORBIDDEN');
+// 2) The read is no longer protected, so the form can act on a DELETED account.
+assert.equal(call('admin.user.read', { userId: 'student3' }).data.protected, false);
+// 3) Recover with purge_full: the tombstone is removed and login works again.
+assert.equal(call('admin.user.update', { userId: 'student3', version: 999, operation: 'purge_full', confirm: 'student3', mutationId: randomUUID(), reason: 'recovery for test' }).ok, true, 'purge_full on a tombstone ignores the stale version');
+assert.equal(call('admin.user.read', { userId: 'student3' }).error.code, 'NOT_FOUND');
+assert(!gs.spreadsheet.getSheetByName('Users')._rows.some(row => row.includes('student3-sub')), 'tombstone removed');
+assert(!gs.spreadsheet.getSheetByName('Notes')._rows.some(row => row.includes('student3-note')), 'owned records removed by the original purge');
+const recovered = call('auth.read', {}, { googleSub: 'student3-sub', email: 'student3@example.test', emailVerified: true, issuedAt: Date.now() + 1 });
+assert.equal(recovered.data.isNew, true, 'blocked identity can register again after recovery');
+console.log('PASS tombstone recovery frees a blocked identity for re-registration');
 
 const versionColumn = users._rows[0].indexOf('sessionsRevokedAt');
 for (const row of users._rows) row.splice(versionColumn, 1);
