@@ -168,7 +168,7 @@ const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const authScript = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 for (const query of ['', '?auth=dashboard', '?auth=unexpected']) {
   const nodes = new Map(['auth-landing', 'auth-dashboard', 'auth-loading'].map(id => [id, element()]));
-  const c = { URLSearchParams, AbortSignal, fetch: async () => ({ json: async () => ({ authenticated: false }) }), document: { readyState: 'complete', getElementById: id => nodes.get(id) }, location: { search: query }, history: { replaceState() {} } };
+  const c = { URLSearchParams, AbortSignal, addEventListener() {}, fetch: async () => ({ json: async () => ({ authenticated: false }) }), document: { readyState: 'complete', querySelectorAll: () => [], getElementById: id => nodes.get(id) }, location: { search: query }, history: { replaceState() {} } };
   c.window = c;
   vm.runInNewContext(authScript, c);
   await new Promise(setImmediate);

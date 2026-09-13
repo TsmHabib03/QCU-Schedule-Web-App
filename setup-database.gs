@@ -669,7 +669,7 @@ function doGet(e) {
 }
 
 function meta(requestId) {
-  return { requestId: requestId, apiVersion: API_VERSION, schemaVersion: SCHEMA_VERSION };
+  return { requestId: requestId, apiVersion: API_VERSION, schemaVersion: SCHEMA_VERSION, adminMutationRecovery: 3 };
 }
 
 function jsonResponse(payload) {
@@ -1339,7 +1339,7 @@ function adminAudit(actor, payload, result) {
 }
 function adminUpdateUser(actor, payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload) || Object.keys(payload).some(function(k) { return ['operation','userId','version','reason','mutationId','confirm'].indexOf(k) < 0; }) ||
-      ['suspend','reactivate','close','purge'].indexOf(payload.operation) < 0 ||
+      ['suspend','reactivate','close','purge','purge_full'].indexOf(payload.operation) < 0 ||
       payload.version === null || payload.version === undefined || !Number.isSafeInteger(Number(payload.version)) || Number(payload.version) < 0 ||
       typeof payload.reason !== 'string' || payload.reason.trim().length < 3 || payload.reason.length > 500 ||
       !/^[a-zA-Z0-9-]{16,80}$/.test(payload.mutationId || '')) throw apiError('VALIDATION_FAILED', 'Action, reason and mutation ID are required.');
@@ -1356,16 +1356,26 @@ function adminUpdateUser(actor, payload) {
     var previous = events.filter(function(e) { return e.requestId === payload.mutationId && e.actorUserId === actor.userId; });
     if (previous.some(function(e) { return e.targetId !== payload.userId || e.action !== 'admin.' + payload.operation || e.reason !== payload.reason; })) throw apiError('CONFLICT', 'Mutation ID already used.');
     if (previous.some(function(e) { return e.result === 'SUCCESS'; })) return { ok: true, replayed: true, user: adminUserProjection(row) };
+    var resumePurge = (payload.operation === 'purge' || payload.operation === 'purge_full') && previous.some(function(e) { return e.result === 'STARTED'; });
+    if (resumePurge && row.purgedAt) {
+      adminAudit(actor, payload, 'SUCCESS');
+      return { ok: true, replayed: true, user: adminUserProjection(row) };
+    }
     if (row.purgedAt) throw apiError('VALIDATION_FAILED', 'This account has already been deleted.');
-    if (Number(row.version) !== Number(payload.version)) throw apiError('CONFLICT', 'The account changed. Refresh its details before retrying.');
+    if (Number(row.version) !== Number(payload.version) && !(resumePurge && row.accountStatus === 'CLOSED')) throw apiError('CONFLICT', 'The account changed. Refresh its details before retrying.');
     var recent = events.filter(function(e) { return e.actorUserId === actor.userId && e.result === 'STARTED' && Date.parse(e.occurredAt) > Date.now()-60000; });
     if (recent.length >= 20) throw apiError('RATE_LIMITED', 'Too many account changes. Wait a minute.');
     if (payload.operation === 'purge' && payload.confirm !== row.userId) throw apiError('VALIDATION_FAILED', 'Type the exact user ID to confirm permanent deletion.');
+    if (payload.operation === 'purge_full' && payload.confirm !== row.userId) throw apiError('VALIDATION_FAILED', 'Type the exact user ID to confirm full deletion.');
     if (payload.operation === 'reactivate' && row.accountStatus !== 'SUSPENDED') throw apiError('VALIDATION_FAILED', 'Only suspended accounts can be reactivated.');
     if (payload.operation === 'suspend' && row.accountStatus === 'CLOSED') throw apiError('VALIDATION_FAILED', 'Closed accounts cannot be suspended.');
     adminAudit(actor, payload, 'STARTED');
     started = true;
-    if (payload.operation === 'purge') {
+    // Both purge variants share cleanup: close the account first, trash its
+    // Drive files, then remove every owned record. `purge` leaves a closed
+    // identity tombstone so the person can never sign in again; `purge_full`
+    // also removes the Users row so the person can register a fresh account.
+    if (payload.operation === 'purge' || payload.operation === 'purge_full') {
       // Revoke access before cleanup. A Drive failure leaves a CLOSED account
       // and all file references intact so the administrator can retry safely.
       if (row.accountStatus !== 'CLOSED') {
@@ -1398,6 +1408,19 @@ function adminUpdateUser(actor, payload) {
         }
         delete _sheetCache[name];
       });
+      if (payload.operation === 'purge_full') {
+        // Hard delete: remove the Users row entirely. The audit log (append-only)
+        // still records the deletion, but the identity is free to register again.
+        var userData = getSheetData('Users');
+        for (var u = userData.rows.length-1; u >= 0; u--) {
+          if (String(rowToObject(userData.header, userData.rows[u]).userId) === row.userId) {
+            userData.sheet.deleteRows(u+2, 1);
+          }
+        }
+        delete _sheetCache.Users;
+        adminAudit(actor, payload, 'SUCCESS');
+        return { ok: true, user: { userId: payload.userId, accountStatus: 'DELETED', purgedAt: new Date().toISOString() } };
+      }
       // Keep a minimal closed identity tombstone to prevent silent re-registration.
       row = { userId: row.userId, googleSub: row.googleSub, accountStatus: 'CLOSED', closedAt: row.closedAt, createdAt: row.createdAt, sessionsRevokedAt: Date.now(), purgedAt: new Date().toISOString() };
     } else {

@@ -5,7 +5,7 @@
 <meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#005bac">
 <title>Account management &mdash; My-Schedule</title>
 <link rel="stylesheet" href="assets/css/admin.css?v=3">
-<script src="assets/js/admin.js?v=5" defer></script>
+<script src="assets/js/admin.js?v=7" defer></script>
   <link rel="stylesheet" href="assets/css/loading.css?v=1">
   <script src="assets/js/loading.js?v=1"></script>
 </head>
@@ -34,11 +34,11 @@
 </section>
 </main></div>
 <dialog id="details" aria-labelledby="detail-title"><div class="dialog-heading"><h2 id="detail-title">User details</h2><button id="close-dialog" aria-label="Close user details">Close</button></div><div id="detail-content"></div>
-<form id="action-form"><h3>Manage account</h3><p id="operation-help"></p>
-<label>Action<select id="operation"><option value="suspend">Suspend account</option><option value="reactivate">Reactivate suspended account</option><option value="close">Close account</option><option value="purge">Delete account permanently</option></select></label>
+<form id="action-form" novalidate><h3>Manage account</h3><p id="operation-help"></p>
+<label>Action<select id="operation"><option value="suspend">Suspend account</option><option value="reactivate">Reactivate suspended account</option><option value="close">Close account</option><option value="purge">Delete permanently (block re-login)</option><option value="purge_full">Delete permanently (allow re-registration)</option></select></label>
 <label>Reason<textarea id="reason" required minlength="3" maxlength="500" rows="2"></textarea></label>
 <label id="confirm-label" hidden>Type the user ID to confirm deletion<input id="confirm" autocomplete="off"></label>
 <label class="ack"><input id="ack" type="checkbox" required> I have reviewed the account and intend to apply this change.</label>
-<p id="action-message" role="status"></p><button id="apply" class="danger" type="submit">Apply account change</button>
+<p id="action-message" role="alert" aria-live="assertive"></p><button id="apply" class="danger" type="submit">Apply account change</button>
 </form></dialog>
 </body></html>

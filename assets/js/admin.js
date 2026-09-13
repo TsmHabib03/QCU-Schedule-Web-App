@@ -2,14 +2,18 @@
 const $ = id => document.getElementById(id);
 let page = 1, token = '', selected = null, busy = false, searchTimer;
 let queuedPage = null, mutation = null;
+let directoryBusy = false;
 const date = value => value && Number.isFinite(new Date(value).getTime()) ? new Date(value).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' }) : '—';
-const actionNames = { suspend: 'Suspend account', reactivate: 'Reactivate account', close: 'Close account', purge: 'Delete account permanently' };
+const actionNames = { suspend: 'Suspend account', reactivate: 'Reactivate account', close: 'Close account', purge: 'Delete permanently (block re-login)', purge_full: 'Delete permanently (allow re-registration)' };
 function releaseBusy() {
   busy = false;
-  if (queuedPage !== null) { page = queuedPage; queuedPage = null; load(); }
+  drainLoads();
+}
+function drainLoads() {
+  if (!busy && !directoryBusy && queuedPage !== null) { page = queuedPage; queuedPage = null; load(); }
 }
 function queueLoad(nextPage = 1) {
-  if (busy) { queuedPage = nextPage; return; }
+  if (busy || directoryBusy) { queuedPage = nextPage; return; }
   page = nextPage;
   return load();
 }
@@ -17,7 +21,7 @@ function el(tag, text, className) { const node = document.createElement(tag); no
 async function api(params = '', body, renewed = false) {
   let response;
   try {
-    response = await fetch('/api/admin/users' + params, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(35000), headers: body ? { 'Content-Type': 'application/json', 'X-CSRF-Token': token } : {}, method: body ? 'POST' : 'GET', body: body ? JSON.stringify(body) : undefined });
+    response = await fetch('/api/admin/users' + params, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(body ? 95000 : 35000), headers: body ? { 'Content-Type': 'application/json', 'X-CSRF-Token': token } : {}, method: body ? 'POST' : 'GET', body: body ? JSON.stringify(body) : undefined });
   } catch (_) { throw new Error(body ? 'The server did not confirm the change. Your form is preserved; retrying this same request will check its previous result.' : 'Unable to reach the database. Check your connection and try Refresh data.'); }
   let data;
   try { data = await response.json(); }
@@ -39,8 +43,8 @@ async function api(params = '', body, renewed = false) {
   return data;
 }
 async function load() {
-  if (busy) { queuedPage = page; return false; }
-  busy = true; window.QCULoading.button($('refresh'), true);
+  if (busy || directoryBusy) { queuedPage = page; return false; }
+  directoryBusy = true; window.QCULoading.button($('refresh'), true);
   $('message').textContent = 'Loading accounts…';
   try {
     const params = new URLSearchParams(new FormData($('filters'))); params.set('page', page);
@@ -75,7 +79,7 @@ async function load() {
     $('message').textContent = error.message;
     if ([401,403].includes(error.status)) { $('workspace').hidden = true; $('users').replaceChildren(); $('signin').hidden = false; }
     return false;
-  } finally { window.QCULoading.button($('refresh'), false); window.QCULoading.finish('admin'); releaseBusy(); }
+  } finally { window.QCULoading.button($('refresh'), false); window.QCULoading.finish('admin'); directoryBusy = false; drainLoads(); }
 }
 function record(title, entries) {
   const section = el('section',''); section.append(el('h3',title));
@@ -110,13 +114,17 @@ async function openUser(id, button) {
   finally { window.QCULoading.button(button, false); releaseBusy(); }
 }
 function updateOperation() {
-  const deleting = $('operation').value === 'purge';
+  const deleting = $('operation').value === 'purge' || $('operation').value === 'purge_full';
   $('confirm-label').hidden = !deleting;
   $('confirm').required = deleting;
   $('confirm').value = '';
   $('ack').checked = false;
   $('apply').textContent = actionNames[$('operation').value];
-  $('operation-help').textContent = deleting ? 'This closes the account, removes its student records, and moves its COR files to Drive Trash. The blocked identity and audit history remain.' : $('operation').value === 'reactivate' ? 'The student must sign in again after reactivation.' : 'Existing sessions will be revoked immediately.';
+  $('operation-help').textContent = deleting
+    ? ($('operation').value === 'purge_full'
+      ? 'This closes the account, removes its student records and COR files (moved to Drive Trash), and removes its user row entirely. The student can register a fresh account with the same Google sign-in. The audit history remains.'
+      : 'This closes the account, removes its student records, and moves its COR files to Drive Trash. The blocked identity and audit history remain — this Google account can never sign in again.')
+    : $('operation').value === 'reactivate' ? 'The student must sign in again after reactivation.' : 'Existing sessions will be revoked immediately.';
 }
 $('filters').addEventListener('reset', () => { clearTimeout(searchTimer); setTimeout(() => queueLoad(1), 0); });
 $('filters').addEventListener('submit',event => event.preventDefault());
@@ -129,15 +137,23 @@ $('details').addEventListener('cancel', event => { if ($('apply').disabled) even
 $('details').addEventListener('close', () => { selected = null; mutation = null; });
 $('operation').onchange = updateOperation;
 $('action-form').onsubmit = async event => {
-  event.preventDefault(); if (busy || !selected) return;
-  if (!$('action-form').reportValidity()) return;
+  event.preventDefault();
+  if (busy) { $('action-message').textContent = 'Your account change is still being checked. Please wait for its result.'; return; }
+  if (!selected) { $('action-message').textContent = 'Reopen this account to load its current details.'; return; }
+  function invalid(message, control) {
+    $('action-message').textContent = message;
+    control.setAttribute('aria-invalid', 'true'); control.focus();
+  }
+  for (const id of ['reason','confirm','ack']) $(id).removeAttribute('aria-invalid');
   const body = { userId: selected.userId, version: selected.version, operation: $('operation').value, reason: $('reason').value.trim(), confirm: $('confirm').value.trim() };
-  if (body.reason.length < 3) { $('action-message').textContent = 'Enter a reason with at least 3 characters.'; return; }
-  if (body.operation === 'purge' && body.confirm !== body.userId) { $('action-message').textContent = 'Type the exact user ID shown in the account details.'; return; }
+  if (body.reason.length < 3 || body.reason.length > 500) { invalid('Enter a reason between 3 and 500 characters.', $('reason')); return; }
+  if ((body.operation === 'purge' || body.operation === 'purge_full') && body.confirm !== body.userId) { invalid('Type the exact user ID shown in the account details.', $('confirm')); return; }
+  if (!$('ack').checked) { invalid('Check the confirmation box before applying this account change.', $('ack')); return; }
   const key = JSON.stringify(body);
   if (!mutation || mutation.key !== key) mutation = { key, id: crypto.randomUUID() };
   body.mutationId = mutation.id;
   busy = true; window.QCULoading.button($('apply'), true); $('action-message').textContent = 'Applying account change…';
+  const slow = setTimeout(() => { $('action-message').textContent = (body.operation === 'purge' || body.operation === 'purge_full') ? 'Still deleting the account and its files. Keep this dialog open while we check the result.' : 'Still checking the account change. Please wait for confirmation.'; }, 8000);
   const controls = ['operation','reason','confirm','ack','close-dialog'].map($);
   controls.forEach(control => { control.disabled = true; });
   let saved = false;
@@ -145,17 +161,20 @@ $('action-form').onsubmit = async event => {
     await api('', body);
     saved = true;
     $('account-result').hidden = false;
-    $('account-result').textContent = ({ suspend: 'Account suspended.', reactivate: 'Account reactivated. The student can sign in again.', close: 'Account closed.', purge: 'Account deleted. Its blocked identity and audit history were retained.' })[body.operation];
+    $('account-result').textContent = ({ suspend: 'Account suspended.', reactivate: 'Account reactivated. The student can sign in again.', close: 'Account closed.', purge: 'Account deleted. Its blocked identity and audit history were retained.', purge_full: 'Account fully deleted. All its records were removed and the student can register a fresh account.' })[body.operation];
     $('details').close();
   } catch (error) {
     $('action-message').textContent = error.message + (error.code === 'CONFLICT' ? ' Close and reopen these details to get the current account version.' : '');
+    $('action-message').scrollIntoView({ block: 'nearest' });
   } finally {
+    clearTimeout(slow);
     controls.forEach(control => { control.disabled = false; });
     window.QCULoading.button($('apply'), false);
     if (saved) queuedPage = page;
     releaseBusy();
   }
 };
+$('action-form').addEventListener('input', event => event.target.removeAttribute('aria-invalid'));
 load();
 
 // Do not restore private account data from browser back/forward navigation.

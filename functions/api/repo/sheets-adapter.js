@@ -16,7 +16,8 @@
 // Signing the literal string avoids any dependence on JSON key ordering.
 
 const REQUEST_TIMEOUT_MS = 30_000;
-const MAX_ATTEMPTS = 1; // Mutations must never be blindly replayed after a timeout.
+// Read failures may retry within the same deadline. Mutations are never
+// blindly replayed; their caller must reconcile the saved result first.
 
 // Google Sheets rejects a cell value over 50 000 characters. Drafts are
 // normally 3-10 KB; guard so an oversized one fails legibly here instead of as
@@ -74,6 +75,11 @@ export async function callAction(env, action, actor, payload = {}) {
     throw new SheetsError("INTERNAL_ERROR", "APPS_SCRIPT_URL / APPS_SCRIPT_SECRET are not configured.");
   }
 
+  const readonly = /(?:\.read|\.list)$/.test(action) || action === 'admin.access';
+  const maxAttempts = readonly ? 2 : 1;
+  const deadline = Date.now() + (action === 'admin.user.update' ? 90000 : REQUEST_TIMEOUT_MS);
+  let lastError = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
   const canonical = JSON.stringify({
     requestId: `req_${crypto.randomUUID()}`,
     timestamp: new Date().toISOString(),
@@ -88,11 +94,8 @@ export async function callAction(env, action, actor, payload = {}) {
     signature: await sign(canonical, env.APPS_SCRIPT_SECRET),
   });
 
-  let lastError = null;
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), Math.max(1, deadline - Date.now()));
 
     try {
       const response = await fetch(env.APPS_SCRIPT_URL, {
@@ -114,13 +117,16 @@ export async function callAction(env, action, actor, payload = {}) {
           "INTERNAL_ERROR",
           `Apps Script returned a non-JSON response (HTTP ${response.status}). ` +
             "Check that the web app is deployed with access set to Anyone.",
-          { retryable: false }
+          { retryable: response.status >= 500 }
         );
       }
 
       if (parsed.ok) return parsed.data ?? {};
 
       const err = parsed.error || {};
+      if (err.code === 'UNAUTHENTICATED' && /signature|request timestamp|nonce/i.test(err.message || '')) {
+        throw new SheetsError('BACKEND_AUTH_FAILED', 'The database rejected the server credentials.');
+      }
       throw new SheetsError(err.code || "INTERNAL_ERROR", err.message || "Apps Script rejected the request.", {
         fields: err.fields || null,
         retryable: Boolean(err.retryable),
@@ -132,7 +138,7 @@ export async function callAction(env, action, actor, payload = {}) {
 
       // Only a transport blip or an explicitly retryable code is worth a retry;
       // a rejected signature or validation error will fail identically.
-      if (attempt === MAX_ATTEMPTS || !lastError.retryable) throw lastError;
+      if (attempt === maxAttempts || !lastError.retryable || lastError.code === 'RATE_LIMITED' || Date.now() >= deadline - 1000) throw lastError;
     } finally {
       clearTimeout(timer);
     }

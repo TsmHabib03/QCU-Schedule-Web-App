@@ -38,7 +38,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   let stage = 'WELCOME', statusCode = 200, sessionCode = 200, reviewCode = 200;
   let importStatus = 'REVIEW_REQUIRED', hasImport = true, abortUpload = false, uploadGate = null;
-  let statusGate = null, calls = [], statusReply = null, bootstrapCode = 200;
+  let statusGate = null, calls = [], statusReply = null, bootstrapCode = 200, completeCode = 503, completeGate = null;
   await context.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (url.origin !== origin) return route.abort();
@@ -47,6 +47,10 @@ try {
     const reply = (json, status = 200) => route.fulfill({ status, json });
     if (url.pathname.endsWith('/session')) return reply(sessionCode === 200 ? { status: 'OK', user: { userId: 'ux-student', name: 'Niño & 李 ' + 'Student '.repeat(12) } } : { status: sessionCode === 403 ? 'FORBIDDEN' : 'SERVICE_UNAVAILABLE' }, sessionCode);
     if (url.pathname.endsWith('/bootstrap')) return reply(bootstrapCode === 200 ? { authenticated: false } : { status: 'SERVICE_UNAVAILABLE' }, bootstrapCode);
+    if (url.pathname.endsWith('/auth/complete')) {
+      if (completeGate) await completeGate;
+      return reply(completeCode === 200 ? { status: 'OK', destination: '/onboarding.html' } : { status: 'SERVICE_UNAVAILABLE' }, completeCode);
+    }
     if (url.pathname.endsWith('/onboarding/status')) return reply({ status: 'OK', stage, corRecordId: stage === 'WELCOME' ? null : 'cor-ux' });
     if (url.pathname.endsWith('/cor/upload')) {
       if (uploadGate) await uploadGate;
@@ -137,6 +141,7 @@ try {
   reviewCode = 401;
   await page.locator('#review-save-btn').click();
   await page.locator('#processing-sign-in').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#processing-sign-in').getAttribute('href'), '/api/auth/google/start?returnTo=%2Fonboarding.html');
   reviewCode = 200;
   await page.reload();
   await active('review');
@@ -223,6 +228,25 @@ try {
   await page.goto(origin + '/');
   await page.locator('#auth-retry').waitFor({ state: 'visible' });
   assert.match(await message('auth-error-msg'), /could not check your account/);
+  await page.goto(origin + '/?auth=finishing');
+  await page.waitForFunction(() => document.getElementById('auth-finish-message').textContent.includes('could not finish'));
+  assert(await page.locator('#google-login-btn').isHidden());
+  for (const width of [1280, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await noOverflow();
+    await page.screenshot({ path: resolve(output, `finish-login-${width}.png`), fullPage: true });
+  }
+  completeCode = 200;
+  let releaseLogin;
+  completeGate = new Promise(resolve => { releaseLogin = resolve; });
+  const completionCount = calls.filter(call => call.path.endsWith('/auth/complete')).length;
+  await page.locator('#auth-finish-retry').click();
+  await page.locator('#auth-finish-retry').evaluate(button => button.click());
+  releaseLogin();
+  await page.waitForURL('**/onboarding.html');
+  await active('review');
+  assert.equal(calls.filter(call => call.path.endsWith('/auth/complete')).length, completionCount + 1);
+  console.log('PASS login completion recovery, duplicate retry protection and direct onboarding reauthentication');
   assert.deepEqual(errors, []);
   console.log('PASS account restriction, home retry, nested 404, page exception and desktop/mobile layouts');
   console.log(`Screenshots: ${output}`);

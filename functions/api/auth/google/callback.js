@@ -1,4 +1,5 @@
 import { isAdminIdentity } from '../../admin/_lib.js';
+import { finishLogin } from '../_login.js';
 // GET /api/auth/google/callback
 // Handles OIDC callback from Google.
 // Validates state, exchanges code for tokens, creates platform session,
@@ -9,14 +10,9 @@ import {
   oauthConfig,
   exchangeCode,
   fetchGoogleUserInfo,
-  platformSessionHeader,
-  readPlatformSession,
-  upsertUser,
-  resolveUserId,
-  hydrateRepoFor,
-  flushRepo,
-  json,
-  redirect,
+  pendingLoginHeader,
+  clearPendingLogin,
+  safeAuthReturnTo,
 } from "../_lib.js";
 
 function getCookie(request, name) {
@@ -67,6 +63,7 @@ function clearCookie(name, request) {
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const clearState = clearCookie("qcu_oauth_state", context.request);
+  let pendingIdentity = null;
 
   // --- Error from Google (user denied or error) ---
   if (url.searchParams.get("error")) {
@@ -102,10 +99,7 @@ export async function onRequestGet(context) {
       mismatchHeaders.append("Set-Cookie", clearState);
       return new Response(null, { status: 302, headers: mismatchHeaders });
     }
-    const requestedReturnTo = typeof stateData.returnTo === "string" ? stateData.returnTo : "/";
-    const returnTo = requestedReturnTo.startsWith("/") && !requestedReturnTo.startsWith("//")
-      ? requestedReturnTo
-      : "/";
+    const returnTo = safeAuthReturnTo(stateData.returnTo);
     console.log("Callback state validated OK");
 
     // --- Exchange authorization code for tokens ---
@@ -127,72 +121,9 @@ export async function onRequestGet(context) {
       return new Response(null, { status: 302, headers });
     }
 
-    // --- Resolve or create internal user identity ---
-    // Load any stored row for this Google account first, so a returning student
-    // updates their record instead of being treated as brand new.
-    // The adapter bounds request time; persistence failures must block sign-in.
-    const hydration = await hydrateRepoFor(context, profile.sub, profile.email);
-
-    const user = upsertUser(profile.sub, {
-      email: profile.email,
-      name: profile.name,
-      picture: profile.picture,
-    });
-
-    // --- Determine user state ---
-    // With no durable store, each invocation is isolated and upsertUser() always
-    // reports "AUTHENTICATED", so the session cookie is the best available
-    // record of progress. When a stored row exists it is the durable answer and
-    // wins over a cookie that may be stale or have been dropped.
-    const priorSession = await readPlatformSession(context);
-    const existingSession = priorSession?.googleSub === profile.sub ? priorSession : null;
-    const preservedState =
-      (existingSession && existingSession.googleSub === profile.sub && existingSession.state)
-        ? existingSession.state
-        : null;
-    const effectiveState = (hydration.hydrated && !hydration.isNew)
-      ? user.state
-      : (preservedState || user.state);
-
-    // --- Create platform session ---
-    const session = {
-      userId: user.userId,
-      googleSub: profile.sub,
-      email: profile.email || "",
-      emailVerified: true,
-      issuedAt: Date.now(),
-      name: profile.name || "",
-      picture: profile.picture || "",
-      state: effectiveState,
-      role: user.role,
-      createdAt: user.createdAt,
-      // Tokens for potential Classroom/Gmail integration upgrade later
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token || "",
-      expiresAt: Date.now() + Number(tokens.expires_in || 3600) * 1000,
-      // IMPORTANT: Do NOT carry forward corDraft or dashboardSnapshot here.
-      // Both can be several KB after encryption, exceeding the browser's
-      // 4 KB cookie limit and causing silent cookie rejection (page hangs).
-      // corRecordId is lightweight (< 50 bytes) and essential for onboarding.
-      // corDraft is sent in upload JSON response; dashboardSnapshot is
-      // rebuilt by the dashboard endpoint from in-memory Maps.
-      corRecordId: existingSession?.corRecordId || null,
-      profile: existingSession?.profile || null,
-      // Carry forward compact enrollment data (~1 KB) so the dashboard
-      // can display schedule info even when Maps are empty (CF Pages).
-      enrollment: existingSession?.enrollment || null,
-      enrollmentSubjects: existingSession?.enrollmentSubjects || null,
-    };
-
-    // --- Set session cookie and redirect ---
-    const sessionCookie = await platformSessionHeader(context, session);
-
-    // Persist the login (creates the Users row on a first sign-in).
-    await flushRepo(context, session);
-
-    const destination = isAdminIdentity(context.env, session)
-      ? '/admin.html'
-      : effectiveState === 'ACTIVE' ? '/?auth=dashboard' : '/?auth=onboarding';
+    pendingIdentity = { ...verifiedIdentity, name: String(profile.name || '').slice(0, 200),
+      picture: String(profile.picture || '').slice(0, 1000), issuedAt: Date.now(), returnTo };
+    const { cookie: sessionCookie, destination } = await finishLogin(context, pendingIdentity);
 
     // Use a 302 redirect with Set-Cookie. The same-origin redirect ensures
     // the browser stores the session cookie before navigating.
@@ -202,17 +133,23 @@ export async function onRequestGet(context) {
     });
     respHeaders.append("Set-Cookie", sessionCookie);
     respHeaders.append("Set-Cookie", clearState);
+    respHeaders.append('Set-Cookie', clearPendingLogin(context));
     return new Response(null, { status: 302, headers: respHeaders });
   } catch (error) {
-    const message = String(error?.message || "Login failed").slice(0, 200);
-    const stack = String(error?.stack || "").slice(0, 300);
-    console.error("Auth callback FAILED:", message, stack);
-    const errReason = encodeURIComponent(message.slice(0, 80));
+    console.error('Auth callback failed:', error.code || error.name);
+    if (pendingIdentity && error.retryable) {
+      const headers = new Headers({ Location: '/?auth=finishing', 'Cache-Control': 'no-store' });
+      headers.append('Set-Cookie', await pendingLoginHeader(context, pendingIdentity));
+      headers.append('Set-Cookie', clearState);
+      return new Response(null, { status: 302, headers });
+    }
+    const errReason = error.code === 'FORBIDDEN' ? 'account_unavailable' : error.code === 'UNAUTHENTICATED' ? 'session_revoked' : 'provider_unavailable';
     const errHeaders = new Headers({
       "Location": error.code === "BACKEND_NOT_CONFIGURED" ? "/?auth=backend_unavailable" : `/?auth=failed&reason=${errReason}`,
       "Cache-Control": "no-store",
     });
     errHeaders.append("Set-Cookie", clearState);
+    errHeaders.append('Set-Cookie', clearPendingLogin(context));
     return new Response(null, { status: 302, headers: errHeaders });
   }
 }

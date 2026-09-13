@@ -15,6 +15,10 @@ try {
     failed = true;
     console.error(`Published schema version: ${version}; required: 3. Database status: ${health.data?.status || 'unknown'}.`);
   } else console.log('Published schema v3 is current and all required sheets/columns are present.');
+  if (Number(health.meta?.adminMutationRecovery || 0) < 3) {
+    failed = true;
+    console.error('The published Apps Script is missing the two-option account deletion. Redeploy Code.gs from the current setup-database.gs.');
+  } else console.log('Account deletion revision 3 (purge + purge_full) is deployed.');
 } catch (_) {
   failed = true;
   console.error('Could not read Apps Script deployment health. Check the URL and web-app access settings.');

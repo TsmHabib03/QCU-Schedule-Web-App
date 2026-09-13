@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -25,7 +25,7 @@
     var params = new URLSearchParams(window.location.search);
     var authResult = params.get("auth");
     // Always verify the session; URL parameters are not authentication proof.
-    var bootstrap = fetch("/api/v1/bootstrap", { credentials: "include", cache: "no-store", signal: AbortSignal.timeout(35000) })
+    var bootstrap = authResult === 'finishing' ? Promise.resolve(null) : fetch("/api/v1/bootstrap", { credentials: "include", cache: "no-store", signal: AbortSignal.timeout(35000) })
       .then(function (r) { return r.json(); })
       .catch(function () { return { status: 'SERVICE_UNAVAILABLE' }; });
 
@@ -38,13 +38,69 @@
       if (landing) landing.style.display = (view === "dashboard") ? "none" : "block";
     }
 
+    var finishing = false;
+    async function finishSignIn() {
+      if (finishing) return;
+      finishing = true;
+      var message = document.getElementById('auth-finish-message');
+      var button = document.getElementById('auth-finish-retry');
+      var login = document.getElementById('google-login-btn');
+      button.disabled = true;
+      message.textContent = 'Checking your sign-in and finishing account setup…';
+      try {
+        var response = await fetch('/api/auth/complete', { method: 'POST', credentials: 'include', cache: 'no-store', signal: AbortSignal.timeout(65000) });
+        var data = await response.json();
+        if (response.ok && data.status === 'OK' && /^\/(?!\/)/.test(data.destination || '') && !data.destination.includes('\\')) {
+          window.location.replace(data.destination);
+          return;
+        }
+        if (response.status === 401 || response.status === 403) {
+          message.textContent = response.status === 401 ? 'Please sign in with Google again to continue.' : 'Your account cannot access the portal. Contact your administrator.';
+          button.hidden = true;
+          login.style.display = 'inline-flex';
+          return;
+        }
+        message.textContent = 'Your Google sign-in is verified. We could not finish connecting your account yet. Check your connection and try again.';
+      } catch (_) {
+        message.textContent = 'We could not confirm that setup finished. Check your connection, then continue here.';
+      } finally { finishing = false; button.disabled = false; }
+    }
+
     function run() {
+      var openingGoogle = false;
+      document.querySelectorAll('a[href^="/api/auth/google/start"]').forEach(function (link) {
+        link.addEventListener('click', function (event) {
+          if (openingGoogle) { event.preventDefault(); return; }
+          openingGoogle = true;
+          link.setAttribute('aria-busy', 'true');
+        });
+      });
+      window.addEventListener('pageshow', function (event) {
+        if (event.persisted) {
+          openingGoogle = false;
+          document.querySelectorAll('a[aria-busy="true"]').forEach(function (link) { link.removeAttribute('aria-busy'); });
+        }
+      });
+      if (authResult === 'finishing') {
+        show('landing');
+        document.getElementById('auth-finish').hidden = false;
+        document.getElementById('google-login-btn').style.display = 'none';
+        document.getElementById('auth-finish-retry').onclick = finishSignIn;
+        finishSignIn();
+        return;
+      }
       if (authResult === "denied" || authResult === "failed" || authResult === "admin_denied" || authResult === "admin_expired" || authResult === "backend_unavailable") {
         show("landing");
         var error = document.getElementById("auth-error-msg");
         if (error) {
           error.textContent = authResult === "admin_expired" ? "Please sign in again to manage accounts. Your administrator session has expired." : authResult === "backend_unavailable" ? "Sign-in is temporarily unavailable because the database connection needs configuration." : authResult === "admin_denied" ? "This account does not have administrator access. Choose an authorized account or use student sign-in." : authResult === "denied" ? "Google sign-in was cancelled. Please try again." : "Sign-in could not be completed. Please try again.";
           error.style.display = "block";
+          if (authResult === 'failed') {
+            var reason = params.get('reason');
+            error.textContent = reason === 'state_mismatch' ? 'This sign-in link expired or belongs to another tab. Start again with Continue with Google.'
+              : reason === 'account_unavailable' ? 'Your account cannot access the portal. Contact your administrator.'
+              : 'We could not finish the Google sign-in. Check your connection and select Continue with Google.';
+          }
         }
         return;
       }
@@ -109,6 +165,10 @@
 
       <p id="auth-error-msg" role="alert" style="color:#dc2626;font-size:14px;margin-top:16px;display:none;"></p>
       <a id="auth-retry" href="/" style="display:none;margin-top:12px;text-decoration:underline;">Try again</a>
+      <section id="auth-finish" hidden aria-label="Finish signing in" style="margin-top:24px;">
+        <p id="auth-finish-message" role="status" aria-live="polite" style="margin-bottom:16px;line-height:1.6;"></p>
+        <button id="auth-finish-retry" class="action-button" type="button">Finish signing in</button>
+      </section>
 
       <section style="margin-top:48px;text-align:left;">
         <div style="display:grid;gap:20px;">
@@ -235,7 +295,7 @@
 
   <script src="assets/js/lucide.min.js?v=1"></script>
 <script src="assets/js/academic.js?v=41"></script>
-<script src="assets/js/app.js?v=52"></script>
+<script src="assets/js/app.js?v=53"></script>
 <script src="assets/js/install-prompt.js?v=1"></script>
   <script>
     // Optional overrides for the Home status panel (all keyless/optional).

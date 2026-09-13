@@ -125,6 +125,7 @@ export function clearAllAuthCookies(request) {
   return [
     makeCookie(PLATFORM_SESSION_COOKIE, "", request, 0),
     makeCookie(CSRF_COOKIE, "", request, 0),
+    makeCookie('qcu_login_pending', '', request, 0),
     clearCookieBase(INTEGRATION_SESSION_COOKIE, request),
   ];
 }
@@ -268,7 +269,11 @@ export function compactDashboardSnapshot(snapshot) {
 export function platformSessionHeader(context, session) {
   const secret = context.env.GOOGLE_SESSION_SECRET;
   if (!secret) throw new Error("GOOGLE_SESSION_SECRET is not configured");
-  return seal({ ...session, sessionExpiresAt: session.sessionExpiresAt || Date.now() + 30 * 86400000 }, secret).then((sealed) =>
+  // Platform sign-in does not use integration tokens. Large tokens and COR
+  // snapshots made otherwise valid cookies exceed browsers' 4 KB limit.
+  const compact = { ...session, accessToken: undefined, refreshToken: undefined, idToken: undefined, corDraft: null, dashboardSnapshot: null };
+  if (Repo.enabled(context.env)) Object.assign(compact, { profile: null, enrollment: null, enrollmentSubjects: null });
+  return seal({ ...compact, sessionExpiresAt: session.sessionExpiresAt || Date.now() + 30 * 86400000 }, secret).then((sealed) =>
     makeCookie(PLATFORM_SESSION_COOKIE, sealed, context.request, 60 * 60 * 24 * 30)
   );
 }
@@ -306,6 +311,22 @@ export async function validateCsrf(context, token) {
   const age = Date.now() - created;
   return age >= 0 && age < 10 * 60 * 1000;
 }
+
+export function safeAuthReturnTo(value) {
+  const path = typeof value === 'string' ? value : '/';
+  return /^\/(?!\/)/.test(path) && !/[\\\r\n]/.test(path) && path.length < 500 ? path : '/';
+}
+
+const PENDING_LOGIN_COOKIE = 'qcu_login_pending';
+export async function pendingLoginHeader(context, identity) {
+  return makeCookie(PENDING_LOGIN_COOKIE, await seal(identity, context.env.GOOGLE_SESSION_SECRET), context.request, 600);
+}
+export async function readPendingLogin(context) {
+  const identity = await unseal(getCookie(context.request, PENDING_LOGIN_COOKIE), context.env.GOOGLE_SESSION_SECRET);
+  const age = Date.now() - Number(identity?.issuedAt);
+  return identity?.googleSub && identity.emailVerified === true && age >= 0 && age < 600000 ? identity : null;
+}
+export function clearPendingLogin(context) { return makeCookie(PENDING_LOGIN_COOKIE, '', context.request, 0); }
 
 // Reuse the live token so opening details or a second admin tab does not
 // invalidate forms already open in another tab.
@@ -470,9 +491,9 @@ async function hydrateRepo(context, session) {
  * platform session yet, and must see an existing row to update rather than
  * replace it. Returns { hydrated, isNew }.
  */
-export async function hydrateRepoFor(context, googleSub, email) {
+export async function hydrateRepoFor(context, googleSub, email, identity = {}) {
   if (!googleSub) return { hydrated: false, isNew: false, counts: {} };
-  return hydrateRepo(context, { googleSub, email: email || "", issuedAt: Date.now() });
+  return hydrateRepo(context, { googleSub, email: email || "", issuedAt: identity.issuedAt || Date.now(), emailVerified: identity.emailVerified === true });
 }
 
 /**

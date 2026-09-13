@@ -17,6 +17,7 @@ import { onRequestGet as googleUpdates } from "../functions/api/google/updates.j
 import { onRequestGet as authGoogleStart } from "../functions/api/auth/google/start.js";
 import { onRequestGet as authGoogleCallback } from "../functions/api/auth/google/callback.js";
 import { onRequestGet as authSession } from "../functions/api/auth/session.js";
+import { onRequestPost as authComplete } from '../functions/api/auth/complete.js';
 import { onRequestGet as authLogoutGet, onRequestPost as authLogoutPost } from "../functions/api/auth/logout.js";
 import { onRequestGet as v1Bootstrap } from "../functions/api/v1/bootstrap.js";
 import { onRequestGet as v1MeGet } from "../functions/api/v1/me.js";
@@ -67,6 +68,7 @@ const PORT = Number(process.env.PORT) || 8788;
 const HOST = "127.0.0.1";
 
 const API_ROUTES = new Map([
+  ['POST /api/auth/complete', authComplete],
   ['POST /api/v1/cor/cancel', corCancel],
   ["GET /api/admin/users", adminUsersGet],
   ["POST /api/admin/users", adminUsersPost],

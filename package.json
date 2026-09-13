@@ -20,7 +20,8 @@
     "test:admin": "node scripts/test-admin-security.mjs && node scripts/test-admin-api.mjs && node scripts/test-admin-workflows.mjs",
     "admin:check": "node scripts/check-admin-deployment.mjs",
     "test:admin:browser": "node scripts/test-admin-browser.mjs",
-    "test:ux": "node scripts/test-ux-api.mjs && node scripts/test-recovery-routes.mjs && node scripts/test-cor-browser.mjs"
+    "test:ux": "node scripts/test-ux-api.mjs && node scripts/test-recovery-routes.mjs && node scripts/test-cor-browser.mjs",
+    "test:auth": "node scripts/test-auth-recovery.mjs"
   },
   "devDependencies": {
     "playwright": "^1.63.0",

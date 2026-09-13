@@ -1096,7 +1096,7 @@ function allSubjects() {
 const TASKS_KEY = "qcu-tasks";
 let _tasksCache = null;
 const loadErrors = new Map();
-function loadNotice(key, message, retry) {
+function loadNotice(key, message, retry, retryLabel = 'Try again') {
   let notice = document.getElementById('load-notice-' + key);
   if (!notice) {
     notice = document.createElement('div');
@@ -1114,7 +1114,7 @@ function loadNotice(key, message, retry) {
   if (retry) {
     const button = document.createElement('button');
     button.className = 'btn-secondary';
-    button.textContent = 'Try again';
+    button.textContent = retryLabel;
     button.onclick = retry;
     notice.appendChild(button);
   }
@@ -1148,7 +1148,9 @@ async function readWithFeedback(url, key, retry, hasContent = false) {
   } catch (error) {
     const message = navigator.onLine === false ? 'You are offline. Reconnect and try again.' : error.message;
     loadErrors.set(key, message);
-    loadNotice(key, (hasContent ? 'Refresh failed. Showing your last loaded content. ' : '') + message, error.status === 401 ? () => { location.href='/?login=1'; } : retry);
+    loadNotice(key, (hasContent ? 'Refresh failed. Showing your last loaded content. ' : '') + message,
+      error.status === 401 ? () => { location.href = '/api/auth/google/start?returnTo=' + encodeURIComponent(location.pathname || '/'); } : retry,
+      error.status === 401 ? 'Sign in again' : 'Try again');
     throw error;
   } finally {
     clearTimeout(slow);
@@ -2083,7 +2085,7 @@ async function init() {
     const data = await readWithFeedback('/api/v1/dashboard', 'dashboard', () => location.reload(), !!state.dashboard);
 
     if (data.status === "UNAUTHENTICATED") {
-      loadNotice('dashboard', 'Sign in to see your schedule.', () => { location.href='/?login=1'; });
+      loadNotice('dashboard', 'Sign in to see your schedule.', () => { location.href='/api/auth/google/start'; }, 'Sign in again');
       // Not logged in — show shell with defaults, no schedule
       state.loading = false;
       renderShell();
@@ -2092,7 +2094,7 @@ async function init() {
     }
 
     if (data.status === "INCOMPLETE") {
-      loadNotice('dashboard', 'Finish reviewing your COR to see your schedule.', () => { location.href='/onboarding.html'; });
+      loadNotice('dashboard', 'Finish reviewing your COR to see your schedule.', () => { location.href='/onboarding.html'; }, 'Continue COR review');
       // Logged in but not yet onboarded
       state.loading = false;
       renderShell();

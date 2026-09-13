@@ -388,7 +388,7 @@
         <h2 class="processing-title" id="processing-title">Reading your COR</h2>
         <p class="processing-text" id="processing-message" role="status">We are extracting your student and class details. This may take a moment.</p>
         <div class="btn-row"><button class="btn-secondary" id="processing-retry" hidden onclick="resumeProcessing()">Check again</button></div>
-        <div class="btn-row"><a class="btn-primary" id="processing-sign-in" hidden href="/?login=1">Sign in again</a><button class="btn-secondary" id="processing-select-file" hidden onclick="goToStep('upload')">Select original file</button></div>
+        <div class="btn-row"><a class="btn-primary" id="processing-sign-in" hidden href="/api/auth/google/start?returnTo=%2Fonboarding.html">Sign in again</a><button class="btn-secondary" id="processing-select-file" hidden onclick="goToStep('upload')">Select original file</button></div>
       </section>
 
       <!-- Step 3: Review -->

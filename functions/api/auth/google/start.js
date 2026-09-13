@@ -5,9 +5,9 @@
 import {
   oauthConfig,
   buildAuthorizationUrl,
-  generateCsrfToken,
   json,
   redirect,
+  safeAuthReturnTo,
 } from "../_lib.js";
 
 function encodeBytes(bytes) {
@@ -25,14 +25,18 @@ async function seal(value, secret) {
   return encodeBytes(iv) + "." + encodeBytes(new Uint8Array(encrypted));
 }
 
-function makeCookie(name, value, request, maxAge) {
-  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
-  return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
-}
-
 export async function onRequestGet(context) {
   try {
     const config = oauthConfig(context);
+    const incoming = new URL(context.request.url);
+    const returnTo = safeAuthReturnTo(incoming.searchParams.get('returnTo'));
+    // Host-only state cookies must be created on the callback origin. A state
+    // cookie on a preview/custom hostname is unavailable on the public domain.
+    if (config.origin !== incoming.origin) {
+      const canonicalStart = new URL('/api/auth/google/start', config.origin);
+      canonicalStart.searchParams.set('returnTo', returnTo);
+      return redirect(canonicalStart.href, { 'Cache-Control': 'no-store' });
+    }
 
     const stateBytes = crypto.getRandomValues(new Uint8Array(32));
     const state = encodeBytes(stateBytes);
@@ -40,13 +44,8 @@ export async function onRequestGet(context) {
     const nonceBytes = crypto.getRandomValues(new Uint8Array(32));
     const nonce = encodeBytes(nonceBytes);
 
-    const url = new URL(context.request.url);
     // Only preserve same-origin application paths. Never seal an external URL
     // into the state cookie because it becomes a post-login open redirect.
-    const requestedReturnTo = url.searchParams.get("returnTo") || "/";
-    const returnTo = requestedReturnTo.startsWith("/") && !requestedReturnTo.startsWith("//")
-      ? requestedReturnTo
-      : "/";
 
     const stateData = { state, nonce, returnTo, createdAt: new Date().toISOString() };
     const stateCookie = await seal(stateData, config.sessionSecret);
@@ -68,7 +67,8 @@ export async function onRequestGet(context) {
       `<style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;color:#555}</style>` +
       `</head><body>` +
       `<p>Redirecting to Google Sign-In...</p>` +
-      `<script>window.location.replace(${JSON.stringify(authUrl)})</script>` +
+      `<script>window.location.replace(${JSON.stringify(authUrl).replace(/</g, '\\u003c')})</script>` +
+      `<noscript><p>Enable JavaScript, then reload this page to sign in.</p></noscript>` +
       `</body></html>`;
 
     return new Response(html, {
