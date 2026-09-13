@@ -36,7 +36,7 @@ let browser;
 try {
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
-  let stage = 'WELCOME', statusCode = 200, sessionCode = 200, reviewCode = 200;
+  let stage = 'WELCOME', statusCode = 200, sessionCode = 200, reviewCode = 200, confirmSucceeds = false;
   let importStatus = 'REVIEW_REQUIRED', hasImport = true, abortUpload = false, uploadGate = null;
   let statusGate = null, calls = [], statusReply = null, bootstrapCode = 200, completeCode = 503, completeGate = null;
   await context.route('**/*', async route => {
@@ -64,7 +64,11 @@ try {
     if (url.pathname.endsWith('/result')) return reply({ status: 'OK', hasResult: true, result: draft });
     if (url.pathname.endsWith('/review')) return reply({ status: reviewCode === 200 ? 'OK' : 'UNAUTHORIZED' }, reviewCode);
     if (url.pathname.endsWith('/cancel')) return reply({ status: 'CANCELLED' });
-    if (url.pathname.endsWith('/confirm')) { importStatus = 'COMPLETE'; return route.abort('failed'); }
+    if (url.pathname.endsWith('/confirm')) {
+      importStatus = 'COMPLETE';
+      if (confirmSucceeds) return reply({ status: 'COMPLETE', corRecordId: 'cor-ux' });
+      return route.abort('failed');
+    }
     if (url.pathname.endsWith('/process')) return reply({ status: 'REVIEW_REQUIRED', result: draft });
     return reply({ status: 'OK', data: [] });
   });
@@ -156,9 +160,17 @@ try {
   const saved = JSON.parse(calls.filter(call => call.path.endsWith('/review')).at(-1).body);
   assert.equal(saved.enrollmentInfo.program.value, 'BSIT');
   await page.locator('#confirm-btn').click();
+  // A lost confirm response (network abort) must keep the user on the confirm
+  // step with their draft intact — never bounce back to review or assume success.
+  await page.locator('#confirm-error').waitFor({ state: 'visible' });
+  assert(await page.locator('#step-confirm').isVisible());
+  assert.match(await message('confirm-error'), /kept|try again/i);
+  // A retry that succeeds completes the flow.
+  confirmSucceeds = true;
+  await page.locator('#confirm-btn').click();
   await active('success');
   assert.equal(await page.evaluate(() => sessionStorage.getItem('qcu-cor-draft')), null);
-  console.log('PASS expired session preserves edits, required fields focus, corrected data handoff and lost confirmation recovery');
+  console.log('PASS lost confirm response stays on confirm with draft kept; retry completes');
 
   stage = 'PROCESSING'; importStatus = 'PROCESSING'; statusCode = 503;
   await page.reload();

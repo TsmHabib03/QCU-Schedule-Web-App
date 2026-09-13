@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#005BAC">
-  <meta name="description" content="Today's class schedule for Quezon City University ??? current, upcoming, and finished classes with live countdown.">
+  <meta name="description" content="Today's QCU classes, with current and upcoming class times and classroom details.">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -12,33 +12,37 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
   <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/styles.css?v=55">
+  <link rel="stylesheet" href="assets/css/student.css?v=2">
   <link rel="stylesheet" href="assets/css/loading.css?v=1">
   <script src="assets/js/loading.js?v=1"></script>
 </head>
 <body data-page="today">
-  <div class="app-shell">
+  <div class="app-shell student-shell">
+    <a class="student-skip" href="#main-content">Skip to content</a>
     <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
 
-    <main class="page-container section-stack">
+    <main id="main-content" tabindex="-1" class="page-container section-stack">
 
-      <section class="portal-card">
-        <h1 class="page-title">Today's Classes</h1>
-        <p id="live-date" class="caption" style="margin-top:4px;"><span class="skeleton-pulse loading-bar loading-bar-short" aria-hidden="true"></span></p>
+      <section class="student-heading">
+        <div><h1 class="page-title">Today's Classes</h1><p id="today-date"><span class="skeleton-pulse loading-bar loading-bar-short" aria-hidden="true"></span></p></div>
+        <a class="student-button" href="schedule.html"><i data-lucide="calendar-days" aria-hidden="true"></i> Full schedule</a>
       </section>
 
       <section id="today-cards" style="display:grid;gap:12px;" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards " aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div></section>
 
     </main>
 
-    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
+    <div id="crud-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Schedule entry form">
+      <div id="crud-modal-content" class="modal-card"></div>
+    </div>
+
+
   </div>
 
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="assets/js/lucide.min.js?v=1"></script>
   <script src="assets/js/academic.js?v=41"></script>
-  <script src="assets/js/app.js?v=53"></script>
+  <script src="assets/js/app.js?v=55"></script>
 </body>
 </html>

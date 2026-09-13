@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#005BAC">
-  <meta name="description" content="Full weekly timetable for Quezon City University ??? current class, upcoming schedule, room and floor details.">
+  <meta name="description" content="Your QCU weekly timetable, with day filters, class times, and classroom details.">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -12,33 +12,44 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
   <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/styles.css?v=55">
+  <link rel="stylesheet" href="assets/css/student.css?v=2">
   <link rel="stylesheet" href="assets/css/loading.css?v=1">
   <script src="assets/js/loading.js?v=1"></script>
 </head>
 <body data-page="schedule">
-  <div class="app-shell">
+  <div class="app-shell student-shell">
+    <a class="student-skip" href="#main-content">Skip to content</a>
     <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
 
-    <main class="page-container section-stack">
+    <main id="main-content" tabindex="-1" class="page-container section-stack">
 
-      <section class="portal-card">
-        <h1 class="page-title">Full Schedule</h1>
-        <p class="caption" style="margin-top:4px;">
-          Your complete weekly timetable.
-          <span style="display:inline-flex;align-items:center;gap:6px;margin-left:6px;">
-            <span style="display:inline-block;width:10px;height:10px;background:var(--blue);border-radius:2px;"></span> Current
-            <span style="display:inline-block;width:10px;height:10px;background:var(--gold-soft);border:1px solid var(--gold-mid);border-radius:2px;margin-left:4px;"></span> Next
-            <span style="display:inline-block;width:10px;height:10px;background:var(--blue-soft);border:1px solid var(--blue-mid);border-radius:2px;margin-left:4px;"></span> Today
-          </span>
-        </p>
+      <section class="student-heading">
+        <div><h1 class="page-title">Full Schedule</h1><p>Your week at a glance. Choose a day to focus on.</p></div>
+        <div class="student-actions">
+          <a class="student-button" href="today.html"><i data-lucide="clock-3" aria-hidden="true"></i> Today's classes</a>
+          <button class="student-button student-button--primary" id="schedule-add-btn" type="button"><i data-lucide="plus" aria-hidden="true"></i> Add class</button>
+        </div>
+      </section>
+
+      <section class="schedule-controls" aria-label="Schedule filters">
+        <div id="schedule-days" class="schedule-days" role="group" aria-label="Filter by day">
+          <button type="button" data-schedule-day="all" aria-pressed="true" aria-controls="schedule-rows">Full week</button>
+          <button type="button" data-schedule-day="Monday" aria-pressed="false" aria-label="Monday" aria-controls="schedule-rows">Mon</button>
+          <button type="button" data-schedule-day="Tuesday" aria-pressed="false" aria-label="Tuesday" aria-controls="schedule-rows">Tue</button>
+          <button type="button" data-schedule-day="Wednesday" aria-pressed="false" aria-label="Wednesday" aria-controls="schedule-rows">Wed</button>
+          <button type="button" data-schedule-day="Thursday" aria-pressed="false" aria-label="Thursday" aria-controls="schedule-rows">Thu</button>
+          <button type="button" data-schedule-day="Friday" aria-pressed="false" aria-label="Friday" aria-controls="schedule-rows">Fri</button>
+          <button type="button" data-schedule-day="Saturday" aria-pressed="false" aria-label="Saturday" aria-controls="schedule-rows">Sat</button>
+          <button type="button" data-schedule-day="Sunday" aria-pressed="false" aria-label="Sunday" aria-controls="schedule-rows">Sun</button>
+        </div>
+        <p id="schedule-result" class="schedule-result" role="status" aria-live="polite">Loading your timetable…</p>
       </section>
 
       <section class="table-wrap">
-        <table>
+        <table class="schedule-table" role="table">
+          <caption>Weekly class schedule</caption>
           <thead>
             <tr>
               <th>Time</th>
@@ -60,20 +71,15 @@
     </main>
 
     <!-- Schedule CRUD Modal -->
-    <div id="crud-modal" class="modal" role="dialog" aria-modal="true" aria-label="Schedule entry form">
-      <div id="crud-modal-content" class="modal-body"></div>
+    <div id="crud-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Schedule entry form">
+      <div id="crud-modal-content" class="modal-card"></div>
     </div>
 
-    <!-- Floating Action Button: Add Class -->
-    <button class="fab" id="schedule-add-btn" aria-label="Add class" title="Add class">
-      <i data-lucide="plus"></i>
-    </button>
 
-    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
   </div>
 
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="assets/js/lucide.min.js?v=1"></script>
   <script src="assets/js/academic.js?v=41"></script>
-  <script src="assets/js/app.js?v=53"></script>
+  <script src="assets/js/app.js?v=55"></script>
 </body>
 </html>

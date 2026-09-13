@@ -21,6 +21,7 @@ const state = {
 const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const page = document.body.dataset.page || "home";
 const navPage = ["tasks", "notes"].includes(page) ? "workspace" : page;
+let scheduleDay = "all";
 
 /* ── Utils ───────────────────────────────────────────── */
 function iconify() { if (window.lucide) window.lucide.createIcons(); }
@@ -319,7 +320,7 @@ function renderShell() {
       <div>
         ${navItems.map(([key, href, icon, label]) => `
           <a class="nav-item ${navPage === key ? "active" : ""}"
-             href="${href}" aria-label="${label}">
+             href="${href}" aria-label="${label}" ${navPage === key ? 'aria-current="page"' : ''}>
             <i data-lucide="${icon}"></i>
             <span>${label}</span>
           </a>`).join("")}
@@ -789,18 +790,29 @@ function renderSchedule() {
   const rows = document.getElementById("schedule-rows");
   if (!rows) return;
   if (state.error && !state.dashboard) {
-    setInnerHTML(rows, '<tr><td colspan="6">Your schedule could not be loaded. Use the recovery action above.</td></tr>');
+    setText("schedule-result", "Timetable unavailable");
+    setInnerHTML(rows, '<tr class="schedule-empty-row"><td colspan="6" class="schedule-state"><strong>Your schedule could not be loaded.</strong><p>Use the retry button above to try again.</p></td></tr>');
     return;
   }
   const now   = new Date();
   const today = QCU_TIME.weekday(now);
+  const entries = orderedSchedule(now).filter(item => !item.noClasses && (scheduleDay === "all" || item.day === scheduleDay));
+  const summary = `${entries.length} class${entries.length === 1 ? "" : "es"} ${scheduleDay === "all" ? "this week" : `on ${scheduleDay}`}`;
+  const result = document.getElementById("schedule-result");
+  if (result && result.textContent !== summary) result.textContent = summary;
+  if (!entries.length) {
+    const title = scheduleDay === "all" ? "Your timetable is empty" : `No classes on ${scheduleDay}`;
+    const hint = scheduleDay === "all" ? "Add a class to start building your week." : "Choose another day or view the full week.";
+    setInnerHTML(rows, `<tr class="schedule-empty-row"><td colspan="6" class="schedule-state"><strong>${title}</strong><p>${hint}</p></td></tr>`);
+    return;
+  }
 
   // Build rows with break/free periods between classes on the same day
   const html = [];
   let lastDay = null;
   let lastEnd = null;
 
-  orderedSchedule(now).forEach(item => {
+  entries.forEach(item => {
     const status  = getStatus(item, now);
     const isToday = item.day === today;
     const rowClass = [`${status}-row`, isToday ? "today-row" : "", item.noClasses ? "no-class-row" : ""]
@@ -844,18 +856,19 @@ function renderSchedule() {
             <span class="day-abbr">${dayShort(item.day)}</span>
             <span class="time-range">${formatTime(item.start)} – ${formatTime(item.end)}</span>
           </td>
-          <td data-label="Subject" class="subject-cell">${item.subject} ${prov}</td>
-          <td data-label="Code"><span class="code-cell">${item.course || "—"}</span></td>
-          <td data-label="Location" class="location-cell">${loc}</td>
+          <td data-label="Subject" class="subject-cell">${esc(item.subject)} ${prov}</td>
+          <td data-label="Code"><span class="code-cell">${esc(item.course || "—")}</span></td>
+          <td data-label="Location" class="location-cell">${esc(loc)}</td>
           <td data-label="Units"><span class="units-chip">${item.units > 0 ? item.units : "Lab"}</span></td>
-          <td data-label="Status"><span class="status-dot status-dot-${status}" title="${statusLabel(status)}"></span> ${editBtn}</td>
+          <td data-label="Status"><span class="schedule-status"><span class="status-dot status-dot-${status}" aria-hidden="true"></span>${status === "inactive" ? "Scheduled" : statusLabel(status)}</span> ${editBtn}</td>
         </tr>`);
       lastDay = item.day;
       lastEnd = parseMinutes(item.end);
     }
   });
 
-  rows.innerHTML = html.join("");
+  setInnerHTML(rows, html.join(""));
+  if (window.lucide) window.lucide.createIcons({ root: rows });
 }
 
 function minutesToTime(minutes) {
@@ -876,10 +889,16 @@ function renderToday() {
   const list = document.getElementById("today-cards");
   if (!list) return;
   const today = QCU_TIME.weekday();
-  const todaysClasses = state.schedule.filter(x => x.day === today);
-  list.innerHTML = todaysClasses.length
+  setText("today-date", QCU_TIME.dateLabel(new Date(), { weekday: "long", month: "long", day: "numeric" }));
+  if (state.error && !state.dashboard) {
+    setInnerHTML(list, emptyTemplate("Today's classes could not be loaded. Try again above."));
+    return;
+  }
+  const todaysClasses = classesForDay(today);
+  setInnerHTML(list, todaysClasses.length
     ? todaysClasses.map(cardTemplate).join("")
-    : emptyTemplate("No classes scheduled today");
+    : emptyTemplate("No classes scheduled today"));
+  if (window.lucide) window.lucide.createIcons({ root: list });
 }
 
 /* ── Buildings Page ──────────────────────────────────── */
@@ -1739,12 +1758,14 @@ const CRUD_DAY_REVERSE = Object.fromEntries(Object.entries(CRUD_DAY_MAP).map(([k
 
 let _crudEditingEntry = null;
 let _crudEnrollmentSubjects = [];
+let _crudReturnFocus = null;
 
 function openCrudModal(entry = null) {
   _crudEditingEntry = entry;
   const modal = document.getElementById("crud-modal");
   const content = document.getElementById("crud-modal-content");
   if (!modal || !content) return;
+  _crudReturnFocus = document.activeElement;
 
   const isEdit = !!entry;
   const title = isEdit ? "Edit Class" : "Add Class";
@@ -1844,6 +1865,7 @@ function openCrudModal(entry = null) {
 
   // Populate subjects dropdown
   populateSubjectDropdown(entry);
+  document.getElementById("crud-subject")?.focus();
 
   // Set up cascading building → room
   const buildingSelect = document.getElementById("crud-building");
@@ -2057,9 +2079,11 @@ async function reloadSchedule() {
 /* ── Schedule CRUD Modal Close Handler ────────────── */
 function closeCrudModal() {
   const modal = document.getElementById("crud-modal");
+  const wasOpen = modal?.classList.contains("open");
   if (modal) modal.classList.remove("open");
   document.body.classList.remove("modal-open");
   _crudEditingEntry = null;
+  if (wasOpen && _crudReturnFocus?.isConnected) _crudReturnFocus.focus();
 }
 
 /* ── Sign Out ────────────────────────────────────── */
@@ -2169,6 +2193,24 @@ async function init() {
   if (scheduleAddBtn) {
     scheduleAddBtn.addEventListener("click", () => openCrudModal(null));
   }
+  document.getElementById("schedule-days")?.addEventListener("click", e => {
+    const button = e.target.closest("[data-schedule-day]");
+    if (!button) return;
+    scheduleDay = button.dataset.scheduleDay;
+    document.querySelectorAll("[data-schedule-day]").forEach(day => {
+      day.setAttribute("aria-pressed", String(day === button));
+    });
+    renderSchedule();
+  });
+  document.getElementById("crud-modal")?.addEventListener("keydown", e => {
+    if (e.key !== "Tab") return;
+    const controls = [...e.currentTarget.querySelectorAll('button, input, select, textarea, a[href]')]
+      .filter(el => !el.disabled && el.getClientRects().length > 0);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+  });
 
   /* ── Schedule Edit button delegation ─────────────── */
   document.addEventListener("click", e => {
@@ -2307,7 +2349,7 @@ async function init() {
 
   /* ── Global keyboard shortcuts ────────────────────── */
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape") { closeModal(); closeTaskModal(); closeNoteModal(); }
+    if (e.key === "Escape") { closeModal(); closeTaskModal(); closeNoteModal(); closeCrudModal(); }
   });
 
   if ("serviceWorker" in navigator && location.protocol !== "file:" && location.hostname !== "127.0.0.1" && location.hostname !== "localhost") {

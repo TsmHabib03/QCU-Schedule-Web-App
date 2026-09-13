@@ -12,21 +12,20 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
   <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/styles.css?v=55">
+  <link rel="stylesheet" href="assets/css/student.css?v=2">
   <link rel="stylesheet" href="assets/css/loading.css?v=1">
   <script src="assets/js/loading.js?v=1"></script>
 </head>
 <body data-page="workspace">
-  <div class="app-shell">
+  <div class="app-shell student-shell">
+    <a class="student-skip" href="#main-content">Skip to content</a>
     <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
 
-    <main class="page-container section-stack workspace-page">
-      <section class="portal-card workspace-intro">
+    <main id="main-content" tabindex="-1" class="page-container section-stack workspace-page">
+      <section class="student-heading workspace-intro">
         <div>
-          <p class="workspace-kicker">Personal workspace</p>
           <h1 class="page-title">Tasks &amp; Notes</h1>
           <p class="caption" style="margin-top:4px;">Keep action items and study notes together, then switch views when you need to focus.</p>
         </div>
@@ -45,15 +44,15 @@
           <div class="task-toolbar">
             <div class="task-search-wrap">
               <i data-lucide="search" class="task-search-icon"></i>
-              <input id="task-search" class="task-search-input" type="text" placeholder="Search tasks">
+              <input id="task-search" aria-label="Search tasks" class="task-search-input" type="text" placeholder="Search tasks">
               <button type="button" class="task-search-clear" id="task-search-clear" aria-label="Clear search"><i data-lucide="x"></i></button>
             </div>
             <div class="task-filters">
-              <select id="task-filter-status" class="task-filter-select">
+              <select id="task-filter-status" aria-label="Filter tasks by status" class="task-filter-select">
                 <option value="all">All Status</option><option value="pending">Pending</option><option value="done">Done</option>
               </select>
-              <select id="task-filter-subject" class="task-filter-select"><option value="all">All Subjects</option></select>
-              <select id="task-sort" class="task-filter-select">
+              <select id="task-filter-subject" aria-label="Filter tasks by subject" class="task-filter-select"><option value="all">All Subjects</option></select>
+              <select id="task-sort" aria-label="Sort tasks" class="task-filter-select">
                 <option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="priority">Priority</option><option value="deadline">Deadline</option><option value="alpha">A to Z</option>
               </select>
             </div>
@@ -67,12 +66,12 @@
           <div class="task-toolbar">
             <div class="task-search-wrap">
               <i data-lucide="search" class="task-search-icon"></i>
-              <input id="note-search" class="task-search-input" type="text" placeholder="Search notes">
+              <input id="note-search" aria-label="Search notes" class="task-search-input" type="text" placeholder="Search notes">
               <button type="button" class="task-search-clear" id="note-search-clear" aria-label="Clear search"><i data-lucide="x"></i></button>
             </div>
             <div class="task-filters">
-              <select id="note-filter-subject" class="task-filter-select"><option value="all">All Subjects</option></select>
-              <select id="note-sort" class="task-filter-select"><option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="alpha">A to Z</option></select>
+              <select id="note-filter-subject" aria-label="Filter notes by subject" class="task-filter-select"><option value="all">All Subjects</option></select>
+              <select id="note-sort" aria-label="Sort notes" class="task-filter-select"><option value="newest">Newest First</option><option value="oldest">Oldest First</option><option value="alpha">A to Z</option></select>
             </div>
           </div>
         </section>
@@ -82,11 +81,11 @@
 
     <div id="task-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Task form"><div id="task-modal-content" class="modal-card"></div></div>
     <div id="note-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Note form"><div id="note-modal-content" class="modal-card"></div></div>
-    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
+
   </div>
 
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="assets/js/lucide.min.js?v=1"></script>
   <script src="assets/js/academic.js?v=42"></script>
-  <script src="assets/js/app.js?v=53"></script>
+  <script src="assets/js/app.js?v=55"></script>
 </body>
 </html>

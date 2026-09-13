@@ -483,40 +483,50 @@
     }
   };
 
+  let processInFlight = false;
   async function processImport() {
     if (Date.now() < retryAt) return;
-    document.getElementById('processing-message').textContent = 'Reading your COR… Your existing schedule stays available until you confirm.';
-    const resp = await request("/api/v1/cor/process", {
-      method: "POST", credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ corRecordId }),
-    });
-    const data = await resp.json();
-    if (data.status === "COMPLETE") {
-      clearUploadRequest();
-      goToStep("success");
-      return;
+    // Guard: polling fires every 1.5s and calls this on ACCEPTED. Without the
+    // guard, overlapping /cor/process calls collide with the extraction lease
+    // and the user loops on "Reading your COR" forever.
+    if (processInFlight) return;
+    processInFlight = true;
+    try {
+      document.getElementById('processing-message').textContent = 'Reading your COR… Your existing schedule stays available until you confirm.';
+      const resp = await request("/api/v1/cor/process", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ corRecordId }),
+      });
+      const data = await resp.json();
+      if (data.status === "COMPLETE") {
+        clearUploadRequest();
+        goToStep("success");
+        return;
+      }
+      if (data.status === "RATE_LIMITED") {
+        startPolling();
+        cooldown(data.retryAfter);
+        return;
+      }
+      if (data.status === 'EXTRACTION_FAILED' || data.status === 'FILE_MISSING') {
+        if (data.status === 'EXTRACTION_FAILED') clearUploadRequest();
+        pauseRecovery(responseMessage(data, resp.status, 'Select your COR file to continue.'));
+        document.getElementById('processing-retry').hidden = true;
+        document.getElementById('processing-select-file').hidden = false;
+        return;
+      }
+      if (![ "OK", "PROCESSING", "REVIEW_REQUIRED"].includes(data.status)) {
+        throw new Error('Reading could not be started.');
+      }
+      if (data.status === "REVIEW_REQUIRED") {
+        draftResult = data.result || null;
+        await loadResult();
+        goToStep("review");
+      } else startPolling();
+    } finally {
+      processInFlight = false;
     }
-    if (data.status === "RATE_LIMITED") {
-      startPolling();
-      cooldown(data.retryAfter);
-      return;
-    }
-    if (data.status === 'EXTRACTION_FAILED' || data.status === 'FILE_MISSING') {
-      if (data.status === 'EXTRACTION_FAILED') clearUploadRequest();
-      pauseRecovery(responseMessage(data, resp.status, 'Select your COR file to continue.'));
-      document.getElementById('processing-retry').hidden = true;
-      document.getElementById('processing-select-file').hidden = false;
-      return;
-    }
-    if (!["OK", "PROCESSING", "REVIEW_REQUIRED"].includes(data.status)) {
-      throw new Error('Reading could not be started.');
-    }
-    if (data.status === "REVIEW_REQUIRED") {
-      draftResult = data.result || null;
-      await loadResult();
-      goToStep("review");
-    } else startPolling();
   }
 
   /* ── Processing polling ──────────────────────────────────────────────── */
@@ -915,18 +925,27 @@
         clearUploadRequest();
         try { sessionStorage.removeItem("qcu-cor-draft"); } catch (_) {}
         goToStep("success");
-      } else if (resp.status >= 500 || data.status === 'SERVICE_UNAVAILABLE') {
-        await recoverUpload();
-        window.QCULoading.button(btn, false);
+      } else if (resp.status === 401 || resp.status === 403) {
+        // checkAccess inside request() already threw for these; unreachable in
+        // practice, but if reached, treat as session expiry.
+        pauseRecovery('Your session expired. Sign in again to continue.', resp.status === 401, resp.status === 403);
+        return;
       } else {
+        // Stay on this step. Bouncing back to review on a transient failure
+        // (slow backend, timeout) made users lose their place in the flow;
+        // the draft is kept and a retry is safe.
         const errEl = document.getElementById("confirm-error");
-        errEl.textContent = responseMessage(data, resp.status, 'We could not finish setting up your schedule. Your draft is kept here; try again.');
+        errEl.textContent = responseMessage(data, resp.status, 'We could not finish setting up your schedule. Your information is kept — try again.');
         errEl.classList.add("visible");
         window.QCULoading.button(btn, false);
       }
     } catch (err) {
-      await recoverUpload(err);
-      window.QCULoading.button(btn, false);
+      if (err.sessionExpired || err.accessDenied) { pauseRecovery(err.message, err.sessionExpired, err.accessDenied); return; }
+      // Transient network/timeout error: keep the user here with the draft
+      // intact — do NOT route back through recoverUpload() to review.
+      const errEl = document.getElementById("confirm-error");
+      errEl.textContent = "We could not reach the server to finish your setup. Your information is kept — check your connection and try again.";
+      errEl.classList.add("visible");
     } finally {
       window.QCULoading.button(btn, false);
       document.getElementById('confirm-back').disabled = false;

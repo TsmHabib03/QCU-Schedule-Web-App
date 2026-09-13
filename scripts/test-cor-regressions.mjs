@@ -90,12 +90,15 @@ for (const uploadFailure of [new Error('Connection lost after save'), {status:'S
 }
 const lostConfirmation = await harness({status:'EXTRACTED',corRecordId:'cor-test',result:draft}, 'WELCOME', {
   '/api/v1/cor/confirm':new Error('Response lost'),
-  '/api/v1/cor/status':{status:'OK',hasImport:true,corRecordId:'cor-test',importStatus:'COMPLETE'},
 });
 await lostConfirmation.c.uploadCor();
+await lostConfirmation.c.saveAndConfirm();
 await lostConfirmation.c.confirmAndActivate();
-assert(lostConfirmation.get('step-success').classList.contains('active'));
-console.log('PASS lost upload and confirmation responses recover saved results without false failure');
+// A lost confirm response must NOT silently assume success or bounce the user
+// back to review: they stay on confirm with the draft kept and a retry shown.
+assert(lostConfirmation.get('step-confirm').classList.contains('active'));
+assert(lostConfirmation.get('confirm-error').classList.contains('visible'));
+console.log('PASS lost confirmation response keeps the user on confirm with their draft intact');
 
 const completed = await harness({ status: 'DUPLICATE', corRecordId: 'cor-test', importStatus: 'COMPLETE' });
 await completed.c.uploadCor();

@@ -1,4 +1,4 @@
-const CACHE_NAME = "qcu-schedule-v73";
+const CACHE_NAME = "qcu-schedule-v74";
 const STATIC_ASSETS = [
   "./",
   "index.html",
@@ -13,6 +13,8 @@ const STATIC_ASSETS = [
   "manifest.json",
   "assets/css/styles.css",
   "assets/css/styles.css?v=55",
+  "assets/css/student.css",
+  "assets/css/student.css?v=2",
   "assets/css/entry.css?v=1",
   "assets/fonts/public-sans-latin-wght-normal.woff2",
   "assets/css/recovery.css?v=1",

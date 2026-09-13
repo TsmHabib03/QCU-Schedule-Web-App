@@ -14,6 +14,7 @@
   <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
   <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
 <link rel="stylesheet" href="assets/css/styles.css?v=55">
+  <link rel="stylesheet" href="assets/css/student.css?v=2">
 <link rel="stylesheet" href="assets/css/entry.css?v=1">
 <script>
   // Auth gate: start the session check immediately so the network round-trip
@@ -213,10 +214,12 @@
   </div>
 
   <!-- AUTHENTICATED DASHBOARD: shown after login -->
-  <div id="auth-dashboard" class="app-shell" style="display:none;">
+  <div id="auth-dashboard" class="app-shell student-shell" style="display:none;">
+    <a class="student-skip" href="#main-content">Skip to content</a>
     <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
 
-    <main class="page-container home-layout">
+    <main id="main-content" tabindex="-1" class="page-container home-layout">
 
       <!-- 1. Hero -->
       <section class="home-hero">
@@ -226,18 +229,11 @@
             <span id="home-greeting">Good day</span>
           </p>
           <h1 class="home-hero-title">Student Overview</h1>
-          <p class="home-hero-sub">Live class status updates every second.</p>
+          <p class="home-hero-sub">Your classes, your campus, and the day ahead.</p>
           <div class="home-hero-stats" style="display:none;">
             
             <span class="home-hero-stat">
-              <strong id="hero-class-count">0</strong>
-              <span>classes today</span>
-            </span>
-
-            <span class="home-hero-stat-divider" aria-hidden="true"></span>
-            <span class="home-hero-stat">
               <strong id="hero-today-date">—</strong>
-              <span>today</span>
             </span>
           </div>
           <div class="home-hero-skeleton" id="hero-skeleton">
@@ -245,17 +241,20 @@
             <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
           </div>
         </div>
-        <div class="home-hero-seal" aria-hidden="true">
-          <img src="assets/images/cropped-logo.jpg" alt="">
+        <div class="student-actions">
+          <a class="student-button student-button--primary" href="schedule.html"><i data-lucide="calendar-days" aria-hidden="true"></i> Full schedule</a>
+          <a class="student-button" href="workspace.html"><i data-lucide="notebook-pen" aria-hidden="true"></i> Workspace</a>
         </div>
       </section>
 
       <!-- 1b. Today's Schedule -->
+      <section class="student-day-section" aria-labelledby="today-heading">
       <div class="home-today-head">
-        <h2 class="home-kicker">Today's schedule</h2>
+        <h2 id="today-heading" class="home-kicker">Today's schedule</h2>
+        <a class="home-week-link" href="today.html">Class details <i data-lucide="arrow-right" aria-hidden="true"></i></a>
       </div>
-      <div id="today-grid" class="home-today-grid" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards-grid" aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div>
-      </div>
+      <div id="today-grid" class="home-today-grid" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards-grid" aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div></div>
+      </section>
 
       <!-- 1c. Class Tracker + Countdown -->
       <section class="home-nownext">
@@ -293,29 +292,37 @@
           <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
         </div>
         <p class="home-week-hint">Tap a day to preview its classes.</p>
+        <nav class="student-tools" aria-label="Student shortcuts">
+          <a href="buildings.html"><i data-lucide="map-pin" aria-hidden="true"></i><span><strong>Find your classroom</strong><small>Browse campus buildings</small></span><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+          <a href="campus-eta.html"><i data-lucide="bus" aria-hidden="true"></i><span><strong>Plan your commute</strong><small>Check the campus bus route</small></span><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+        </nav>
       </section>
 
-      <footer class="caption" style="display:flex;justify-content:center;gap:18px;padding:8px 0 20px;">
+      <footer class="student-footer">
         <a href="privacy.html">Privacy Policy</a>
         <a href="terms.html">Terms of Service</a>
       </footer>
     </main>
+
+    <div id="crud-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Schedule entry form">
+      <div id="crud-modal-content" class="modal-card"></div>
+    </div>
 
     <!-- Day schedule modal -->
     <div id="day-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Daily class schedule">
       <div id="day-modal-content" class="modal-card"></div>
     </div>
 
-    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
+
   </div>
 
   <!-- AUTH CHECK LOADING STATE -->
-  <div id="auth-loading" class="app-shell loading-auth" aria-busy="true"><header class="page-header"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header><main class="page-container section-stack" role="status"><span class="loading-sr">Loading your portal?</span><div class="loading-auth-heading" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards-grid" aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div><div class="loading-auth-summary" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-week"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></main><div class="bottom-nav" aria-hidden="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></div></div>
+  <div id="auth-loading" class="app-shell student-shell loading-auth" aria-busy="true"><header class="page-header"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header><div class="bottom-nav" aria-hidden="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></div><main class="page-container section-stack" role="status"><span class="loading-sr">Loading your portal?</span><div class="loading-auth-heading" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards-grid" aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div><div class="loading-auth-summary" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-week"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></main></div>
 
   <script src="assets/js/lucide.min.js?v=1"></script>
   <script>if (window.lucide) window.lucide.createIcons();</script>
 <script src="assets/js/academic.js?v=41"></script>
-<script src="assets/js/app.js?v=53"></script>
+<script src="assets/js/app.js?v=55"></script>
 <script src="assets/js/install-prompt.js?v=1"></script>
   <script>
     // Optional overrides for the Home status panel (all keyless/optional).
