@@ -99,21 +99,37 @@
 .home-hero-skeleton { display: none !important; }
 
 /* Purple weather chip in the hero (fed by status.js) */
+/* Weather chip: stretches FULL-WIDTH on mobile (visual appeal), auto on md+ */
 .home-weather-chip {
   display: flex;
   align-items: center;
+  justify-content: space-between;   /* icon left, temp right on a wide chip */
   gap: 12px;
   background: var(--soft-primary);
   color: #fff;
-  border-radius: var(--soft-radius-sm);
-  padding: 14px 18px;
+  border-radius: var(--soft-radius);
+  padding: 16px 22px;               /* taller, roomier */
   box-shadow: var(--soft-shadow-primary);
   text-decoration: none;
   flex-shrink: 0;
+  width: 100%;                       /* stretch the full row on mobile */
 }
-.home-weather-chip svg { width: 34px; height: 34px; }
-.home-weather-chip-temp { font-size: 20px; font-weight: 800; line-height: 1; }
-.home-weather-chip-cond { font-size: 11px; opacity: 0.75; margin-top: 4px; }
+@media (min-width: 768px) {
+  .home-weather-chip {
+    width: auto;                     /* compact chip again on desktop */
+    justify-content: flex-start;
+    padding: 14px 18px;
+  }
+}
+.home-weather-chip svg { width: 38px; height: 38px; }   /* bigger cloud on the stretched chip */
+.home-weather-chip-temp { font-size: 24px; font-weight: 800; line-height: 1; }
+.home-weather-chip-cond { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+.home-weather-chip-loc {
+  display: block;
+  font-size: 11px;
+  opacity: 0.75;
+  margin-top: 2px;
+}
 
 /* Hero becomes greeting left / weather right */
 .home-hero {
@@ -414,6 +430,7 @@
   align-items: flex-end;        /* items-end: FAB breaks out, tabs sit on the base */
   justify-content: space-around;
   width: min(100%, 560px) !important;
+  max-width: 560px !important;  /* beat student.css's 1200px desktop strip */
   margin: 0 auto;
   padding: 0 12px;
   gap: 0;
@@ -484,6 +501,30 @@
   position: relative;
   top: -7px;                    /* exact baseline alignment with tab labels */
   display: block;
+}
+
+/* Desktop (≥1024px): larger, more clickable nav — placed AFTER the base rules
+   so this media block wins the cascade at desktop width. */
+@media (min-width: 1024px) {
+  .bottom-nav { padding-top: 14px; }
+  .bottom-nav > div {
+    width: min(100%, 640px) !important;
+    max-width: 640px !important;
+    padding: 0 16px;
+  }
+  .bottom-nav .nav-item {
+    font-size: 11px;
+    padding: 8px 14px;
+    gap: 4px;
+  }
+  .bottom-nav .nav-item svg { width: 24px; height: 24px; }
+  .bottom-nav .nav-item.nav-fab { margin-top: -34px; }
+  .bottom-nav .nav-item.nav-fab .nav-fab-btn {
+    width: 60px; height: 60px;
+    box-shadow: 0 12px 30px -6px rgba(79, 70, 229, 0.6);
+  }
+  .bottom-nav .nav-item.nav-fab .nav-fab-btn svg { width: 29px; height: 29px; }
+  .bottom-nav .nav-item.nav-fab .nav-fab-label { margin-bottom: -34px; }
 }
 
 /* ════════════════════════════════════════════════════════
@@ -678,13 +719,7 @@
 }
 .soft-progress-sub { font-size: 13px; color: var(--soft-grey); margin: 10px 0 0; }
 
-/* Weather chip location line */
-.home-weather-chip-loc {
-  display: block;
-  font-size: 10px;
-  opacity: 0.7;
-  margin-top: 2px;
-}
+/* (weather chip location line lives with the chip rules above) */
 
 /* Weekly Schedule Progress (compact day grid + bar) */
 .soft-week-progress {
