@@ -368,16 +368,21 @@
 .student-tools a span small { color: var(--soft-grey); font-size: 12px; }
 .student-tools a > i:last-child { color: rgba(26,27,65,.35); margin-left: auto; }
 
-/* Bus schedule mini-card on Home */
+/* Bus schedule mini-card on Home: icon left, text flows right (no harsh wraps) */
 .home-bus-card {
   background: var(--soft-lavender);
   border-radius: var(--soft-radius);
   box-shadow: var(--soft-shadow);
   padding: 18px 20px;
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: flex-start;      /* items-start: icon top-aligned with multi-line text */
+  gap: 16px;
+  text-align: left;
 }
+.home-bus-card .home-bus-body { flex: 1; min-width: 0; }
+.home-bus-card .home-bus-title { font-weight: 800; color: var(--soft-navy); font-size: 14px; white-space: nowrap; }
+.home-bus-card .home-bus-sub { font-size: 12px; color: var(--soft-grey); margin-top: 2px; overflow-wrap: anywhere; }
+.home-bus-card .home-bus-link { color: var(--soft-primary); font-weight: 700; font-size: 12px; text-decoration: none; white-space: nowrap; align-self: center; }
 .home-bus-card .home-bus-icon {
   width: 44px; height: 44px;
   display: grid; place-items: center;
@@ -386,10 +391,6 @@
   color: var(--soft-lav-icon);
   flex-shrink: 0;
 }
-.home-bus-card .home-bus-body { flex: 1; min-width: 0; }
-.home-bus-card .home-bus-title { font-weight: 800; color: var(--soft-navy); font-size: 14px; }
-.home-bus-card .home-bus-sub { font-size: 12px; color: var(--soft-grey); margin-top: 2px; }
-.home-bus-card .home-bus-link { color: var(--soft-primary); font-weight: 700; font-size: 12px; text-decoration: none; white-space: nowrap; }
 
 /* ════════════════════════════════════════════════════════
    BOTTOM NAV: rounded bar + floating FAB
@@ -478,20 +479,33 @@
   .student-shell .qc-logo { display: none !important; }
 }
 
-/* ── Hero: greeting left / weather right, opposite ends ── */
+/* ── Hero: greeting block left / weather right ──────────
+   Mobile: stacked (greeting above weather). md+: one row,
+   pushed to opposite ends. */
 .home-hero {
   display: flex;
-  width: 100%;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;        /* mobile: stack */
+  align-items: flex-start;
   gap: 16px;
-  flex-wrap: wrap;
+  width: 100%;
 }
-/* tight screens: stack greeting above the weather chip */
-@media (max-width: 480px) {
-  .home-hero { flex-direction: column; align-items: flex-start; }
-  .home-hero-side { align-self: stretch; display: flex; justify-content: flex-end; }
+.home-hero-side {
+  display: flex;
+  justify-content: flex-end;     /* weather hugs the right edge when stacked */
+  width: 100%;
 }
+@media (min-width: 768px) {
+  .home-hero {
+    flex-direction: row;         /* md+: greeting left, weather right */
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+  }
+  .home-hero-side { width: auto; justify-content: flex-end; }
+}
+/* Greeting + name are one left-aligned block; the name renders via
+   .home-hero-main::after directly under the greeting line. */
+.home-hero-main { min-width: 0; }
 
 /* ════════════════════════════════════════════════════════
    3-COLUMN SOFT GRID (mockup app-responsive.html layout)
@@ -502,30 +516,46 @@
   padding-bottom: 120px;
 }
 
+/* Desktop: use the FULL width — the squished 1200px student.css cap and the
+   .soft-home 1240px cap made the 3 columns narrow and text wrap badly. */
+@media (min-width: 1024px) {
+  /* student.css turns .home-layout itself into a 2-col grid at desktop,
+     which stuffed our 3-col .soft-grid into one narrow cell. Flatten it. */
+  .student-shell .page-container.home-layout.soft-home {
+    display: block;
+    max-width: none !important;      /* w-full — span the screen */
+    width: 100%;
+    padding-inline: 32px;            /* px-8 equivalent */
+    padding-bottom: 160px;           /* pb-40: clears the fixed nav on desktop */
+  }
+}
+@media (min-width: 1536px) {
+  .student-shell .page-container.home-layout.soft-home { padding-inline: 40px; }
+}
+
 .soft-grid {
   display: grid;
   grid-template-columns: 1fr;      /* mobile: single column stack */
   gap: 20px;
   align-items: start;
+  width: 100%;                     /* grid fills the container */
 }
 
-/* Tablet: two columns (left col + right col; calendar keeps its own flow) */
+/* Tablet: two columns */
 @media (min-width: 768px) {
-  .soft-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+  .soft-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 }
 
-/* Desktop: three columns */
+/* Desktop: three columns, equal fractions so nothing is narrow */
 @media (min-width: 1024px) {
-  .soft-grid { grid-template-columns: 5fr 4fr 4fr; gap: 22px; }
-  .soft-home { max-width: 1240px; margin: 0 auto; width: 100%; }
+  .soft-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; }
   .soft-col .home-today-grid { flex-wrap: nowrap; }
 }
-
-@media (min-width: 1400px) {
-  .soft-grid { grid-template-columns: 5fr 4fr 4fr; }
-  .soft-home { max-width: 1360px; }
-}
 .soft-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+/* Cards fill their column width — no hardcoded widths inside columns.
+   Only the horizontal task-card scroller keeps fixed-width children. */
+.soft-col > * { width: 100%; }
 
 .soft-col-head {
   display: flex;
@@ -757,11 +787,13 @@
 .soft-goals { display: flex; flex-direction: column; gap: 10px; }
 .soft-goal {
   display: flex;
-  align-items: center;
+  align-items: flex-start;      /* icon top-left beside multi-line text */
   gap: 12px;
   border-radius: var(--soft-radius-sm);
   padding: 13px 16px;
   box-shadow: var(--soft-shadow);
+  text-align: left;
+  text-decoration: none;
 }
 .soft-goal--peach    { background: var(--soft-peach); }
 .soft-goal--mint     { background: var(--soft-mint); }
