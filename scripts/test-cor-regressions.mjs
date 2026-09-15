@@ -7,6 +7,7 @@ import { Users, CorRecords, CorDrafts, Concurrency } from '../functions/api/repo
 import { onRequestPost as upload } from '../functions/api/v1/cor/upload.js';
 import { onRequestPost as processCor } from '../functions/api/v1/cor/process.js';
 import { onRequestPost as review } from '../functions/api/v1/cor/review.js';
+import { onRequestGet as statusGet } from '../functions/api/v1/cor/status.js';
 
 const source = readFileSync(new URL('../assets/js/onboarding.js', import.meta.url), 'utf8');
 const draft = { studentInfo: { firstName: { value: 'Test' }, lastName: { value: 'Student' }, studentNumber: { value: '123' } }, enrollmentInfo: { program: 'BSCS', yearLevel: 1, term: 'First' }, subjects: [{ subjectCode: 'CS101', subjectName: 'Computing', units: 3, schedule: [] }] };
@@ -162,6 +163,12 @@ try {
 console.log('PASS extraction failure releases import and restores prior user state');
 const reviewRecord = CorRecords.create({ ownerUserId: user.userId, status: 'REVIEW_REQUIRED' });
 Users.update(user, { corRecordId: reviewRecord.id });
+// A stale/unknown client requestId must not hide the user's live import:
+// status falls back to the active record so recovery can proceed.
+const staleIdStatus = await statusGet({ env, request: new Request('http://127.0.0.1/api/v1/cor/status?requestId=unknown-stale-id-1234', { headers: { Cookie: (await platformSessionHeader({ env, request: new Request('http://127.0.0.1') }, { ...user, ts: Date.now() })).split(';')[0] } }) });
+assert.equal(staleIdStatus.status, 200);
+assert.equal((await staleIdStatus.json()).corRecordId, reviewRecord.id);
+console.log('PASS unknown requestId falls back to the active import');
 CorDrafts.set(reviewRecord.id, draft);
 const invalid = await review(await context('/api/v1/cor/review', { ...draft, studentInfo: { ...draft.studentInfo, firstName: { value: '' } } }));
 assert.equal(invalid.status, 400);

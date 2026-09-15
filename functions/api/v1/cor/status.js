@@ -19,8 +19,13 @@ export async function onRequestGet(context) {
 
     // Find user's active COR record (Maps or session fallback)
     const params = new URL(context.request.url).searchParams;
-    const requested = params.get('requestId') ? CorRecords.getByRequestId(user.userId,params.get('requestId')) : null;
-    const corRecordId = requested?.id || (params.has('requestId') ? null : CorRecords.getActiveByUserId(user.userId)?.id || user.corRecordId);
+    const requested = params.get('requestId') ? CorRecords.getByRequestId(user.userId, params.get('requestId')) : null;
+    // An unknown requestId must not hide a live import. A stale client ID —
+    // sessionStorage from an earlier attempt, or an upload lost before its
+    // reserve write landed — used to wedge the flow on "has not appeared yet"
+    // because every re-check re-sent the same dead ID. Fall back to the user's
+    // active record so "Check again" can actually recover.
+    const corRecordId = requested?.id || CorRecords.getActiveByUserId(user.userId)?.id || (!params.has('requestId') ? user.corRecordId : null);
     if (!corRecordId) {
       return json({
         status: "OK",

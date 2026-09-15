@@ -77,7 +77,11 @@ export async function callAction(env, action, actor, payload = {}) {
 
   const readonly = /(?:\.read|\.list)$/.test(action) || action === 'admin.access';
   const maxAttempts = readonly ? 2 : 1;
-  const deadline = Date.now() + (action === 'admin.user.update' ? 90000 : REQUEST_TIMEOUT_MS);
+  // cor.* jobs carry a base64 file payload plus a Drive write (start) or read
+  // (claim). A cold Apps Script takes 60-105s to answer, which the generic 30s
+  // deadline aborted mid-write — leaving a requestId the client keeps re-sending
+  // but the backend never recorded. Give the job actions the long deadline.
+  const deadline = Date.now() + (action === 'admin.user.update' || action.startsWith('cor.') ? 90000 : REQUEST_TIMEOUT_MS);
   let lastError = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
   const canonical = JSON.stringify({
