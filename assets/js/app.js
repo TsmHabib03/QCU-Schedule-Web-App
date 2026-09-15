@@ -64,9 +64,13 @@ async function loadJson(path, fallback) {
 }
 
 function parseMinutes(v) {
-  if (!v) return Number.POSITIVE_INFINITY;
-  const [h, m] = v.split(":").map(Number);
-  return h * 60 + m;
+  // Missing or malformed times must never poison math downstream: a NaN here
+  // made the day-modal show "NaN" hours and "12:00 AM" fallbacks everywhere.
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(v ?? "").trim());
+  if (!m) return NaN;
+  const h = Number(m[1]), min = Number(m[2]);
+  if (h > 23 || min > 59) return NaN;
+  return h * 60 + min;
 }
 
 function minutesNow(date = new Date()) {
@@ -74,6 +78,7 @@ function minutesNow(date = new Date()) {
 }
 
 function formatTime(v) {
+  if (parseMinutes(v) !== parseMinutes(v)) return "—";  // NaN-safe: no valid time
   if (!v) return "—";
   const [h, m] = v.split(":").map(Number);
   const suffix = h >= 12 ? "PM" : "AM";
@@ -922,7 +927,13 @@ function openDayModal(day) {
 
   const classes = classesForDay(day);
   const isToday = day === QCU_TIME.weekday();
-  const hours = classes.reduce((sum, x) => sum + (parseMinutes(x.end) - parseMinutes(x.start)) / 60, 0);
+  // NaN-safe hours: entries with missing/malformed times are skipped, and the
+  // sum falls back to 0 so "NaN" can never render.
+  const hours = classes.reduce((sum, x) => {
+    const s = parseMinutes(x.start), e = parseMinutes(x.end);
+    if (s !== s || e !== e || e <= s) return sum;   // NaN or invalid range
+    return sum + (e - s) / 60;
+  }, 0);
 
   const rows = classes.length
     ? classes.map(x => {
@@ -963,7 +974,7 @@ function openDayModal(day) {
         </div>
         <div class="day-modal-stat">
           <span class="day-modal-stat-label">Hours</span>
-          <span class="day-modal-stat-value">${Math.round(hours * 10) / 10}</span>
+          <span class="day-modal-stat-value">${hours || 0}</span>
         </div>
       </div>
 

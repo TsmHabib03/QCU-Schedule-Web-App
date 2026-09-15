@@ -1661,3 +1661,91 @@
   font-weight: 800;
   border: 0 !important;
 }
+
+/* ════════════════════════════════════════════════════════
+   FORM ELEMENTS — soft-UI inputs, selects, textareas
+   (Add Task / Add Note / schedule CRUD / all modals)
+   ════════════════════════════════════════════════════════ */
+.task-form input[type="text"],
+.task-form textarea,
+.task-form select,
+.task-form input[type="date"],
+.note-form input[type="text"],
+.note-form textarea,
+.note-form select,
+.note-form input[type="date"],
+.crud-form input[type="text"],
+.crud-form select,
+.crud-form input[type="time"],
+.crud-form input[type="date"],
+.modal-card input[type="text"],
+.modal-card textarea,
+.modal-card select,
+.modal-card input[type="date"],
+.modal-card input[type="time"] {
+  background: #F8FAFC !important;              /* slate-50 */
+  border: 1px solid #E2E8F0 !important;        /* slate-200 */
+  border-radius: 12px !important;              /* rounded-xl */
+  padding: 12px 16px !important;               /* px-4 py-3 */
+  font-size: 13px !important;
+  font-weight: 600;
+  color: #1A1B41 !important;
+  font-family: inherit;
+  outline: none !important;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+}
+/* placeholders */
+.task-form input::placeholder, .task-form textarea::placeholder,
+.note-form input::placeholder, .note-form textarea::placeholder,
+.crud-form input::placeholder, .modal-card input::placeholder,
+.modal-card textarea::placeholder {
+  color: #94A3B8;
+  font-weight: 500;
+}
+/* focus: indigo ring (focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100) */
+.task-form input:focus, .task-form textarea:focus, .task-form select:focus,
+.task-form input[type="date"]:focus,
+.note-form input:focus, .note-form textarea:focus, .note-form select:focus,
+.note-form input[type="date"]:focus,
+.crud-form input:focus, .crud-form select:focus,
+.crud-form input[type="time"]:focus, .crud-form input[type="date"]:focus,
+.modal-card input:focus, .modal-card textarea:focus, .modal-card select:focus,
+.modal-card input[type="date"]:focus, .modal-card input[type="time"]:focus {
+  border-color: #4A3AFF !important;
+  box-shadow: 0 0 0 3px rgba(74, 58, 255, 0.12) !important;
+  background: #fff !important;
+  outline: none !important;
+}
+/* select dropdown arrow (appearance:none removes the native one) */
+.task-form select, .note-form select, .crud-form select, .modal-card select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238E92AD' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  padding-right: 38px !important;
+}
+/* date/time inputs: same soft treatment, calendar icon stays native */
+.task-form input[type="date"], .crud-form input[type="date"],
+.modal-card input[type="date"] { color-scheme: light; }
+
+/* form labels */
+.form-label {
+  color: #8E92AD !important;
+  font-weight: 800;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+}
+
+/* submit buttons inside modals */
+.modal-card .action-button {
+  background: #4A3AFF !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  color: #fff !important;
+  font-weight: 700;
+  box-shadow: 0 10px 22px -6px rgba(74, 58, 255, 0.5);
+  padding: 12px 18px !important;
+}
