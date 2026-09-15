@@ -998,3 +998,172 @@
 }
 .soft-timeline-empty svg { width: 30px; height: 30px; stroke-width: 1.5; }
 .soft-timeline-empty a { color: var(--soft-primary); font-weight: 700; text-decoration: none; font-size: 13px; }
+
+/* ════════════════════════════════════════════════════════
+   WORKSPACE (Tasks & Notes) — soft-UI theme, matches Home
+   ════════════════════════════════════════════════════════ */
+
+/* Page spacing: clear the fixed bottom nav */
+.student-shell .page-container.workspace-page { gap: 18px; padding-bottom: 140px; }
+
+/* Heading row */
+.workspace-intro { align-items: center; gap: 16px; }
+
+/* Tasks/Notes view switch: purple pill selector like the schedule tabs */
+.workspace-switch {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: #F4F7FC !important;
+  padding: 5px !important;
+  gap: 4px;
+}
+.workspace-switch-button {
+  min-height: 36px !important;
+  padding: 7px 18px !important;
+  border-radius: 9999px !important;
+  font-size: 12.5px !important;
+  font-weight: 700;
+  color: #8E92AD;
+  background: transparent !important;
+  box-shadow: none !important;
+  transition: background .15s ease, color .15s ease;
+}
+.workspace-switch-button.is-active {
+  background: #4A3AFF !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px -6px rgba(74, 58, 255, 0.5) !important;
+}
+.workspace-switch-button:not(.is-active):hover { background: #ECEBFF !important; color: #4A3AFF; }
+.workspace-switch-button svg, .workspace-switch-button i { width: 15px; height: 15px; stroke-width: 2.2; }
+
+/* Toolbar card: floating white */
+.student-shell .workspace-page .portal-card {
+  border-radius: 24px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.03) !important;
+  padding: 14px !important;
+}
+
+/* Search input: soft pill */
+.task-search-wrap { border-radius: 9999px !important; }
+.task-search-input {
+  border: 0 !important;
+  background: #F4F7FC;
+  font-weight: 600;
+  color: #1A1B41;
+}
+.task-search-input::placeholder { color: #8E92AD; }
+.task-search-icon { color: #8E92AD; }
+.task-search-clear { color: #8E92AD; }
+
+/* Filter selects: soft pills */
+.task-filter-select {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: #F4F7FC !important;
+  font-weight: 700 !important;
+  color: #1A1B41 !important;
+  box-shadow: none !important;
+}
+.task-filter-select:focus { box-shadow: 0 0 0 3px rgba(74, 58, 255, 0.15) !important; }
+
+/* ── Task cards: white floating with pastel priority accents ── */
+.task-card {
+  border: 1px solid rgba(0, 0, 0, 0.03) !important;
+  border-left-width: 5px !important;
+  border-radius: 22px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  background: #fff !important;
+  padding: 16px 18px !important;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.task-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.07) !important;
+  border-top-color: rgba(0, 0, 0, 0.03) !important;
+  border-right-color: rgba(0, 0, 0, 0.03) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.03) !important;
+}
+/* Priority accent: pastel left edge instead of harsh 3px line */
+.task-card--priority-high   { border-left-color: #FFB59E !important; }
+.task-card--priority-medium { border-left-color: #FFD8A8 !important; }
+.task-card--priority-low    { border-left-color: #A8E6DE !important; }
+.task-card.completed { opacity: 0.55; }
+
+.task-card-title { color: #1A1B41 !important; font-weight: 800 !important; }
+.task-card.completed .task-card-title { color: #8E92AD !important; }
+
+/* Checkbox: round, purple when checked */
+.task-check-btn {
+  border-radius: 9999px !important;
+  border: 2px solid #D6D9E8 !important;
+  margin-top: 1px;
+}
+.task-check-btn:hover { border-color: #4A3AFF !important; color: #4A3AFF !important; }
+.task-check-btn.checked {
+  background: #4A3AFF !important;
+  border-color: #4A3AFF !important;
+  box-shadow: 0 6px 14px -4px rgba(74, 58, 255, 0.5);
+}
+
+/* Meta chips inside cards */
+.task-card .task-meta, .note-card .task-meta { color: #8E92AD !important; font-weight: 600; }
+.task-card .task-meta i, .note-card .task-meta i { color: #8E92AD !important; }
+
+/* Priority pill (if rendered as text chip) */
+.task-card [class*="priority-pill"], .task-card .chip {
+  border-radius: 9999px !important;
+  border: 0 !important;
+  font-weight: 700;
+}
+
+/* ── Note cards: pastel (mint/peach/lavender rotation) ── */
+.workspace-list .note-card {
+  border: 0 !important;
+  border-radius: 22px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  background: #E0F7F6 !important;
+  padding: 2px !important;
+  overflow: hidden;
+  transition: transform .15s ease;
+}
+.workspace-list .note-card:hover { transform: translateY(-2px); }
+.workspace-list .note-card:nth-child(3n + 1) { background: #FFE8D6 !important; }
+.workspace-list .note-card:nth-child(3n + 2) { background: #E0F7F6 !important; }
+.workspace-list .note-card:nth-child(3n) { background: #EDEAFF !important; }
+.note-card-inner { padding: 15px 17px 13px !important; background: transparent !important; }
+.note-card-title { color: #1A1B41 !important; font-weight: 800 !important; }
+.note-card-body { color: #4B4F6B !important; }
+.note-card-footer .task-meta { color: rgba(26, 27, 65, 0.5) !important; }
+
+/* ── Empty states: soft tile ── */
+.empty-state {
+  border: 0 !important;
+  border-radius: 24px !important;
+  background: #fff !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  color: #8E92AD !important;
+}
+.empty-icon { color: #4A3AFF !important; }
+.empty-text { color: #5C607E !important; font-weight: 600; }
+
+/* ── FAB (add task/note): purple circle like the nav Classroom FAB ── */
+.fab {
+  background: #4A3AFF !important;
+  color: #fff !important;
+  border: 4px solid #fff !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 10px 25px -5px rgba(74, 58, 255, 0.55) !important;
+  width: 56px !important;
+  height: 56px !important;
+  display: grid;
+  place-items: center;
+  bottom: 96px !important;
+}
+.fab svg, .fab i { width: 24px !important; height: 24px !important; stroke-width: 2.4; }
+
+/* ── Modals: soft rounded ── */
+.modal-card {
+  border-radius: 28px !important;
+  box-shadow: 0 25px 60px rgba(26, 27, 65, 0.18) !important;
+}
