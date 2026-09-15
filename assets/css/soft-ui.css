@@ -393,7 +393,7 @@
 }
 
 /* ════════════════════════════════════════════════════════
-   BOTTOM NAV: rounded bar + floating FAB
+   BOTTOM NAV: minimal tabs + circular Google FAB
    ════════════════════════════════════════════════════════ */
 .bottom-nav {
   position: fixed !important;   /* beat student.css's desktop sticky-top */
@@ -402,58 +402,84 @@
   left: 0; right: 0;
   z-index: 50;
   background: #fff;             /* solid white, never blends into the page */
-  border-radius: 32px 32px 0 0;
-  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05) !important;  /* subtle shadow on top */
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05) !important;  /* subtle shadow above */
   border-top: 0;
   border-bottom: 0 !important;
-  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
 }
 .bottom-nav > div {
   display: flex;
-  align-items: center;
+  align-items: flex-end;        /* items-end: FAB breaks out, tabs sit on the base */
   justify-content: space-around;
-  width: min(100%, 560px) !important;   /* even icon spacing, native-app width */
+  width: min(100%, 560px) !important;
   margin: 0 auto;
-  padding: 10px 12px 6px;
+  padding: 8px 12px 0;
   gap: 0;
 }
+/* Standard tabs: icon over label, no pill/background/border states */
 .bottom-nav .nav-item {
   flex-direction: column;
   gap: 3px;
-  color: #94A3B8;               /* slate-400: clear inactive state */
+  color: #64748B;               /* slate-500 inactive */
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 400;             /* font-normal inactive */
   padding: 6px 10px;
-  border-radius: 16px;
+  border-radius: 12px;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  transition: color .2s ease;
 }
-.bottom-nav .nav-item svg { width: 24px; height: 24px; stroke-width: 1.7; }
+.bottom-nav .nav-item:hover { color: #6366F1; }   /* hover:text-indigo-500 */
+.bottom-nav .nav-item svg { width: 23px; height: 23px; stroke-width: 1.7; }
 .bottom-nav .nav-item.active {
-  color: #4338CA;               /* indigo-700: high-contrast active state */
-  background: var(--soft-primary-soft);
+  color: #4F46E5;               /* indigo-600: purple icon + text only */
+  font-weight: 500;             /* font-medium */
+  background: none;             /* NO pill, NO border — minimal active state */
 }
-.bottom-nav .nav-item.active svg { stroke-width: 2; }
+.bottom-nav .nav-item.active::before,
+.bottom-nav .nav-item.active::after { display: none; }
 
-/* FAB slot: middle item becomes the raised + button */
+/* Central floating Google button: perfect circle, purple, prominent shadow */
 .bottom-nav .nav-item.nav-fab {
   background: none;
-  color: #fff;
-  position: relative;
-  top: -22px;
+  color: #64748B;               /* label matches inactive tab gray */
+  min-width: 0 !important;      /* beat styles.css's 50px min-width */
+  width: auto !important;       /* circle keeps its own 56px, anchor wraps it */
+  align-self: flex-start;
+  /* NOTE: no top shift here — only the circle is lifted (below), so the
+     label row stays in the SAME flow position as the other tab labels. */
 }
 .bottom-nav .nav-item.nav-fab .nav-fab-btn {
   width: 56px; height: 56px;
+  box-sizing: border-box;       /* white ring included — stays a perfect circle */
   background: var(--soft-primary);
-  border-radius: 20px;
-  box-shadow: var(--soft-shadow-primary);
+  border-radius: 9999px;        /* perfect circle */
+  box-shadow: 0 10px 25px -5px rgba(74, 58, 255, 0.55);
   display: grid; place-items: center;
-  color: #fff;                  /* bright white + icon */
-  border: 0;
+  border: 4px solid #fff;       /* clean separation from the bar edge */
   cursor: pointer;
-  transition: transform .15s ease;
+  position: relative;
+  top: -24px;                   /* lift ONLY the circle above the bar edge */
+  margin-bottom: -24px;         /* cancel the lift so the label stays aligned */
+  transition: transform .15s ease, box-shadow .15s ease;
 }
-.bottom-nav .nav-item.nav-fab .nav-fab-btn:hover { transform: scale(1.05); }
-.bottom-nav .nav-item.nav-fab .nav-fab-btn svg { width: 26px; height: 26px; stroke-width: 2.4; }
-.bottom-nav .nav-item.nav-fab span { font-size: 10px; font-weight: 600; margin-top: 4px; }
+.bottom-nav .nav-item.nav-fab .nav-fab-btn:hover {
+  transform: scale(1.06);
+  box-shadow: 0 14px 30px -5px rgba(74, 58, 255, 0.65);
+}
+.bottom-nav .nav-item.nav-fab .nav-fab-btn svg {
+  width: 26px; height: 26px;    /* solid white Google G */
+  display: block;
+}
+.bottom-nav .nav-item.nav-fab .nav-fab-label {
+  font-size: 10px;
+  font-weight: 400;
+  color: #64748B;               /* aligns stylistically with the other tabs */
+  margin-top: 5px;
+  display: block;
+}
 
 /* ════════════════════════════════════════════════════════
    HEADER
