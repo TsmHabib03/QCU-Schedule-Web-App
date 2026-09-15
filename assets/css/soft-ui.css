@@ -1507,3 +1507,157 @@
   letter-spacing: -0.02em;
 }
 .student-shell .settings-page .caption { color: #8E92AD !important; }
+
+/* ════════════════════════════════════════════════════════
+   BUILDINGS / SCHEDULE / TODAY — soft-UI theme, matches Home
+   (Today reuses the home-today-card templates, already themed;
+    these rules cover its page shell + the other two pages.)
+   ════════════════════════════════════════════════════════ */
+
+/* Page spacing: clear the fixed bottom nav on all three pages */
+.student-shell .page-container { padding-bottom: 140px; }
+
+/* ── Buttons: purple rounded ── */
+.student-shell .student-button {
+  background: #fff !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  color: #1A1B41 !important;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  padding: 10px 16px !important;
+}
+.student-shell .student-button:hover { transform: translateY(-1px); color: #4A3AFF !important; }
+.student-shell .student-button--primary {
+  background: #4A3AFF !important;
+  color: #fff !important;
+  box-shadow: 0 10px 22px -6px rgba(74, 58, 255, 0.5);
+}
+.student-shell .student-button--primary:hover { background: #3D2EE0 !important; color: #fff !important; }
+
+/* ── BUILDINGS: floating white cards with pastel chips ── */
+.building-card {
+  border: 1px solid rgba(0, 0, 0, 0.03) !important;
+  border-radius: 26px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  overflow: hidden;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.building-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(0, 0, 0, 0.03) !important;
+}
+.building-card-image { background: #F4F7FC !important; }
+.building-card-body { padding: 18px 20px !important; gap: 6px; }
+.building-card-body h3, .building-card-body .building-name { color: #1A1B41 !important; font-weight: 800 !important; }
+.building-card-body p, .building-card-body .building-meta { color: #8E92AD !important; font-weight: 600; }
+
+/* Building modal content inherits .modal-card soft rounding */
+
+/* ── SCHEDULE: day pills + soft table ── */
+.schedule-controls { gap: 12px; }
+.schedule-days { gap: 8px !important; }
+.schedule-days button {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: #fff !important;
+  color: #8E92AD !important;
+  font-weight: 700;
+  padding: 8px 14px !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.04);
+  transition: background .15s ease, color .15s ease;
+}
+.schedule-days button:hover { color: #4A3AFF !important; background: #ECEBFF !important; }
+.schedule-days button[aria-pressed="true"] {
+  background: #4A3AFF !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px -6px rgba(74, 58, 255, 0.5);
+}
+.schedule-result { color: #8E92AD !important; font-weight: 600; }
+
+/* Table: floating white card with soft rows */
+.table-wrap, .student-shell .table-wrap {
+  border-radius: 26px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.03) !important;
+  background: #fff !important;
+  overflow: hidden;
+}
+.student-shell .schedule-table th {
+  color: #8E92AD !important;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(26, 27, 65, 0.08) !important;
+}
+.student-shell .schedule-table td { border-bottom: 1px solid rgba(26, 27, 65, 0.06) !important; }
+.student-shell .schedule-table tr:last-child td { border-bottom: 0 !important; }
+.student-shell .schedule-table tr:hover td { background: #F8F9FE !important; }
+
+/* Status pills in the table */
+.student-shell .schedule-table .status-pill,
+.student-shell .schedule-table .chip {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  font-weight: 700;
+}
+
+/* Schedule table skeleton cells: pills */
+.skel-schedule-table .skel-cell,
+.skel-schedule-table .skel-cell-sm {
+  border-radius: 9999px !important;
+}
+
+/* ── TODAY page shell (cards already themed via home-today-card) ── */
+.student-shell .page-container .page-title {
+  color: #1A1B41 !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+}
+.student-shell .caption { color: #8E92AD !important; }
+
+/* Today page loading skeleton: pastel card strip like Home */
+#today-cards .loading-cards { display: flex; gap: 14px; overflow-x: auto; }
+#today-cards .loading-cards .loading-card {
+  flex-shrink: 0;
+  width: 200px;
+  min-height: 160px;
+}
+
+/* Buildings skeleton: pastel cards in the grid */
+#building-grid .loading-cards { gap: 14px; }
+#building-grid .loading-cards .loading-card { min-height: 240px; }
+
+/* ── TODAY page: .class-card template soft-UI ── */
+.student-shell .class-card {
+  border: 1px solid rgba(0, 0, 0, 0.03) !important;
+  border-left: 5px solid #A8E6DE !important;
+  border-radius: 22px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  background: #fff !important;
+  transition: transform .15s ease;
+}
+.student-shell .class-card:hover { transform: translateY(-2px); }
+/* Status accent edges: pastels */
+.student-shell .class-card.current-card { border-left-color: #4A3AFF !important; }
+.student-shell .class-card.next-card { border-left-color: #FFD8A8 !important; }
+.student-shell .class-card.finished-card { border-left-color: #E8EBF5 !important; opacity: .8; }
+.student-shell .class-card-subject { color: #1A1B41 !important; font-weight: 800 !important; }
+.student-shell .class-card-time { color: #4A3AFF !important; font-weight: 700 !important; }
+
+/* Status pills on Today */
+.student-shell .status-pill { border: 0 !important; border-radius: 9999px !important; font-weight: 700; }
+.student-shell .status-current { background: #4A3AFF !important; color: #fff !important; }
+.student-shell .status-next { background: #FFE8D6 !important; color: #C2410C !important; }
+.student-shell .status-finished { background: #EDEAFF !important; color: #7B6CF6 !important; }
+
+/* Building code badge: purple pill on the image */
+.building-code-badge {
+  background: #4A3AFF !important;
+  color: #fff !important;
+  border-radius: 9999px !important;
+  font-weight: 800;
+  border: 0 !important;
+}

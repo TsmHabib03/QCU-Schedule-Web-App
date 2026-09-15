@@ -1149,12 +1149,12 @@ function renderBuildings() {
     return `
       <button class="building-card" data-building-index="${index}" type="button">
         <div class="building-card-image">
-          <img src="assets/images/${item.image}" alt="${item.name}" loading="lazy">
+          ${item.image ? `<img src="assets/images/${item.image}" alt="${item.name}" loading="lazy">` : ""}
           <span class="building-code-badge">${item.code}</span>
         </div>
         <div class="building-card-body">
           <p class="building-name">${item.name}</p>
-          <p class="building-desc">${item.description}</p>
+          <p class="building-desc">${item.description || ""}</p>
           <div style="display:flex; gap:16px; margin-top:8px; padding-top:12px; border-top:1px solid var(--divider);">
             <div><p style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Floors</p><p style="font-size:13px; font-weight:700;">${item.floors}</p></div>
             <div><p style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Rooms</p><p style="font-size:13px; font-weight:700;">${rooms.length}</p></div>
@@ -2383,6 +2383,9 @@ async function init() {
         buildingId: b.buildingId,
         campusId: b.campusId,
         floors: b.floors,
+        rooms: Array.isArray(b.rooms) ? b.rooms : [],
+        image: b.image || null,
+        description: b.description || "",
         lat: b.lat,
         lng: b.lng,
       }));
