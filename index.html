@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
 <link rel="stylesheet" href="assets/css/styles.css?v=55">
 <link rel="stylesheet" href="assets/css/student.css?v=2">
-<link rel="stylesheet" href="assets/css/soft-ui.css?v=14">
+<link rel="stylesheet" href="assets/css/soft-ui.css?v=17">
 <link rel="stylesheet" href="assets/css/entry.css?v=1">
 <script>
   // Auth gate: start the session check immediately so the network round-trip
@@ -222,15 +222,17 @@
 
     <main id="main-content" tabindex="-1" class="page-container home-layout soft-home">
 
-      <!-- 1. Hero: greeting + purple weather chip -->
+      <!-- 1. Hero: grouped greeting left / weather right -->
       <section class="home-hero">
-        <div class="home-hero-main" id="home-hero-main" data-student-name="Student">
-          <p class="home-hero-eyebrow">
-            <span class="home-hero-rule"></span>
-            <span id="home-greeting">Good day</span>
-          </p>
-          <div class="home-hero-skeleton" id="hero-skeleton">
-            <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
+        <div class="home-hero-greeting">
+          <div class="home-hero-main" id="home-hero-main" data-student-name="Student">
+            <p class="home-hero-eyebrow">
+              <span class="home-hero-rule"></span>
+              <span id="home-greeting">Good day</span>
+            </p>
+            <div class="home-hero-skeleton" id="hero-skeleton">
+              <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
+            </div>
           </div>
         </div>
         <div class="home-hero-side">
@@ -245,9 +247,10 @@
         </div>
       </section>
 
-      <!-- 2. 3-column grid: Dashboard / Calendar / Timeline -->
-      <div class="soft-grid">
+      <!-- divider + 3-column grid: Today Task / Calendar+Classroom / Tasks&Notes -->
+      <div class="soft-divider" aria-hidden="true"></div>
 
+      <div class="soft-grid">
         <!-- LEFT: Today Task cards + semester progress -->
         <section class="soft-col" aria-labelledby="today-heading">
           <div class="soft-col-head">
@@ -330,7 +333,7 @@
   <script src="assets/js/lucide.min.js?v=1"></script>
   <script>if (window.lucide) window.lucide.createIcons();</script>
 <script src="assets/js/academic.js?v=41"></script>
-<script src="assets/js/app.js?v=63"></script>
+<script src="assets/js/app.js?v=64"></script>
 <script src="assets/js/install-prompt.js?v=1"></script>
   <script>
     // Weather chip: keyless Open-Meteo, campus coordinates (same source the

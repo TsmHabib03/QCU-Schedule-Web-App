@@ -393,7 +393,7 @@
 }
 
 /* ════════════════════════════════════════════════════════
-   BOTTOM NAV: minimal tabs + circular Google FAB
+   BOTTOM NAV: minimal tabs + circular Classroom FAB
    ════════════════════════════════════════════════════════ */
 .bottom-nav {
   position: fixed !important;   /* beat student.css's desktop sticky-top */
@@ -403,10 +403,11 @@
   z-index: 50;
   background: #fff;             /* solid white, never blends into the page */
   border-radius: 24px 24px 0 0;
-  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.05) !important;  /* subtle shadow above */
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05) !important;  /* soft, wide */
   border-top: 0;
   border-bottom: 0 !important;
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  padding-top: 12px;            /* pt-3 */
+  padding-bottom: max(16px, env(safe-area-inset-bottom));  /* pb-4 */
 }
 .bottom-nav > div {
   display: flex;
@@ -414,7 +415,7 @@
   justify-content: space-around;
   width: min(100%, 560px) !important;
   margin: 0 auto;
-  padding: 8px 12px 0;
+  padding: 0 12px;
   gap: 0;
 }
 /* Standard tabs: icon over label, no pill/background/border states */
@@ -441,43 +442,47 @@
 .bottom-nav .nav-item.active::before,
 .bottom-nav .nav-item.active::after { display: none; }
 
-/* Central floating Google button: perfect circle, purple, prominent shadow */
+/* Central floating Classroom button — w-14 h-14 rounded-full bg-indigo-600,
+   wrapped in a relative container so ONLY the circle breaks the bar's top
+   edge (-mt-8 effect) while the label stays in the tab-label row. */
 .bottom-nav .nav-item.nav-fab {
   background: none;
   color: #64748B;               /* label matches inactive tab gray */
+  position: relative;           /* relative wrapper per spec */
   min-width: 0 !important;      /* beat styles.css's 50px min-width */
-  width: auto !important;       /* circle keeps its own 56px, anchor wraps it */
+  width: auto !important;
   align-self: flex-start;
-  /* NOTE: no top shift here — only the circle is lifted (below), so the
-     label row stays in the SAME flow position as the other tab labels. */
+  margin-top: -32px;            /* -mt-8: circle floats out of the bar */
 }
 .bottom-nav .nav-item.nav-fab .nav-fab-btn {
-  width: 56px; height: 56px;
-  box-sizing: border-box;       /* white ring included — stays a perfect circle */
-  background: var(--soft-primary);
-  border-radius: 9999px;        /* perfect circle */
-  box-shadow: 0 10px 25px -5px rgba(74, 58, 255, 0.55);
-  display: grid; place-items: center;
+  width: 56px; height: 56px;    /* w-14 h-14 */
+  box-sizing: border-box;       /* ring included — stays a perfect circle */
+  background: #4F46E5;          /* indigo-600 */
+  border-radius: 9999px;        /* rounded-full */
+  box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.55);  /* shadow-lg */
+  display: flex;                /* flex items-center justify-center */
+  align-items: center;
+  justify-content: center;
   border: 4px solid #fff;       /* clean separation from the bar edge */
   cursor: pointer;
-  position: relative;
-  top: -24px;                   /* lift ONLY the circle above the bar edge */
-  margin-bottom: -24px;         /* cancel the lift so the label stays aligned */
   transition: transform .15s ease, box-shadow .15s ease;
 }
 .bottom-nav .nav-item.nav-fab .nav-fab-btn:hover {
   transform: scale(1.06);
-  box-shadow: 0 14px 30px -5px rgba(74, 58, 255, 0.65);
+  box-shadow: 0 14px 30px -5px rgba(79, 70, 229, 0.65);
 }
 .bottom-nav .nav-item.nav-fab .nav-fab-btn svg {
-  width: 26px; height: 26px;    /* solid white Google G */
+  width: 27px; height: 27px;
   display: block;
 }
 .bottom-nav .nav-item.nav-fab .nav-fab-label {
   font-size: 10px;
   font-weight: 400;
   color: #64748B;               /* aligns stylistically with the other tabs */
-  margin-top: 5px;
+  margin-top: 6px;
+  margin-bottom: -32px;         /* cancel the -mt-8: label stays in the row */
+  position: relative;
+  top: -7px;                    /* exact baseline alignment with tab labels */
   display: block;
 }
 
@@ -505,15 +510,25 @@
   .student-shell .qc-logo { display: none !important; }
 }
 
-/* ── Hero: greeting block left / weather right ──────────
-   Mobile: stacked (greeting above weather). md+: one row,
-   pushed to opposite ends. */
-.home-hero {
+/* ── Hero: grouped greeting left / weather right ──────────
+   Mobile: stacked. md+: one row pushed to opposite ends.
+   pb-8 keeps the weather chip clear of the divider below. */
+.student-shell .home-hero {
   display: flex;
   flex-direction: column;        /* mobile: stack */
   align-items: flex-start;
   gap: 16px;
   width: 100%;
+  padding: 4px 0 32px !important; /* pb-8: beats student.css's 24px */
+  border-bottom: 0 !important;    /* the .soft-divider draws the line now */
+  border-radius: 0;
+}
+.home-hero-greeting {
+  /* Greeting + name = ONE left-aligned block (flex-col items-start). */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
 }
 .home-hero-side {
   display: flex;
@@ -529,9 +544,14 @@
   }
   .home-hero-side { width: auto; justify-content: flex-end; }
 }
-/* Greeting + name are one left-aligned block; the name renders via
-   .home-hero-main::after directly under the greeting line. */
-.home-hero-main { min-width: 0; }
+
+/* Divider between hero and the grid, with mt-8 breathing room below. */
+.soft-divider {
+  height: 1px;
+  background: rgba(26, 27, 65, 0.08);
+  width: 100%;
+  margin-bottom: 32px;           /* mt-8 for the grid content below the line */
+}
 
 /* ════════════════════════════════════════════════════════
    3-COLUMN SOFT GRID (mockup app-responsive.html layout)
