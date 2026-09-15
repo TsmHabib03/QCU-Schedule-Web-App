@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
 <link rel="stylesheet" href="assets/css/styles.css?v=55">
 <link rel="stylesheet" href="assets/css/student.css?v=2">
-<link rel="stylesheet" href="assets/css/soft-ui.css?v=2">
+<link rel="stylesheet" href="assets/css/soft-ui.css?v=3">
 <link rel="stylesheet" href="assets/css/entry.css?v=1">
 <script>
   // Auth gate: start the session check immediately so the network round-trip
@@ -220,100 +220,88 @@
     <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header>
     <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
 
-    <main id="main-content" tabindex="-1" class="page-container home-layout">
+    <main id="main-content" tabindex="-1" class="page-container home-layout soft-home">
 
-      <!-- 1. Hero -->
+      <!-- 1. Hero: greeting + purple weather chip -->
       <section class="home-hero">
         <div class="home-hero-main" id="home-hero-main" data-student-name="Student">
           <p class="home-hero-eyebrow">
             <span class="home-hero-rule"></span>
             <span id="home-greeting">Good day</span>
           </p>
-          <h1 class="home-hero-title">Student Overview</h1>
-          <p class="home-hero-sub">Your classes, your campus, and the day ahead.</p>
-          <div class="home-hero-stats" style="display:none;">
-            <span class="home-hero-stat">
-              <strong id="hero-today-date">—</strong>
-            </span>
-          </div>
           <div class="home-hero-skeleton" id="hero-skeleton">
-            <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
             <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
           </div>
         </div>
         <div class="home-hero-side">
-          <a class="home-weather-chip" href="#home-status" id="home-weather-chip" aria-label="Campus weather">
+          <a class="home-weather-chip" href="campus-eta.html" id="home-weather-chip" aria-label="Campus weather and commute">
             <i data-lucide="cloud" aria-hidden="true"></i>
             <span>
               <span class="home-weather-chip-temp" id="weather-chip-temp">--°</span>
               <span class="home-weather-chip-cond" id="weather-chip-cond">Checking…</span>
             </span>
           </a>
-          <div class="student-actions">
-            <a class="student-button student-button--primary" href="schedule.html"><i data-lucide="calendar-days" aria-hidden="true"></i> Full schedule</a>
-            <a class="student-button" href="workspace.html"><i data-lucide="notebook-pen" aria-hidden="true"></i> Workspace</a>
+        </div>
+      </section>
+
+      <!-- 2. 3-column grid: Dashboard / Calendar / Timeline -->
+      <div class="soft-grid">
+
+        <!-- LEFT: Today Task cards + semester progress -->
+        <section class="soft-col" aria-labelledby="today-heading">
+          <div class="soft-col-head">
+            <h2 id="today-heading" class="soft-col-title">Today Task</h2>
+            <a class="soft-col-link" href="today.html">See all</a>
           </div>
-        </div>
-      </section>
+          <div id="today-grid" class="home-today-grid" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards-grid" aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div></div>
 
-      <!-- 1b. Today's Schedule -->
-      <section class="student-day-section" aria-labelledby="today-heading">
-      <div class="home-today-head">
-        <h2 id="today-heading" class="home-kicker">Today's schedule</h2>
-        <a class="home-week-link" href="today.html">Class details <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+          <!-- QCity Bus Route 4 -->
+          <div id="home-bus-card" class="home-bus-card" hidden>
+            <span class="home-bus-icon"><i data-lucide="bus" aria-hidden="true"></i></span>
+            <span class="home-bus-body">
+              <span class="home-bus-title">QCity Bus · Route 4</span>
+              <span class="home-bus-sub" id="home-bus-sub">Libreng Sakay — loading schedule…</span>
+            </span>
+            <a class="home-bus-link" href="campus-eta.html">View route</a>
+          </div>
+
+          <!-- Semester progress -->
+          <div id="semester-progress" class="soft-progress" hidden>
+            <div class="soft-progress-head">
+              <p class="soft-progress-title">Semester progress</p>
+              <span class="soft-progress-pct" id="progress-pct">—%</span>
+            </div>
+            <div class="soft-progress-track"><div class="soft-progress-fill" id="progress-fill"></div></div>
+            <p class="soft-progress-sub" id="progress-sub"></p>
+          </div>
+        </section>
+
+        <!-- MIDDLE: Calendar month + monthly goals -->
+        <section class="soft-col" aria-labelledby="calendar-heading">
+          <div class="soft-col-head">
+            <h2 id="calendar-heading" class="soft-col-title">Calendar</h2>
+            <p class="soft-col-sub" id="calendar-label">—</p>
+          </div>
+          <div class="soft-calendar" id="soft-calendar" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
+
+          <div class="soft-col-head">
+            <h2 class="soft-col-title">Monthly Goals</h2>
+          </div>
+          <div id="monthly-goals" class="soft-goals" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
+        </section>
+
+        <!-- RIGHT: Today's Timeline -->
+        <section class="soft-col" aria-labelledby="timeline-heading">
+          <div class="soft-col-head">
+            <h2 id="timeline-heading" class="soft-col-title">Today's Timeline</h2>
+            <a class="soft-col-link" href="today.html">Day view</a>
+          </div>
+          <div class="soft-timeline-wrap">
+            <div id="soft-timeline" class="soft-timeline" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
+          </div>
+        </section>
+
       </div>
-      <div id="today-grid" class="home-today-grid" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards-grid" aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div></div>
-      </section>
-
-      <!-- 1c. Class Tracker + Countdown -->
-      <section class="home-nownext">
-        <div class="home-nownext-head">
-          <h2 class="home-kicker">Class tracker</h2>
-          <span class="home-nownext-state" id="countdown-state-label">—</span>
-        </div>
-        <div id="home-tracker" class="home-tracker">
-          <div id="tracker-now" class="home-tracker-cell home-tracker-cell--now" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
-          <div class="home-tracker-arrow"><i data-lucide="arrow-right"></i></div>
-          <div id="tracker-next" class="home-tracker-cell home-tracker-cell--next" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
-        </div>
-        <div id="countdown-slot" class="home-countdown" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
-      </section>
-
-      <!-- 2. Today in Quezon City: weather + class suspension -->
-      <section id="home-status" class="portal-card home-status-card" aria-label="Today's weather and class suspension status"></section>
-
-      <!-- 3. Weekly Overview -->
-      <section class="home-week">
-        <div class="home-week-head">
-          <h2 class="home-kicker">Weekly overview</h2>
-          <a class="home-week-link" href="schedule.html">
-            Full schedule
-            <i data-lucide="arrow-right"></i>
-          </a>
-        </div>
-        <div id="home-week-strip" class="home-week-strip" data-loading-region="dashboard" aria-busy="true">
-          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
-          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
-          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
-          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
-          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
-          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
-          <div class="skel-week-day"><div class="skel-day-label skeleton-pulse"></div><div class="skel-day-dot skeleton-pulse"></div><div class="skel-day-count skeleton-pulse"></div></div>
-        </div>
-        <p class="home-week-hint">Tap a day to preview its classes.</p>
-        <div id="home-bus-card" class="home-bus-card" hidden>
-          <span class="home-bus-icon"><i data-lucide="bus" aria-hidden="true"></i></span>
-          <span class="home-bus-body">
-            <span class="home-bus-title">QCity Bus · Route 4</span>
-            <span class="home-bus-sub" id="home-bus-sub">Libreng Sakay — loading schedule…</span>
-          </span>
-          <a class="home-bus-link" href="campus-eta.html">View route</a>
-        </div>
-        <nav class="student-tools" aria-label="Student shortcuts">
-          <a href="buildings.html"><i data-lucide="map-pin" aria-hidden="true"></i><span><strong>Find your classroom</strong><small>Browse campus buildings</small></span><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
-          <a href="campus-eta.html"><i data-lucide="bus" aria-hidden="true"></i><span><strong>Plan your commute</strong><small>Check the campus bus route</small></span><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
-        </nav>
-      </section>
 
       <footer class="student-footer">
         <a href="privacy.html">Privacy Policy</a>
@@ -339,14 +327,39 @@
   <script src="assets/js/lucide.min.js?v=1"></script>
   <script>if (window.lucide) window.lucide.createIcons();</script>
 <script src="assets/js/academic.js?v=41"></script>
-<script src="assets/js/app.js?v=58"></script>
+<script src="assets/js/app.js?v=61"></script>
 <script src="assets/js/install-prompt.js?v=1"></script>
   <script>
-    // Optional overrides for the Home status panel (all keyless/optional).
-    // Open-Meteo needs NO API key, so nothing sensitive is ever hardcoded here.
-    window.QCU_STATUS_CONFIG = {};
+    // Weather chip: keyless Open-Meteo, campus coordinates (same source the
+    // ETA page uses). No API keys, honest "unavailable" fallback.
+    (function () {
+      var temp = document.getElementById("weather-chip-temp");
+      var cond = document.getElementById("weather-chip-cond");
+      if (!temp || !cond) return;
+      var WMO = { 0:["FAIR WEATHER","sun"],1:["FAIR WEATHER","sun"],2:["CLOUDY","cloud-sun"],3:["CLOUDY","cloud"],45:["FOGGY","cloud-fog"],48:["FOGGY","cloud-fog"],51:["LIGHT RAIN","cloud-drizzle"],53:["LIGHT RAIN","cloud-drizzle"],55:["LIGHT RAIN","cloud-drizzle"],61:["LIGHT RAIN","cloud-rain"],63:["RAIN","cloud-rain"],65:["HEAVY RAIN","cloud-rain-wind"],80:["RAIN","cloud-rain"],81:["RAIN","cloud-rain"],82:["HEAVY RAIN","cloud-rain-wind"],95:["THUNDERSTORM","cloud-lightning"],96:["THUNDERSTORM","cloud-lightning"],99:["THUNDERSTORM","cloud-lightning"] };
+      fetch("https://api.open-meteo.com/v1/forecast?latitude=14.7001&longitude=121.0343&current=temperature_2m,weather_code&timezone=Asia%2FManila", { cache: "no-store" })
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+        .then(function (j) {
+          var cur = j.current || {};
+          if (cur.temperature_2m == null) throw new Error("no data");
+          temp.textContent = Math.round(cur.temperature_2m) + "\u00B0";
+          var w = WMO[cur.weather_code] || ["CLOUDY", "cloud"];
+          cond.textContent = w[0];
+          var chip = document.getElementById("home-weather-chip");
+          var icon = chip && chip.querySelector("i[data-lucide], svg");
+          if (icon) {
+            var el = document.createElement("i");
+            el.setAttribute("data-lucide", w[1]);
+            icon.replaceWith(el);
+            if (window.lucide && window.lucide.createIcons) window.lucide.createIcons();
+          }
+        })
+        .catch(function () {
+          temp.textContent = "--\u00B0";
+          cond.textContent = "Weather unavailable";
+        });
+    })();
   </script>
-  <script src="assets/js/status.js?v=44"></script>
   <!-- Auth routing moved to <head> for instant execution -->
 </body>
 </html>

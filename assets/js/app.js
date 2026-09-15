@@ -200,7 +200,7 @@ function mapEntryToSchedule(entry) {
     day: entry.day,
     start: entry.start,
     end: entry.end,
-    subject: entry.title || entry.course || "",
+    subject: entry.title || entry.course || "Class session",
     course: entry.code || "",
     building: buildingName,
     buildingName,
@@ -593,7 +593,6 @@ async function renderHomeBusCard() {
     const svc = data?.service?.[serviceDay];
     let text;
     if (svc && svc.operates !== false && Array.isArray(svc.directions) && svc.directions.length) {
-      // Route 4 has two directions; summarize the one stopping at QCU outbound.
       const dirs = svc.directions;
       const first = dirs.map(d => d.firstTrip).filter(Boolean).sort()[0];
       const last = dirs.map(d => d.lastTrip).filter(Boolean).sort().slice(-1)[0];
@@ -615,6 +614,183 @@ async function renderHomeBusCard() {
   }
 }
 
+/* Dynamic month calendar: real current month, today = solid purple pill,
+   days with classes get a soft-purple tint. */
+function renderHomeCalendar() {
+  const calEl = document.getElementById("soft-calendar");
+  const labelEl = document.getElementById("calendar-label");
+  if (!calEl) return;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth(); // 0-based
+  if (labelEl) labelEl.textContent = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(now);
+
+  // Class-count per calendar date (this month only).
+  const monthCounts = {};
+  state.schedule.forEach(x => {
+    if (x.noClasses) return;
+    const d = x.date || x.startDate;
+    // Entries only carry weekday names; approximate per-month by weekday count.
+  });
+  const weekdayCounts = {};
+  state.schedule.forEach(x => { if (!x.noClasses) weekdayCounts[x.day] = (weekdayCounts[x.day] || 0) + 1; });
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
+  const dayNameByDow = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const todayDate = now.getDate();
+
+  let cells = "";
+  for (let i = 0; i < firstDow; i++) cells += '<span class="soft-cal-cell"></span>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(year, month, d).getDay();
+    const hasClasses = (weekdayCounts[dayNameByDow[dow]] || 0) > 0;
+    const isToday = d === todayDate;
+    const cls = [
+      "soft-cal-cell",
+      isToday ? "is-today" : "",
+      !isToday && hasClasses ? "has-classes" : ""
+    ].filter(Boolean).join(" ");
+    cells += `<button type="button" class="${cls}" data-day-name="${dayNameByDow[dow]}" aria-label="${dayNameByDow[dow]} ${d}">${d}</button>`;
+  }
+  calEl.innerHTML = `
+    <div class="soft-cal-head">${["S","M","T","W","T","F","S"].map(d => `<span>${d}</span>`).join("")}</div>
+    <div class="soft-cal-grid">${cells}</div>`;
+  calEl.querySelectorAll(".soft-cal-cell[data-day-name]").forEach(btn => {
+    btn.addEventListener("click", () => openDayModal(btn.dataset.dayName));
+  });
+}
+
+/* Monthly goals: derived from the user's real subjects + tasks (no dedicated
+   endpoint) — one row per enrolled subject with an open task, plus a
+   "no late submissions" goal when tasks exist. Falls back to subjects. */
+function renderMonthlyGoals() {
+  const goalsEl = document.getElementById("monthly-goals");
+  if (!goalsEl) return;
+  const pastels = ["soft-goal--peach", "soft-goal--mint", "soft-goal--lavender"];
+  const icons = ["book-open", "check-circle-2", "zap"];
+
+  const subjects = (state.academic?.enrollmentSubjects || []);
+  const openTasks = (state.dashboard?.tasks || []).filter(t => t.status !== "DONE" && t.status !== "COMPLETED");
+
+  let goals = [];
+  // Real goals from open tasks grouped by subject.
+  const bySubject = {};
+  openTasks.forEach(t => {
+    const key = t.subjectCode || "General";
+    bySubject[key] = bySubject[key] || { title: [], count: 0, name: t.subjectName || t.subjectCode || "General" };
+    bySubject[key].count++;
+    if (t.title) bySubject[key].title.push(t.title);
+  });
+  Object.entries(bySubject).slice(0, 3).forEach(([code, g]) => {
+    goals.push(`${code}: ${g.count} open task${g.count > 1 ? "s" : ""}`);
+  });
+  if (!goals.length && subjects.length) {
+    subjects.slice(0, 3).forEach(s => goals.push(`Keep up with ${s.subjectCode || s.title}`));
+  }
+  if (!goals.length && state.schedule.length) {
+    // Fallback: unique subjects from the confirmed schedule.
+    const codes = [...new Set(state.schedule.filter(x => !x.noClasses && x.course).map(x => x.course))];
+    codes.slice(0, 3).forEach(c => goals.push(`Keep up with ${c}`));
+    if (!goals.length && state.schedule.some(x => !x.noClasses)) goals.push("Attend all classes this month");
+  }
+  if (!goals.length) goals.push("Upload your COR to get started");
+
+  goalsEl.innerHTML = goals.slice(0, 3).map((g, i) => `
+    <div class="soft-goal ${pastels[i % pastels.length]}">
+      <span class="soft-goal-icon"><i data-lucide="${icons[i % icons.length]}" aria-hidden="true"></i></span>
+      <p class="soft-goal-title">${esc(g)}</p>
+      <a class="soft-goal-more" href="workspace.html" aria-label="Open workspace">
+        <i data-lucide="more-vertical" aria-hidden="true"></i>
+      </a>
+    </div>`).join("");
+}
+
+/* Today's Timeline: hour rows on the left, class blocks positioned by time,
+   current-time indicator line. Re-renders every minute via tick(). */
+function renderHomeTimeline() {
+  const tlEl = document.getElementById("soft-timeline");
+  if (!tlEl) return;
+  const now = new Date();
+  const today = QCU_TIME.weekday(now);
+  const classes = state.schedule
+    .filter(x => x.day === today && !x.noClasses)
+    .sort((a, b) => parseMinutes(a.start) - parseMinutes(b.start));
+
+  if (!classes.length) {
+    tlEl.innerHTML = `
+      <div class="soft-timeline-empty">
+        <i data-lucide="coffee" aria-hidden="true"></i>
+        <p>No classes today</p>
+        <a href="schedule.html">View full schedule</a>
+      </div>`;
+    return;
+  }
+
+  // Hour range: floor of first class to ceil of last class (min 8:00–17:00).
+  const HOURS = [[8, 0], [17, 0]];
+  const firstMin = parseMinutes(classes[0].start);
+  const lastMin = parseMinutes(classes[classes.length - 1].end);
+  const startHour = Math.min(HOURS[0][0], Math.floor(firstMin / 60));
+  const endHour = Math.max(HOURS[1][0], Math.ceil(lastMin / 60));
+  const PX_PER_MIN = 1.1; // ~66px per hour
+
+  const rows = [];
+  for (let h = startHour; h <= endHour; h++) {
+    rows.push(h);
+  }
+  const totalMin = (endHour - startHour) * 60;
+
+  const blocks = classes.map((c, i) => {
+    const s = parseMinutes(c.start) - startHour * 60;
+    const e = parseMinutes(c.end) - startHour * 60;
+    const pastels = ["pastel-mint", "pastel-peach", "pastel-lavender"];
+    const status = getStatus(c, now);
+    const featured = status === "current";
+    const pastel = featured ? "" : " " + pastels[i % pastels.length];
+    return `
+      <div class="soft-tl-block ${featured ? "is-featured" : ""}${pastel}" style="top:${s * PX_PER_MIN}px;height:${Math.max(36, (e - s) * PX_PER_MIN)}px">
+        <p class="soft-tl-title">${esc(c.subject)}</p>
+        <p class="soft-tl-meta">${formatTime(c.start)} – ${formatTime(c.end)}${c.room ? " · " + esc(c.room) : ""}</p>
+      </div>`;
+  }).join("");
+
+  // Current-time indicator: only when within the rendered window.
+  const nowMin = minutesNow(now) - startHour * 60;
+  const showNow = nowMin >= 0 && nowMin <= totalMin;
+  const nowLine = showNow ? `
+    <div class="soft-tl-now" style="top:${nowMin * PX_PER_MIN}px">
+      <span class="soft-tl-now-dot"></span>
+      <span class="soft-tl-now-line"></span>
+      <span class="soft-tl-now-time">${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).format(now)}</span>
+    </div>` : "";
+
+  tlEl.innerHTML = `
+    <div class="soft-tl-canvas" style="height:${totalMin * PX_PER_MIN}px">
+      ${rows.map(h => `
+        <div class="soft-tl-hour" style="top:${(h - startHour) * 60 * PX_PER_MIN}px">
+          <span class="soft-tl-hour-label">${formatTime(String(h).padStart(2, "0") + ":00").replace(":00", "")}</span>
+          <span class="soft-tl-hour-rule"></span>
+        </div>`).join("")}
+      ${blocks}
+      ${nowLine}
+    </div>`;
+}
+
+/* Semester progress: units completed this term vs a full load (21 units). */
+function renderSemesterProgress() {
+  const wrap = document.getElementById("semester-progress");
+  if (!wrap) return;
+  const totalUnits = state.dashboard?.schedule?.totalUnits || 0;
+  if (!totalUnits) { wrap.hidden = true; return; }
+  const FULL_LOAD = 21;
+  const pct = Math.min(100, Math.round((totalUnits / FULL_LOAD) * 100));
+  wrap.hidden = false;
+  setText("progress-pct", pct + "%");
+  document.getElementById("progress-fill").style.width = pct + "%";
+  setText("progress-sub", `${totalUnits} of ${FULL_LOAD} units enrolled this term`);
+}
+
 function renderHome() {
   if (state.error && !state.dashboard) {
     const skeleton = document.getElementById('hero-skeleton');
@@ -623,103 +799,41 @@ function renderHome() {
     return;
   }
   const now = new Date();
-  const today = QCU_TIME.weekday(now);
   const hour = Math.floor(QCU_TIME.minutes(now) / 60);
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  const todaysClasses = state.schedule.filter(x => x.day === today && !x.noClasses);
-  const { current, next } = getCurrentAndNext(now);
-  const currentLabel = current ? "In session" : "No class right now";
-  const nextLabel = next ? "Coming up next" : (todaysClasses.length ? "No more classes today" : "No classes today");
 
   setText("home-greeting", `${greeting},`);
   const heroMain = document.getElementById("home-hero-main");
   if (heroMain) heroMain.dataset.studentName = (state.profile?.name || "Student").split(" ")[0];
-  setText("hero-class-count", `${todaysClasses.length}`);
-  setText("hero-today-date", QCU_TIME.dateLabel(now));
 
-  // Bus card: today's QCity Bus Route 4 service (schedule-based, no fake ETAs).
-  renderHomeBusCard();
-
-  // Real values are ready — swap the hero skeleton out for the stats.
-  const heroStats = document.querySelector(".home-hero-stats");
   const heroSkeleton = document.getElementById("hero-skeleton");
-  if (heroStats) heroStats.style.display = "";
   if (heroSkeleton) heroSkeleton.style.display = "none";
 
-  const weekEl = document.getElementById("home-week-strip");
-  if (weekEl) setInnerHTML(weekEl, weekStripTemplate(now));
-
+  // Left column: today's task cards.
   const grid = document.getElementById("today-grid");
   if (grid) {
-    const feature = current || next;
-    // Build today's timeline with break slots between classes
-    const timeline = dayWithBreaks(today);
+    const today = QCU_TIME.weekday(now);
+    const todaysClasses = state.schedule.filter(x => x.day === today && !x.noClasses);
+    const { current } = getCurrentAndNext(now);
     let classIndex = 0;
-    let breakIndex = 0;
-    const tiles = timeline.map(entry => {
-      if (entry.kind === "class") {
-        const item = entry.item;
-        const tile = todayTileTemplate(item, { feature: item === feature, i: classIndex });
-        classIndex++;
-        return tile;
-      } else {
-        const tile = breakTileTemplate(entry.start, entry.end, entry.minutes, breakIndex);
-        breakIndex++;
-        return tile;
-      }
+    const tiles = todaysClasses.map(item => {
+      const tile = todayTileTemplate(item, { feature: item === current, i: classIndex });
+      classIndex++;
+      return tile;
     });
-    setInnerHTML(grid, [
-      todaySummaryTemplate(todaysClasses, now),
-      ...tiles
-    ].join(""));
+    setInnerHTML(grid, tiles.length ? tiles.join("") : `
+      <div class="soft-empty-tile">
+        <i data-lucide="coffee" aria-hidden="true"></i>
+        <p>No classes today</p>
+      </div>`);
   }
 
-  const countdownTarget = current || next;
-  const countdownLabel = current ? "Ongoing class" : next ? "Next class starts in" : "No upcoming classes today";
-  const activeNow = (current ? 1 : 0) + (next ? 1 : 0);
-  setText("countdown-state-label", current ? "In session" : next ? "Upcoming" : "No classes left");
-
-const trackerRoot = document.getElementById("home-tracker");
-  const nowEl = document.getElementById("tracker-now");
-  const nextEl = document.getElementById("tracker-next");
-
-  // No classes at all today OR all classes finished → collapse into a single full-width empty state.
-  if (!current && !next) {
-    if (trackerRoot) {
-      trackerRoot.classList.add("home-tracker--empty");
-      const allDone = todaysClasses.length > 0;
-      setInnerHTML(trackerRoot, `
-        <div class="home-tracker-empty-panel">
-          <div class="home-tracker-empty-icon-wrap">
-            <span class="home-tracker-empty-icon"><i data-lucide="${allDone ? "check-circle-2" : "coffee"}"></i></span>
-          </div>
-          <div class="home-tracker-empty-text">
-            <p class="home-tracker-empty-title">${allDone ? "No classes left" : "No classes today"}</p>
-            <p class="home-tracker-empty-sub">${allDone ? "All classes are done for the day — enjoy your free time." : "You're all caught up — enjoy your free day."}</p>
-          </div>
-          <a class="home-tracker-empty-link" href="schedule.html">
-            View full schedule
-            <i data-lucide="arrow-right"></i>
-          </a>
-        </div>`);
-    }
-  } else {
-    if (trackerRoot) trackerRoot.classList.remove("home-tracker--empty");
-    if (nowEl) setInnerHTML(nowEl, trackerCellTemplate(current, "Now", "No class right now", "clock"));
-    if (nextEl) setInnerHTML(nextEl, trackerCellTemplate(next, "Up next",
-      todaysClasses.length ? "No more classes today" : "No classes today", "coffee"));
-  }
-
-  const countdownEl = document.getElementById("countdown-slot");
-  if (countdownEl) countdownEl.innerHTML = countdownTemplate(countdownTarget, countdownLabel);
-
-  const nowNext = document.getElementById("now-next-list");
-  if (nowNext) {
-    setInnerHTML(nowNext, `
-      ${current ? spotlightTemplate(current, "") : ""}
-      ${next && next !== current ? spotlightTemplate(next, "") : ""}
-    `);
-  }
+  renderHomeBusCard();
+  renderSemesterProgress();
+  renderHomeCalendar();
+  renderMonthlyGoals();
+  renderHomeTimeline();
+  iconify();
 }
 
 /* ── Day Modal (weekly overview) ─────────────────────── */
