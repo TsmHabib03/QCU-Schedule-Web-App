@@ -1,0 +1,483 @@
+/* ============================================================
+   QCUians Schedule — soft-ui.css
+   Design system overlay for the QCU Student Portal.
+
+   Ports the approved mockup (design-mockup/app-responsive.html)
+   onto the existing vanilla-CSS app WITHOUT rewriting legacy
+   rules: loaded AFTER styles.css/student.css so these win.
+
+   Tokens:
+     bg #F4F7FC · primary #4A3AFF · navy #1A1B41 · grey #8E92AD
+     peach #FFE8D6 · mint #E0F7F6 · lavender #EDEAFF
+     radius 28px cards / 22px sub-cards · soft float shadows
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --soft-bg: #F4F7FC;
+  --soft-primary: #4A3AFF;
+  --soft-primary-soft: #ECEBFF;
+  --soft-navy: #1A1B41;
+  --soft-grey: #8E92AD;
+  --soft-peach: #FFE8D6;
+  --soft-peach-icon: #FF9F6E;
+  --soft-mint: #E0F7F6;
+  --soft-mint-icon: #35C4C8;
+  --soft-lavender: #EDEAFF;
+  --soft-lav-icon: #7B6CF6;
+  --soft-radius: 28px;
+  --soft-radius-sm: 22px;
+  --soft-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  --soft-shadow-primary: 0 14px 28px -6px rgba(74, 58, 255, 0.5);
+  --soft-font: 'Plus Jakarta Sans', 'Poppins', -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+.student-shell,
+.app-shell {
+  background: var(--soft-bg);
+  font-family: var(--soft-font);
+}
+
+.student-shell h1, .student-shell h2, .student-shell h3,
+.app-shell h1, .app-shell h2, .app-shell h3 {
+  color: var(--soft-navy);
+  letter-spacing: -0.02em;
+}
+
+/* ── Floating cards ────────────────────────────────────── */
+.portal-card,
+.home-status-card,
+.modal-card {
+  border-radius: var(--soft-radius) !important;
+  box-shadow: var(--soft-shadow) !important;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+/* ════════════════════════════════════════════════════════
+   HOME HERO: greeting + purple weather widget
+   ════════════════════════════════════════════════════════ */
+.home-hero {
+  background: transparent;
+  padding: 8px 0 4px;
+}
+
+.home-hero-title { display: none; }  /* mockup has no second title; greeting is the hero */
+.home-hero-sub { display: none; }
+
+.home-hero-eyebrow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.home-hero-eyebrow .home-hero-rule { display: none; }
+#home-greeting {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--soft-grey);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Big name under the greeting */
+.home-hero-main::after {
+  content: attr(data-student-name);
+  display: block;
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--soft-navy);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-top: 2px;
+}
+
+.home-hero-stats { display: none !important; }
+.home-hero-skeleton { display: none !important; }
+
+/* Purple weather chip in the hero (fed by status.js) */
+.home-weather-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--soft-primary);
+  color: #fff;
+  border-radius: var(--soft-radius-sm);
+  padding: 14px 18px;
+  box-shadow: var(--soft-shadow-primary);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.home-weather-chip svg { width: 34px; height: 34px; }
+.home-weather-chip-temp { font-size: 20px; font-weight: 800; line-height: 1; }
+.home-weather-chip-cond { font-size: 11px; opacity: 0.75; margin-top: 4px; }
+
+/* Hero becomes greeting left / weather right */
+.home-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* ════════════════════════════════════════════════════════
+   WEEKLY DATE STRIP: purple pill today
+   ════════════════════════════════════════════════════════ */
+.home-week .home-week-table { display: none; }
+
+.week-pill-strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.week-pill-strip::-webkit-scrollbar { display: none; }
+
+.week-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 52px;
+  padding: 8px 0;
+  flex-shrink: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+.week-pill-day {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--soft-grey);
+}
+.week-pill-date {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--soft-navy);
+  background: #fff;
+  box-shadow: var(--soft-shadow);
+  transition: transform .15s ease;
+}
+.week-pill:hover .week-pill-date { transform: translateY(-2px); }
+.week-pill.is-today .week-pill-day { color: var(--soft-primary); font-weight: 700; }
+.week-pill.is-today .week-pill-date {
+  background: var(--soft-primary);
+  color: #fff;
+  box-shadow: var(--soft-shadow-primary);
+}
+.week-pill-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--soft-grey);
+}
+.week-pill-count.has-classes { color: var(--soft-primary); }
+
+/* ════════════════════════════════════════════════════════
+   TODAY TASK: horizontal pastel cards
+   ════════════════════════════════════════════════════════ */
+.home-today-grid {
+  display: flex !important;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 4px 2px 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  grid-template-columns: none !important;
+}
+.home-today-grid::-webkit-scrollbar { display: none; }
+
+.home-today-grid > * { flex-shrink: 0; width: 172px; }
+
+/* summary card → narrow purple feature */
+.home-today-summary {
+  background: var(--soft-primary) !important;
+  color: #fff;
+  border-radius: var(--soft-radius) !important;
+  box-shadow: var(--soft-shadow-primary) !important;
+  width: 172px !important;
+  padding: 18px !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+}
+.home-today-summary-label { color: rgba(255,255,255,.75) !important; font-size: 11px !important; }
+.home-today-summary-count { color: #fff !important; font-size: 40px !important; font-weight: 800 !important; line-height: 1 !important; }
+.home-today-summary-sub, .home-today-summary-break { color: rgba(255,255,255,.8) !important; font-size: 11px !important; }
+
+/* class tiles → pastel square cards */
+.home-today-card {
+  border-radius: var(--soft-radius) !important;
+  box-shadow: var(--soft-shadow) !important;
+  padding: 18px !important;
+  min-height: 178px;
+  display: flex;
+  flex-direction: column;
+  border: 0 !important;
+}
+.home-today-card .home-today-rail { display: none; }
+.home-today-card .home-today-body { display: flex; flex-direction: column; height: 100%; }
+
+.home-today-card.current-tile,
+.home-today-card.home-today-card--feature {
+  background: var(--soft-primary) !important;
+  color: #fff;
+}
+.home-today-card.current-tile .home-today-subject,
+.home-today-card.home-today-card--feature .home-today-subject,
+.home-today-card.current-tile .home-today-building,
+.home-today-card.current-tile .home-today-course,
+.home-today-card.current-tile .home-today-meta { color: #fff !important; }
+
+.home-today-card.current-tile .home-today-meta svg,
+.home-today-card.home-today-card--feature .home-today-meta svg { stroke: rgba(255,255,255,.8); }
+
+/* pastel rotation — explicit classes set by tile order in todayTileTemplate */
+.home-today-card.pastel-peach    { background: var(--soft-peach) !important; }
+.home-today-card.pastel-mint     { background: var(--soft-mint) !important; }
+.home-today-card.pastel-lavender { background: var(--soft-lavender) !important; }
+.home-today-card.finished-tile.pastel-lavender { opacity: .85; }
+
+.home-today-card .home-today-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: auto;
+  padding-bottom: 10px;
+}
+.home-today-status {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 9999px;
+  background: rgba(255,255,255,.65);
+  color: var(--soft-navy);
+}
+.home-today-card.current-tile .home-today-status,
+.home-today-card.home-today-card--feature .home-today-status {
+  background: rgba(255,255,255,.2);
+  color: #fff;
+}
+.home-today-course { font-size: 11px; font-weight: 700; color: var(--soft-grey); }
+.home-today-card .home-today-subject { font-size: 15px !important; font-weight: 800 !important; line-height: 1.25 !important; margin: 0 !important; }
+.home-today-card .home-today-building { font-size: 11px; font-weight: 600; color: var(--soft-grey); margin: 4px 0 0; }
+.home-today-card .home-today-meta { margin-top: 8px; gap: 10px; }
+.home-today-card .home-today-meta span { font-size: 11px; font-weight: 600; }
+.home-today-card .home-today-meta svg { width: 13px; height: 13px; }
+
+/* break tile → slim pastel row */
+.home-break-tile {
+  background: #fff !important;
+  border-radius: var(--soft-radius) !important;
+  box-shadow: var(--soft-shadow) !important;
+  padding: 14px 18px !important;
+  min-height: 0 !important;
+  width: 172px !important;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.home-break-rail { display: none; }
+.home-break-label {
+  background: var(--soft-lavender);
+  color: var(--soft-lav-icon);
+  border-radius: 9999px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  width: fit-content;
+}
+.home-break-label svg { width: 12px; height: 12px; }
+.home-break-title { font-size: 13px; font-weight: 700; margin: 6px 0 0; color: var(--soft-navy); }
+.home-break-sub { font-size: 11px; color: var(--soft-grey); margin: 2px 0 0; }
+
+/* ════════════════════════════════════════════════════════
+   CLASS TRACKER + COUNTDOWN (purple feature card)
+   ════════════════════════════════════════════════════════ */
+.home-nownext {
+  background: #fff;
+  border-radius: var(--soft-radius);
+  box-shadow: var(--soft-shadow);
+  padding: 20px;
+}
+.home-tracker-cell {
+  background: var(--soft-primary-soft) !important;
+  border-radius: var(--soft-radius-sm) !important;
+  border: 0 !important;
+}
+.home-tracker-cell--now { background: var(--soft-primary) !important; }
+.home-tracker-cell--now .home-tracker-label,
+.home-tracker-cell--now .home-tracker-subject,
+.home-tracker-cell--now .home-tracker-time,
+.home-tracker-cell--now .home-tracker-meta { color: #fff !important; }
+.home-tracker-label { color: var(--soft-primary); font-weight: 700; font-size: 11px; }
+.home-tracker-subject { color: var(--soft-navy); font-weight: 800; }
+.home-tracker-time, .home-tracker-meta { color: var(--soft-grey); }
+.home-countdown-value { color: var(--soft-primary); font-weight: 800; }
+.home-countdown-track { background: var(--soft-primary-soft); border-radius: 9999px; }
+.home-countdown-fill { background: var(--soft-primary); border-radius: 9999px; }
+
+/* ════════════════════════════════════════════════════════
+   GOAL-LIST QUICK LINKS (bus route + buildings)
+   ════════════════════════════════════════════════════════ */
+.student-tools {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+.student-tools a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-radius: var(--soft-radius-sm);
+  padding: 14px 18px;
+  text-decoration: none;
+  box-shadow: var(--soft-shadow);
+  border: 0;
+  transition: transform .15s ease;
+}
+.student-tools a:hover { transform: translateY(-2px); }
+.student-tools a:first-child { background: var(--soft-peach); }
+.student-tools a:nth-child(2) { background: var(--soft-mint); }
+.student-tools a > i:first-child,
+.student-tools a .tool-icon {
+  width: 40px; height: 40px;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,.7);
+  border-radius: 14px;
+  flex-shrink: 0;
+}
+.student-tools a:first-child > i:first-child { color: var(--soft-peach-icon); }
+.student-tools a:nth-child(2) > i:first-child { color: var(--soft-mint-icon); }
+.student-tools a span strong { color: var(--soft-navy); font-size: 14px; }
+.student-tools a span small { color: var(--soft-grey); font-size: 12px; }
+.student-tools a > i:last-child { color: rgba(26,27,65,.35); margin-left: auto; }
+
+/* Bus schedule mini-card on Home */
+.home-bus-card {
+  background: var(--soft-lavender);
+  border-radius: var(--soft-radius);
+  box-shadow: var(--soft-shadow);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.home-bus-card .home-bus-icon {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,.7);
+  border-radius: 14px;
+  color: var(--soft-lav-icon);
+  flex-shrink: 0;
+}
+.home-bus-card .home-bus-body { flex: 1; min-width: 0; }
+.home-bus-card .home-bus-title { font-weight: 800; color: var(--soft-navy); font-size: 14px; }
+.home-bus-card .home-bus-sub { font-size: 12px; color: var(--soft-grey); margin-top: 2px; }
+.home-bus-card .home-bus-link { color: var(--soft-primary); font-weight: 700; font-size: 12px; text-decoration: none; white-space: nowrap; }
+
+/* ════════════════════════════════════════════════════════
+   BOTTOM NAV: rounded bar + floating FAB
+   ════════════════════════════════════════════════════════ */
+.bottom-nav {
+  background: #fff;
+  border-radius: 32px 32px 0 0;
+  box-shadow: 0 -10px 30px rgba(0,0,0,.08);
+  border-top: 0;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+.bottom-nav > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 10px 12px 6px;
+  gap: 0;
+}
+.bottom-nav .nav-item {
+  flex-direction: column;
+  gap: 3px;
+  color: var(--soft-grey);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 16px;
+}
+.bottom-nav .nav-item svg { width: 24px; height: 24px; stroke-width: 1.7; }
+.bottom-nav .nav-item.active { color: var(--soft-primary); background: var(--soft-primary-soft); }
+
+/* FAB slot: middle item becomes the raised + button */
+.bottom-nav .nav-item.nav-fab {
+  background: none;
+  color: #fff;
+  position: relative;
+  top: -22px;
+}
+.bottom-nav .nav-item.nav-fab .nav-fab-btn {
+  width: 56px; height: 56px;
+  background: var(--soft-primary);
+  border-radius: 20px;
+  box-shadow: var(--soft-shadow-primary);
+  display: grid; place-items: center;
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+  transition: transform .15s ease;
+}
+.bottom-nav .nav-item.nav-fab .nav-fab-btn:hover { transform: scale(1.05); }
+.bottom-nav .nav-item.nav-fab .nav-fab-btn svg { width: 26px; height: 26px; stroke-width: 2.4; }
+.bottom-nav .nav-item.nav-fab span { font-size: 10px; font-weight: 600; margin-top: 4px; }
+
+/* ════════════════════════════════════════════════════════
+   HEADER
+   ════════════════════════════════════════════════════════ */
+.page-header { background: var(--soft-bg); box-shadow: none; }
+.header-inner { background: transparent; box-shadow: none; }
+.brand-name { color: var(--soft-navy) !important; font-weight: 800 !important; letter-spacing: -0.02em; }
+.brand-sub { color: var(--soft-grey) !important; }
+.signout-btn {
+  background: var(--soft-primary) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--soft-shadow-primary);
+  font-weight: 700;
+}
+.clock-time { color: var(--soft-navy) !important; font-weight: 800; }
+
+/* ════════════════════════════════════════════════════════
+   DESKTOP (≥1024px): wider grid, content capped
+   ════════════════════════════════════════════════════════ */
+@media (min-width: 1024px) {
+  .home-layout {
+    max-width: 1080px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 7fr 5fr;
+    gap: 28px;
+    align-items: start;
+    padding: 24px 32px 48px;
+  }
+  .home-hero { grid-column: 1 / -1; }
+  .student-day-section, .home-nownext { grid-column: 1; }
+  .home-week, .home-status-card { grid-column: 2; }
+  .student-footer { grid-column: 1 / -1; }
+
+  /* today grid scrolls horizontally even on desktop */
+  .home-today-grid { overflow-x: auto; flex-wrap: nowrap; }
+
+  /* bottom nav stays mobile-only pattern but tidier */
+  .bottom-nav > div { max-width: 520px; margin: 0 auto; }
+}

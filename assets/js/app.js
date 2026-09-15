@@ -282,9 +282,8 @@ function renderShell() {
   const navItems = [
     ["home",      "index.html",     "layout-dashboard", "Home"],
     ["campus-eta", "campus-eta.html", "bus",             "Bus"],
-
-    ["workspace", "workspace.html", "clipboard-list",   "Tasks & Notes"],
-    ["google",    "google.html",    "graduation-cap",   "Google"],
+    ["FAB",       "today.html",     "plus",             "Add"],
+    ["workspace", "workspace.html", "clipboard-list",   "Tasks"],
     ["settings",  "settings.html",  "settings",         "Settings"]
   ];
 
@@ -296,7 +295,7 @@ function renderShell() {
         <a href="index.html" class="header-brand">
            <img class="brand-logo" src="assets/images/QCU college of computer studies logo.jpg" alt="QCU Logo">
           <div class="brand-text">
-            <p id="greeting" class="brand-name">QCU Student Portal</p>
+            <p id="greeting" class="brand-name">QCUians Schedule</p>
             <p class="brand-sub">${brandSub}</p>
           </div>
         </a>
@@ -318,12 +317,19 @@ function renderShell() {
   if (nav) {
     nav.innerHTML = `
       <div>
-        ${navItems.map(([key, href, icon, label]) => `
-          <a class="nav-item ${navPage === key ? "active" : ""}"
+        ${navItems.map(([key, href, icon, label]) => {
+          if (key === "FAB") {
+            return `<a class="nav-item nav-fab" href="${href}" aria-label="View today">
+              <span class="nav-fab-btn"><i data-lucide="${icon}"></i></span>
+              <span>Today</span>
+            </a>`;
+          }
+          return `<a class="nav-item ${navPage === key ? "active" : ""}"
              href="${href}" aria-label="${label}" ${navPage === key ? 'aria-current="page"' : ''}>
             <i data-lucide="${icon}"></i>
             <span>${label}</span>
-          </a>`).join("")}
+          </a>`;
+        }).join("")}
       </div>`;
   }
   window.QCULoading.finish('shell');
@@ -397,30 +403,26 @@ function weekStripTemplate(now = new Date()) {
   const today = QCU_TIME.weekday(now);
   const counts = weekOverview(now);
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-  const max = Math.max(1, ...days.map(d => counts[d] || 0));
+  // Map weekday name → date of this week (week starts Monday).
+  const monday = new Date(now);
+  const dow = (now.getDay() + 6) % 7; // 0 = Monday
+  monday.setDate(now.getDate() - dow);
 
-  const headRow = days.map(d => `
-    <div class="home-week-th">${d.slice(0, 3)}</div>`).join("");
-
-  const bodyRow = days.map(d => {
+  const pills = days.map((d, i) => {
     const count = counts[d] || 0;
-    const pct = Math.round((count / max) * 100);
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
     const isToday = d === today;
-    const isOff = count === 0;
     return `
-      <button type="button" class="home-week-td${isToday ? " is-today" : ""}${isOff ? " is-off" : ""}"
+      <button type="button" class="week-pill${isToday ? " is-today" : ""}"
         data-day="${d}" aria-label="View ${d}'s schedule">
-        <span class="home-week-count">${count || "—"}</span>
-        <span class="home-week-track"><span class="home-week-fill" style="width:${pct}%"></span></span>
-        <span class="home-week-label">${isToday ? "Today" : count ? `${count} class${count > 1 ? "es" : ""}` : "Off"}</span>
+        <span class="week-pill-day">${d.slice(0, 3)}</span>
+        <span class="week-pill-date">${date.getDate()}</span>
+        <span class="week-pill-count${count ? " has-classes" : ""}">${count ? `${count} class${count > 1 ? "es" : ""}` : "Off"}</span>
       </button>`;
   }).join("");
 
-  return `
-    <div class="home-week-table">
-      <div class="home-week-row home-week-head-row">${headRow}</div>
-      <div class="home-week-row home-week-body-row">${bodyRow}</div>
-    </div>`;
+  return `<div class="week-pill-strip">${pills}</div>`;
 }
 
 function todaySummaryTemplate(todaysClasses, now) {
@@ -458,10 +460,14 @@ function todayTileTemplate(item, opts) {
   const statusWord = { current: "In session", next: "Up next", finished: "Done", upcoming: "Scheduled" }[status] || statusLabel(status);
   const bname = buildingLabel(item);
   const feature = opts.feature ? " home-today-card--feature" : "";
+  // Pastel rotation by class order (peach → mint → lavender), independent of
+  // DOM position; the feature/current tile keeps its solid purple.
+  const pastel = [" pastel-peach", " pastel-mint", " pastel-lavender"][(opts.i || 0) % 3];
+  const tileClass = (status === "current" || opts.feature) ? "" : pastel;
   const stagger = opts.i !== undefined ? ` style="--i:${opts.i}"` : "";
 
   return `
-    <article class="home-today-card ${status}-tile${feature}"${stagger}>
+    <article class="home-today-card ${status}-tile${feature}${tileClass}"${stagger}>
       <div class="home-today-rail">
         <span class="home-today-rail-time">${formatTime(item.start)}</span>
         <span class="home-today-rail-end">${formatTime(item.end)}</span>
@@ -571,6 +577,44 @@ function countdownTemplate(item, label) {
 }
 
 /* ── Home Page ───────────────────────────────────────── */
+// QCity Bus Route 4 mini-card. Schedule-based only (mirrors eta.js): reads
+// data/qcity-bus.json and shows today's first/last trip + headway. Never
+// estimates or counts down — there is no public real-time feed.
+async function renderHomeBusCard() {
+  const card = document.getElementById("home-bus-card");
+  const sub = document.getElementById("home-bus-sub");
+  if (!card || !sub || card.dataset.loaded === "1") return;
+  try {
+    const resp = await fetch("data/qcity-bus.json", { cache: "no-cache" });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const data = await resp.json();
+    const dayKey = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][new Date().getDay()];
+    const serviceDay = dayKey === "sunday" ? "sunday" : dayKey === "saturday" ? "saturday" : "weekdays";
+    const svc = data?.service?.[serviceDay];
+    let text;
+    if (svc && svc.operates !== false && Array.isArray(svc.directions) && svc.directions.length) {
+      // Route 4 has two directions; summarize the one stopping at QCU outbound.
+      const dirs = svc.directions;
+      const first = dirs.map(d => d.firstTrip).filter(Boolean).sort()[0];
+      const last = dirs.map(d => d.lastTrip).filter(Boolean).sort().slice(-1)[0];
+      const headway = Number.isFinite(dirs[0]?.headwayPeakMins)
+        ? `every ${dirs[0].headwayPeakMins}–${dirs[0].headwayOffPeakMins} min`
+        : Number.isFinite(dirs[0]?.headwayMins) ? `every ${dirs[0].headwayMins} min` : null;
+      text = first && last
+        ? `Today: ${first} – ${last}${headway ? " · " + headway : ""}`
+        : "Schedule unavailable";
+    } else {
+      text = "No scheduled service today";
+    }
+    sub.textContent = text;
+    card.hidden = false;
+    card.dataset.loaded = "1";
+    if (window.lucide?.createIcons) window.lucide.createIcons();
+  } catch (_) {
+    // Data unavailable: keep the card hidden rather than showing a guess.
+  }
+}
+
 function renderHome() {
   if (state.error && !state.dashboard) {
     const skeleton = document.getElementById('hero-skeleton');
@@ -587,9 +631,14 @@ function renderHome() {
   const currentLabel = current ? "In session" : "No class right now";
   const nextLabel = next ? "Coming up next" : (todaysClasses.length ? "No more classes today" : "No classes today");
 
-  setText("home-greeting", `${greeting}, ${state.profile?.name || "Student"}`);
+  setText("home-greeting", `${greeting},`);
+  const heroMain = document.getElementById("home-hero-main");
+  if (heroMain) heroMain.dataset.studentName = (state.profile?.name || "Student").split(" ")[0];
   setText("hero-class-count", `${todaysClasses.length}`);
   setText("hero-today-date", QCU_TIME.dateLabel(now));
+
+  // Bus card: today's QCity Bus Route 4 service (schedule-based, no fake ETAs).
+  renderHomeBusCard();
 
   // Real values are ready — swap the hero skeleton out for the stats.
   const heroStats = document.querySelector(".home-hero-stats");
@@ -1036,7 +1085,8 @@ function updateClock() {
   setText("live-time", new Intl.DateTimeFormat([], { timeZone: QCU_TIME.zone, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true }).format(now));
   setText("live-day",  QCU_TIME.weekday());
   setText("live-date", QCU_TIME.dateLabel(now));
-  setText("greeting",  `${greeting}, ${state.profile?.name || "Student"}`);
+  // Note: #greeting is the header BRAND ("QCUians Schedule"), not a greeting —
+  // the live greeting lives in #home-greeting. Do not overwrite the brand here.
 }
 
 /* ── Subjects (full names + color map) ───────────────── */

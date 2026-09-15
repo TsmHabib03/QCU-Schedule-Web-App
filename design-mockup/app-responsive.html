@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soft Schedule — Responsive App</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          appbg:    '#F4F7FC',
+          primary:  '#4A3AFF',
+          primarysoft: '#ECEBFF',
+          navy:     '#1A1B41',
+          grey:     '#8E92AD',
+          peach:    '#FFE8D6',
+          peachicon:'#FF9F6E',
+          mint:     '#E0F7F6',
+          minticon: '#35C4C8',
+          lavender: '#EDEAFF',
+          lavicon:  '#7B6CF6',
+        },
+        fontFamily: { sans: ['"Plus Jakarta Sans"', 'Poppins', 'sans-serif'] },
+        borderRadius: { card: '28px', xl2: '22px' },
+        boxShadow: {
+          float: '0 10px 25px rgba(0,0,0,0.05)',
+          fab:   '0 14px 28px -6px rgba(74,58,255,0.5)',
+        },
+      }
+    }
+  }
+</script>
+<style>
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+</head>
+<body class="bg-appbg font-sans text-navy antialiased">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     STRUCTURE OVERVIEW
+     ─────────────────────────────────────────────────────────────
+     <body>
+       ├─ #app-shell (flex)
+       │   ├─ <aside> sidebar  → hidden on mobile (lg:fixed left), = bottom nav on desktop
+       │   └─ <main>   content → mobile: single column + fixed bottom nav
+       │                          desktop: CSS Grid, 3 screens side-by-side
+       ├─ <nav> bottom nav → mobile only (lg:hidden)
+     ───────────────────────────────────────────────────────────── -->
+
+<div id="app-shell" class="lg:flex lg:min-h-screen">
+
+  <!-- ═══════════════ DESKTOP SIDEBAR (lg+) ═══════════════ -->
+  <aside class="hidden lg:flex lg:flex-col fixed inset-y-0 left-0 w-[240px] bg-white shadow-float z-40 rounded-none border-r border-black/5 px-6 py-8">
+    <div class="flex items-center gap-3 px-2 mb-10">
+      <div class="w-10 h-10 bg-primary rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-fab">S</div>
+      <span class="font-extrabold text-lg tracking-tight">SoftSchedule</span>
+    </div>
+
+    <nav class="flex flex-col gap-2">
+      <a href="#dashboard" class="flex items-center gap-4 px-4 py-3 rounded-2xl bg-primary text-white shadow-fab font-semibold">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg>
+        Dashboard
+      </a>
+      <a href="#calendar" class="flex items-center gap-4 px-4 py-3 rounded-2xl text-grey hover:bg-primarysoft hover:text-primary transition font-semibold">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Calendar
+      </a>
+      <a href="#timeline" class="flex items-center gap-4 px-4 py-3 rounded-2xl text-grey hover:bg-primarysoft hover:text-primary transition font-semibold">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Timeline
+      </a>
+      <a href="#" class="flex items-center gap-4 px-4 py-3 rounded-2xl text-grey hover:bg-primarysoft hover:text-primary transition font-semibold">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        Alerts
+      </a>
+    </nav>
+
+    <button class="mt-auto mx-auto w-14 h-14 bg-primary rounded-[20px] shadow-fab flex items-center justify-center text-white active:scale-95 transition">
+      <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+    </button>
+  </aside>
+
+  <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+  <!-- mobile: single column, pb leaves room for the fixed bottom nav -->
+  <!-- desktop: CSS Grid — Dashboard spans left, Calendar & Timeline stack right -->
+  <main class="lg:ml-[240px] lg:p-10 pb-32 lg:pb-10">
+
+    <div class="lg:grid lg:grid-cols-12 lg:gap-8 lg:max-w-[1400px] lg:mx-auto">
+
+      <!-- ────────── SCREEN 1: HOME DASHBOARD ────────── -->
+      <section id="dashboard" class="p-6 lg:p-0 lg:col-span-5 lg:flex lg:flex-col lg:gap-8">
+
+        <!-- Header: greeting + overlapping weather widget -->
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-grey text-sm">Good Evening,</p>
+            <h1 class="text-[32px] lg:text-4xl font-extrabold leading-tight tracking-tight">Habib 👋</h1>
+          </div>
+          <!-- Weather widget: purple, cloud icon, white text -->
+          <div class="bg-primary text-white rounded-card px-5 py-4 flex items-center gap-3 shadow-float shrink-0">
+            <svg class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17.5 19a4.5 4.5 0 100-9 6 6 0 10-11.6 2.3A3.5 3.5 0 006.5 19h11z"/>
+            </svg>
+            <div class="leading-none">
+              <p class="text-xl font-bold">32°</p>
+              <p class="text-[10px] text-white/70 mt-1.5">Cloudy</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Weekly date selector: horizontal scroll on mobile -->
+        <div class="mt-6 lg:mt-0">
+          <div class="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+            <div class="flex flex-col items-center gap-1.5 py-1 w-12 shrink-0 cursor-pointer">
+              <span class="text-grey text-xs">Mon</span>
+              <span class="w-11 h-11 flex items-center justify-center text-navy text-sm font-semibold rounded-full">15</span>
+            </div>
+            <div class="flex flex-col items-center gap-1.5 py-1 w-12 shrink-0 cursor-pointer">
+              <span class="text-primary text-xs font-bold">Tue</span>
+              <span class="w-11 h-11 flex items-center justify-center bg-primary text-white text-sm font-bold rounded-full shadow-fab">16</span>
+            </div>
+            <div class="flex flex-col items-center gap-1.5 py-1 w-12 shrink-0 cursor-pointer">
+              <span class="text-grey text-xs">Wed</span>
+              <span class="w-11 h-11 flex items-center justify-center text-navy text-sm font-semibold rounded-full">17</span>
+            </div>
+            <div class="flex flex-col items-center gap-1.5 py-1 w-12 shrink-0 cursor-pointer">
+              <span class="text-grey text-xs">Thu</span>
+              <span class="w-11 h-11 flex items-center justify-center text-navy text-sm font-semibold rounded-full">18</span>
+            </div>
+            <div class="flex flex-col items-center gap-1.5 py-1 w-12 shrink-0 cursor-pointer">
+              <span class="text-grey text-xs">Fri</span>
+              <span class="w-11 h-11 flex items-center justify-center text-navy text-sm font-semibold rounded-full">19</span>
+            </div>
+            <div class="flex flex-col items-center gap-1.5 py-1 w-12 shrink-0 cursor-pointer">
+              <span class="text-grey text-xs">Sat</span>
+              <span class="w-11 h-11 flex items-center justify-center text-navy text-sm font-semibold rounded-full">20</span>
+            </div>
+            <div class="flex flex-col items-center gap-1.5 py-1 w-12 shrink-0 cursor-pointer">
+              <span class="text-grey text-xs">Sun</span>
+              <span class="w-11 h-11 flex items-center justify-center text-navy text-sm font-semibold rounded-full">21</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Today Task: horizontal scroll cards -->
+        <div class="mt-4">
+          <div class="flex items-baseline justify-between mb-4">
+            <h2 class="font-bold text-lg">Today Task</h2>
+            <a href="#" class="text-primary text-sm font-semibold">See all</a>
+          </div>
+          <div class="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+
+            <!-- Task: peach — CC 102 -->
+            <div class="w-[168px] h-[178px] bg-peach rounded-card p-5 shrink-0 flex flex-col justify-between shadow-float">
+              <div class="flex justify-between items-start">
+                <div class="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-peachicon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                  </svg>
+                </div>
+                <div class="flex -space-x-2.5">
+                  <img class="w-7 h-7 rounded-full border-[3px] border-peach" src="https://i.pravatar.cc/40?img=32" alt="">
+                  <img class="w-7 h-7 rounded-full border-[3px] border-peach" src="https://i.pravatar.cc/40?img=12" alt="">
+                </div>
+              </div>
+              <div>
+                <p class="text-grey text-[11px] font-semibold">07:30 AM</p>
+                <p class="font-bold text-[15px] leading-snug mt-1">CC 102<br>Programming</p>
+              </div>
+            </div>
+
+            <!-- Task: mint — MATH 1 -->
+            <div class="w-[168px] h-[178px] bg-mint rounded-card p-5 shrink-0 flex flex-col justify-between shadow-float">
+              <div class="flex justify-between items-start">
+                <div class="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-minticon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m-6 10h6M12 4v16"/> 
+                  </svg>
+                </div>
+                <div class="flex -space-x-2.5">
+                  <img class="w-7 h-7 rounded-full border-[3px] border-mint" src="https://i.pravatar.cc/40?img=45" alt="">
+                  <img class="w-7 h-7 rounded-full border-[3px] border-mint" src="https://i.pravatar.cc/40?img=20" alt="">
+                  <img class="w-7 h-7 rounded-full border-[3px] border-mint" src="https://i.pravatar.cc/40?img=8" alt="">
+                </div>
+              </div>
+              <div>
+                <p class="text-grey text-[11px] font-semibold">09:00 AM</p>
+                <p class="font-bold text-[15px] leading-snug mt-1">MATH 1<br>College Algebra</p>
+              </div>
+            </div>
+
+            <!-- Task: lavender — Study Group -->
+            <div class="w-[168px] h-[178px] bg-lavender rounded-card p-5 shrink-0 flex flex-col justify-between shadow-float">
+              <div class="flex justify-between items-start">
+                <div class="w-10 h-10 rounded-2xl bg-white/70 flex items-center justify-center">
+                  <svg class="w-5 h-5 text-lavicon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-6.93M16 3.13a4 4 0 010 7.75"/>
+                  </svg>
+                </div>
+                <div class="flex -space-x-2.5">
+                  <img class="w-7 h-7 rounded-full border-[3px] border-lavender" src="https://i.pravatar.cc/40?img=15" alt="">
+                </div>
+              </div>
+              <div>
+                <p class="text-grey text-[11px] font-semibold">01:00 PM</p>
+                <p class="font-bold text-[15px] leading-snug mt-1">Study<br>Group</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Progress summary fills the desktop column nicely; hidden on mobile where the image has none -->
+        <div class="hidden lg:block bg-white rounded-card shadow-float p-6 mt-auto">
+          <div class="flex items-center justify-between mb-3">
+            <p class="font-bold">Semester progress</p>
+            <span class="text-primary font-bold text-sm">62%</span>
+          </div>
+          <div class="h-3 rounded-full bg-appbg overflow-hidden">
+            <div class="h-full w-[62%] bg-primary rounded-full"></div>
+          </div>
+          <p class="text-grey text-sm mt-3">18 of 29 units completed this term</p>
+        </div>
+      </section>
+
+      <!-- ────────── SCREEN 2: CALENDAR MONTH ────────── -->
+      <section id="calendar" class="p-6 lg:p-0 lg:col-span-4 lg:flex lg:flex-col lg:gap-8">
+
+        <div class="flex items-baseline justify-between">
+          <h1 class="text-2xl font-extrabold tracking-tight">Calendar</h1>
+          <p class="text-grey font-semibold text-sm">September 2026</p>
+        </div>
+
+        <!-- Elevated month card: today (16) purple pill, 16→20 range connected -->
+        <div class="bg-white rounded-card shadow-float p-6">
+          <div class="grid grid-cols-7 gap-y-1 text-center">
+            <span class="text-grey text-xs font-bold py-2">S</span>
+            <span class="text-grey text-xs font-bold py-2">M</span>
+            <span class="text-grey text-xs font-bold py-2">T</span>
+            <span class="text-grey text-xs font-bold py-2">W</span>
+            <span class="text-grey text-xs font-bold py-2">T</span>
+            <span class="text-grey text-xs font-bold py-2">F</span>
+            <span class="text-grey text-xs font-bold py-2">S</span>
+
+            <!-- Sept 2026 starts Tuesday; days 1-30. Range 16..20 highlighted. -->
+            <span></span><span></span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">1</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">2</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">3</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">4</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">5</span>
+
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">6</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">7</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">8</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">9</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">10</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">11</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">12</span>
+
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">13</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">14</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">15</span>
+            <!-- today: solid purple pill -->
+            <span class="w-10 h-10 mx-auto flex items-center justify-center bg-primary text-white text-sm font-bold rounded-full shadow-fab">16</span>
+            <!-- multi-day selection 17-20: soft purple connectors -->
+            <span class="w-10 h-10 mx-auto flex items-center justify-center bg-primarysoft text-primary text-sm font-semibold rounded-full">17</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center bg-primarysoft text-primary text-sm font-semibold rounded-full">18</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center bg-primarysoft text-primary text-sm font-semibold rounded-full">19</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center bg-primarysoft text-primary text-sm font-semibold rounded-full">20</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">21</span>
+
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">22</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">23</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">24</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">25</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">26</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">27</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">28</span>
+
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">29</span>
+            <span class="w-10 h-10 mx-auto flex items-center justify-center text-navy text-sm font-semibold rounded-full">30</span>
+          </div>
+        </div>
+
+        <!-- March Goal-style list → "Monthly Goals" with QCU classes -->
+        <div class="flex-1">
+          <h2 class="font-bold text-lg mb-4">Monthly Goals</h2>
+          <div class="flex flex-col gap-3">
+
+            <div class="bg-peach rounded-card px-5 py-4 flex items-center gap-4 shadow-float">
+              <div class="w-11 h-11 rounded-2xl bg-white/70 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-peachicon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.247m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.247"/></svg>
+              </div>
+              <p class="font-bold text-sm flex-1">Pass CC 102 Programming</p>
+              <button class="text-navy/40 hover:text-navy p-1">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+              </button>
+            </div>
+
+            <div class="bg-mint rounded-card px-5 py-4 flex items-center gap-4 shadow-float">
+              <div class="w-11 h-11 rounded-2xl bg-white/70 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-minticon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <p class="font-bold text-sm flex-1">Finish MATH 1 problem sets</p>
+              <button class="text-navy/40 hover:text-navy p-1">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+              </button>
+            </div>
+
+            <div class="bg-lavender rounded-card px-5 py-4 flex items-center gap-4 shadow-float">
+              <div class="w-11 h-11 rounded-2xl bg-white/70 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5 text-lavicon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <p class="font-bold text-sm flex-1">No late submissions this month</p>
+              <button class="text-navy/40 hover:text-navy p-1">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ────────── SCREEN 3: DAILY TIMELINE ────────── -->
+      <section id="timeline" class="p-6 lg:p-0 lg:col-span-3 lg:flex lg:flex-col lg:gap-8">
+
+        <!-- Condensed weekly selector -->
+        <div class="flex gap-2.5 overflow-x-auto no-scrollbar">
+          <span class="w-10 h-10 shrink-0 flex items-center justify-center bg-white text-grey text-xs font-bold rounded-full shadow-float">M 15</span>
+          <span class="w-10 h-10 shrink-0 flex items-center justify-center bg-primary text-white text-xs font-bold rounded-full shadow-fab">T 16</span>
+          <span class="w-10 h-10 shrink-0 flex items-center justify-center bg-white text-grey text-xs font-bold rounded-full shadow-float">W 17</span>
+          <span class="w-10 h-10 shrink-0 flex items-center justify-center bg-white text-grey text-xs font-bold rounded-full shadow-float">T 18</span>
+          <span class="w-10 h-10 shrink-0 flex items-center justify-center bg-white text-grey text-xs font-bold rounded-full shadow-float">F 19</span>
+          <span class="w-10 h-10 shrink-0 flex items-center justify-center bg-white text-grey text-xs font-bold rounded-full shadow-float">S 20</span>
+        </div>
+
+        <!-- Timeline -->
+        <div class="relative bg-white rounded-card shadow-float p-6 flex-1">
+          <h2 class="font-bold text-lg mb-4">Today's Timeline</h2>
+
+          <!-- current-time indicator: purple line + dot, sits at ~10:30 -->
+          <div class="absolute left-6 right-6 top-[212px] z-10 flex items-center gap-0 pointer-events-none">
+            <span class="w-3 h-3 bg-primary rounded-full ring-4 ring-primary/20 shrink-0 -ml-1.5"></span>
+            <div class="h-[3px] bg-primary flex-1 rounded-full opacity-80"></div>
+            <span class="text-primary text-[11px] font-bold bg-primarysoft px-2 py-0.5 rounded-full -mt-5">10:30</span>
+          </div>
+
+          <div class="flex flex-col gap-5">
+
+            <!-- 08:00 -->
+            <div class="flex gap-4">
+              <span class="text-grey text-xs font-bold w-12 shrink-0 pt-3">08:00</span>
+              <div class="flex-1 bg-appbg rounded-2xl h-16"></div>
+            </div>
+            <!-- 09:00 — mint block: MATH 1 -->
+            <div class="flex gap-4">
+              <span class="text-grey text-xs font-bold w-12 shrink-0 pt-3">09:00</span>
+              <div class="flex-1 bg-mint rounded-2xl px-4 h-16 flex flex-col justify-center">
+                <p class="font-bold text-sm">MATH 1 · College Algebra</p>
+                <p class="text-grey text-xs font-semibold mt-0.5">Room 402 · 09:00 – 10:30</p>
+              </div>
+            </div>
+            <!-- 10:00 — purple Design-meeting-style block with wave pattern -->
+            <div class="flex gap-4">
+              <span class="text-grey text-xs font-bold w-12 shrink-0 pt-3">10:00</span>
+              <div class="relative flex-1 bg-primary rounded-2xl px-4 h-20 overflow-hidden flex flex-col justify-center">
+                <svg class="absolute right-0 inset-y-0 h-full w-20 text-white/15" preserveAspectRatio="none" viewBox="0 0 80 80" fill="none">
+                  <path d="M0 20 Q 20 0, 40 20 T 80 20" stroke="currentColor" stroke-width="3"/>
+                  <path d="M0 45 Q 20 25, 40 45 T 80 45" stroke="currentColor" stroke-width="3"/>
+                  <path d="M0 70 Q 20 50, 40 70 T 80 70" stroke="currentColor" stroke-width="3"/>
+                </svg>
+                <p class="text-white font-bold text-sm relative">CC 102 Programming</p>
+                <p class="text-white/70 text-xs font-semibold mt-0.5 relative">Lab 2 · 10:00 – 12:00</p>
+              </div>
+            </div>
+            <!-- 11:00 -->
+            <div class="flex gap-4">
+              <span class="text-grey text-xs font-bold w-12 shrink-0 pt-3">11:00</span>
+              <div class="flex-1 bg-appbg rounded-2xl h-16"></div>
+            </div>
+            <!-- 12:00 — peach: lunch/study -->
+            <div class="flex gap-4">
+              <span class="text-grey text-xs font-bold w-12 shrink-0 pt-3">12:00</span>
+              <div class="flex-1 bg-peach rounded-2xl px-4 h-16 flex flex-col justify-center">
+                <p class="font-bold text-sm">Study Group</p>
+                <p class="text-grey text-xs font-semibold mt-0.5">Library · 12:00 – 01:00</p>
+              </div>
+            </div>
+            <!-- 01:00 -->
+            <div class="flex gap-4">
+              <span class="text-grey text-xs font-bold w-12 shrink-0 pt-3">01:00</span>
+              <div class="flex-1 bg-appbg rounded-2xl h-16"></div>
+            </div>
+            <!-- 02:00 — lavender -->
+            <div class="flex gap-4">
+              <span class="text-grey text-xs font-bold w-12 shrink-0 pt-3">02:00</span>
+              <div class="flex-1 bg-lavender rounded-2xl px-4 h-16 flex flex-col justify-center">
+                <p class="font-bold text-sm">PE 101 · Athletics</p>
+                <p class="text-grey text-xs font-semibold mt-0.5">Gym · 02:00 – 04:00</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════════ MOBILE BOTTOM NAV (below lg) ═══════════════ -->
+<nav class="lg:hidden fixed bottom-0 inset-x-0 z-40">
+  <div class="relative bg-white h-[88px] rounded-t-[32px] shadow-[0_-10px_30px_rgba(0,0,0,0.08)] flex items-center justify-around px-8 pb-2">
+    <!-- Home (active) -->
+    <button class="flex flex-col items-center gap-1 text-primary">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/>
+      </svg>
+    </button>
+    <!-- Clock -->
+    <button class="text-grey">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+    </button>
+    <!-- FAB: breaks out above the bar -->
+    <div class="relative w-16 flex justify-center">
+      <button class="absolute -top-12 w-14 h-14 bg-primary rounded-[22px] shadow-fab flex items-center justify-center text-white active:scale-95 transition">
+        <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+      </button>
+    </div>
+    <!-- Calendar -->
+    <button class="text-grey">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+      </svg>
+    </button>
+    <!-- Bell -->
+    <button class="text-grey">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+      </svg>
+    </button>
+  </div>
+</nav>
+
+</body>
+</html>

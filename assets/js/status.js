@@ -1092,6 +1092,35 @@
      ============================================================= */
   function paint(html) { root.innerHTML = html; iconify(); }
 
+  /* Home hero weather chip — one-line summary of campus conditions.
+     Mirrors the mockup's purple widget; stays honest (shows "—" when the
+     feed is unavailable rather than a guess). */
+  function updateWeatherChip(wx) {
+    var tempEl = document.getElementById("weather-chip-temp");
+    var condEl = document.getElementById("weather-chip-cond");
+    var chipEl = document.getElementById("home-weather-chip");
+    if (!tempEl || !condEl) return;
+    if (wx && wx.code != null) {
+      tempEl.textContent = Math.round(wx.temp) + "\u00B0";
+      condEl.textContent = weatherStatusLabel(wx.code, wx.pop);
+      if (chipEl) {
+        // wmo()[1] is already a lucide icon name (sun, cloud, cloud-rain, …)
+        var lucideName = wmo(wx.code)[1] || "cloud";
+        var iconEl = chipEl.querySelector("svg, i[data-lucide]");
+        // Replace the icon placeholder with the matching condition icon.
+        if (iconEl) {
+          var span = document.createElement("i");
+          span.setAttribute("data-lucide", lucideName);
+          iconEl.replaceWith(span);
+          iconify();
+        }
+      }
+    } else {
+      tempEl.textContent = "--\u00B0";
+      condEl.textContent = "Weather unavailable";
+    }
+  }
+
   // Geolocation UI state, held in the IIFE closure so it SURVIVES the
   // paint()-driven innerHTML replacement between renders.
   var geoState = "idle"; // idle | requesting | denied | error | unsupported
@@ -1261,6 +1290,7 @@
       lastStatus = st;
       lastViews = { user: user, campus: campus, hasUserFix: hasUserFix };
       paint(compose(lastStatus, lastViews));
+      updateWeatherChip(campus.wx);
     }).catch(function (e) {
       dbg("refresh error", e);
       // Even total failure must read as honest UNKNOWN — never "no suspension".

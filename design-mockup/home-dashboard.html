@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soft Schedule — Home Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          bg:        '#F4F5FB',   // very light cool off-white
+          primary:   '#4A3AFF',   // deep violet
+          primarysoft:'#ECEAFE',  // light purple connector
+          navy:      '#1B1E39',   // dark navy headings
+          grey:      '#9AA0B5',   // medium-light grey secondary
+          peach:     '#FFE8D6',
+          peachicon: '#FF9F6E',
+          cyan:      '#DCF4F7',
+          cyanicon:  '#4FC8DD',
+          lavender:  '#EAE6FF',
+          lavicon:   '#8B7CF6',
+        },
+        fontFamily: { sans: ['Poppins', 'sans-serif'] },
+        borderRadius: { card: '26px', pill: '9999px' },
+        boxShadow: {
+          card: '0 10px 30px -8px rgba(27,30,57,0.10)',
+          fab:  '0 12px 24px -6px rgba(74,58,255,0.45)',
+        },
+      }
+    }
+  }
+</script>
+<style>
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+</head>
+<body class="bg-[#E7E9F4] font-sans min-h-screen flex items-center justify-center gap-10 p-10">
+
+  <!-- ═══════════════════ PHONE FRAME ═══════════════════ -->
+  <div class="w-[375px] h-[812px] bg-bg rounded-[44px] shadow-2xl overflow-hidden relative flex flex-col">
+
+    <!-- ── Header ─────────────────────────────────────── -->
+    <header class="px-6 pt-12 pb-4 flex items-start justify-between">
+      <div>
+        <p class="text-grey text-sm">Good Evening</p>
+        <h1 class="text-navy text-[28px] font-bold leading-tight">Kathryn<br>Diyo</h1>
+      </div>
+      <!-- Weather widget -->
+      <div class="bg-primary text-white rounded-card px-4 py-3 flex items-center gap-3 shadow-card">
+        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17.5 19a4.5 4.5 0 100-9 6 6 0 10-11.6 2.3A3.5 3.5 0 006.5 19h11z"/>
+        </svg>
+        <div class="leading-none">
+          <p class="text-lg font-semibold">32°</p>
+          <p class="text-[10px] text-white/70 mt-1">Cloudy</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Weekly date strip ──────────────────────────── -->
+    <div class="px-6">
+      <div class="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+        <!-- day (unselected) -->
+        <div class="flex flex-col items-center gap-1 py-2 w-11 shrink-0 cursor-pointer">
+          <span class="text-grey text-xs">Mon</span>
+          <span class="w-10 h-10 flex items-center justify-center text-navy text-sm font-medium rounded-full">11</span>
+        </div>
+        <!-- selected day -->
+        <div class="flex flex-col items-center gap-1 py-2 w-11 shrink-0 cursor-pointer">
+          <span class="text-primary text-xs font-medium">Tue</span>
+          <span class="w-10 h-10 flex items-center justify-center bg-primary text-white text-sm font-semibold rounded-pill shadow-fab">12</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 py-2 w-11 shrink-0 cursor-pointer">
+          <span class="text-grey text-xs">Wed</span>
+          <span class="w-10 h-10 flex items-center justify-center text-navy text-sm font-medium rounded-full">13</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 py-2 w-11 shrink-0 cursor-pointer">
+          <span class="text-grey text-xs">Thu</span>
+          <span class="w-10 h-10 flex items-center justify-center text-navy text-sm font-medium rounded-full">14</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 py-2 w-11 shrink-0 cursor-pointer">
+          <span class="text-grey text-xs">Fri</span>
+          <span class="w-10 h-10 flex items-center justify-center text-navy text-sm font-medium rounded-full">15</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 py-2 w-11 shrink-0 cursor-pointer">
+          <span class="text-grey text-xs">Sat</span>
+          <span class="w-10 h-10 flex items-center justify-center text-navy text-sm font-medium rounded-full">16</span>
+        </div>
+        <div class="flex flex-col items-center gap-1 py-2 w-11 shrink-0 cursor-pointer">
+          <span class="text-grey text-xs">Sun</span>
+          <span class="w-10 h-10 flex items-center justify-center text-navy text-sm font-medium rounded-full">17</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Today's tasks (horizontal scroll) ──────────── -->
+    <section class="mt-5 px-6 flex-1 overflow-hidden flex flex-col">
+      <h2 class="text-navy font-semibold text-base mb-3">Today Task</h2>
+      <div class="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+
+        <!-- Task card: peach -->
+        <div class="w-[150px] h-[170px] bg-peach rounded-card p-4 shrink-0 flex flex-col justify-between shadow-card">
+          <div class="flex justify-between items-start">
+            <div class="w-9 h-9 rounded-xl bg-white/60 flex items-center justify-center">
+              <svg class="w-5 h-5 text-peachicon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
+            </div>
+            <div class="flex -space-x-2">
+              <img class="w-6 h-6 rounded-full border-2 border-peach" src="https://i.pravatar.cc/40?img=32" alt="">
+              <img class="w-6 h-6 rounded-full border-2 border-peach" src="https://i.pravatar.cc/40?img=12" alt="">
+            </div>
+          </div>
+          <div>
+            <p class="text-grey text-[11px]">08:00 AM</p>
+            <p class="text-navy font-semibold text-sm leading-snug">Design Meeting</p>
+          </div>
+        </div>
+
+        <!-- Task card: cyan -->
+        <div class="w-[150px] h-[170px] bg-cyan rounded-card p-4 shrink-0 flex flex-col justify-between shadow-card">
+          <div class="flex justify-between items-start">
+            <div class="w-9 h-9 rounded-xl bg-white/60 flex items-center justify-center">
+              <svg class="w-5 h-5 text-cyanicon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.247m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.247"/>
+              </svg>
+            </div>
+            <div class="flex -space-x-2">
+              <img class="w-6 h-6 rounded-full border-2 border-cyan" src="https://i.pravatar.cc/40?img=45" alt="">
+            </div>
+          </div>
+          <div>
+            <p class="text-grey text-[11px]">10:00 AM</p>
+            <p class="text-navy font-semibold text-sm leading-snug">Study Group</p>
+          </div>
+        </div>
+
+        <!-- Task card: lavender -->
+        <div class="w-[150px] h-[170px] bg-lavender rounded-card p-4 shrink-0 flex flex-col justify-between shadow-card">
+          <div class="flex justify-between items-start">
+            <div class="w-9 h-9 rounded-xl bg-white/60 flex items-center justify-center">
+              <svg class="w-5 h-5 text-lavicon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+            </div>
+            <div class="flex -space-x-2">
+              <img class="w-6 h-6 rounded-full border-2 border-lavender" src="https://i.pravatar.cc/40?img=20" alt="">
+              <img class="w-6 h-6 rounded-full border-2 border-lavender" src="https://i.pravatar.cc/40?img=8" alt="">
+              <img class="w-6 h-6 rounded-full border-2 border-lavender" src="https://i.pravatar.cc/40?img=15" alt="">
+            </div>
+          </div>
+          <div>
+            <p class="text-grey text-[11px]">02:00 PM</p>
+            <p class="text-navy font-semibold text-sm leading-snug">Team Standup</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Bottom navigation ──────────────────────────── -->
+    <nav class="absolute bottom-0 inset-x-0 bg-white h-[86px] rounded-t-[32px] shadow-[0_-8px_30px_-10px_rgba(27,30,57,0.12)] flex items-center justify-around px-8 pb-2">
+      <!-- Home (active) -->
+      <button class="flex flex-col items-center gap-1 text-primary">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/>
+        </svg>
+      </button>
+      <!-- Clock -->
+      <button class="text-grey">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </button>
+      <!-- FAB: center floating + -->
+      <div class="relative w-16 h-16 -mt-10 flex justify-center">
+        <button class="w-14 h-14 bg-primary rounded-[22px] shadow-fab flex items-center justify-center text-white active:scale-95 transition">
+          <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+        </button>
+      </div>
+      <!-- Calendar -->
+      <button class="text-grey">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+      </button>
+      <!-- Bell -->
+      <button class="text-grey">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+        </svg>
+      </button>
+    </nav>
+
+    <!-- home indicator -->
+    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-navy/15 rounded-full"></div>
+  </div>
+
+</body>
+</html>
