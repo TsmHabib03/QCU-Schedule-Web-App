@@ -400,9 +400,9 @@
   top: auto !important;
   left: 0; right: 0;
   z-index: 50;
-  background: #fff;
+  background: #fff;             /* solid white, never blends into the page */
   border-radius: 32px 32px 0 0;
-  box-shadow: 0 -4px 10px rgba(0,0,0,.05);
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05) !important;  /* subtle shadow on top */
   border-top: 0;
   border-bottom: 0 !important;
   padding-bottom: max(8px, env(safe-area-inset-bottom));
@@ -419,14 +419,18 @@
 .bottom-nav .nav-item {
   flex-direction: column;
   gap: 3px;
-  color: var(--soft-grey);
+  color: #94A3B8;               /* slate-400: clear inactive state */
   font-size: 10px;
   font-weight: 600;
   padding: 6px 10px;
   border-radius: 16px;
 }
 .bottom-nav .nav-item svg { width: 24px; height: 24px; stroke-width: 1.7; }
-.bottom-nav .nav-item.active { color: var(--soft-primary); background: var(--soft-primary-soft); }
+.bottom-nav .nav-item.active {
+  color: #4338CA;               /* indigo-700: high-contrast active state */
+  background: var(--soft-primary-soft);
+}
+.bottom-nav .nav-item.active svg { stroke-width: 2; }
 
 /* FAB slot: middle item becomes the raised + button */
 .bottom-nav .nav-item.nav-fab {
@@ -441,7 +445,7 @@
   border-radius: 20px;
   box-shadow: var(--soft-shadow-primary);
   display: grid; place-items: center;
-  color: #fff;
+  color: #fff;                  /* bright white + icon */
   border: 0;
   cursor: pointer;
   transition: transform .15s ease;
@@ -459,22 +463,67 @@
 .brand-sub { color: var(--soft-grey) !important; }
 .signout-btn {
   background: var(--soft-primary) !important;
+  color: #fff !important;              /* white text on purple */
+  border: 0 !important;
   border-radius: 14px !important;
   box-shadow: var(--soft-shadow-primary);
   font-weight: 700;
 }
+.signout-btn:hover { background: #3D2EE0 !important; color: #fff !important; }
 .clock-time { color: var(--soft-navy) !important; font-weight: 800; }
+
+/* Mobile header: hide clock + logo, keep brand + sign out. Full header ≥768px. */
+@media (max-width: 767px) {
+  .student-shell .header-clock,
+  .student-shell .qc-logo { display: none !important; }
+}
+
+/* ── Hero: greeting left / weather right, opposite ends ── */
+.home-hero {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+/* tight screens: stack greeting above the weather chip */
+@media (max-width: 480px) {
+  .home-hero { flex-direction: column; align-items: flex-start; }
+  .home-hero-side { align-self: stretch; display: flex; justify-content: flex-end; }
+}
 
 /* ════════════════════════════════════════════════════════
    3-COLUMN SOFT GRID (mockup app-responsive.html layout)
    ════════════════════════════════════════════════════════ */
-.soft-home { display: flex; flex-direction: column; gap: 20px; }
+.student-shell .page-container.soft-home {
+  /* Fixed bottom nav: keep the lowest cards readable on every screen.
+     (double-class selector beats .student-shell .page-container's 36px) */
+  padding-bottom: 120px;
+}
 
 .soft-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr;      /* mobile: single column stack */
   gap: 20px;
   align-items: start;
+}
+
+/* Tablet: two columns (left col + right col; calendar keeps its own flow) */
+@media (min-width: 768px) {
+  .soft-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+}
+
+/* Desktop: three columns */
+@media (min-width: 1024px) {
+  .soft-grid { grid-template-columns: 5fr 4fr 4fr; gap: 22px; }
+  .soft-home { max-width: 1240px; margin: 0 auto; width: 100%; }
+  .soft-col .home-today-grid { flex-wrap: nowrap; }
+}
+
+@media (min-width: 1400px) {
+  .soft-grid { grid-template-columns: 5fr 4fr 4fr; }
+  .soft-home { max-width: 1360px; }
 }
 .soft-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
@@ -836,15 +885,3 @@
 }
 .soft-timeline-empty svg { width: 30px; height: 30px; stroke-width: 1.5; }
 .soft-timeline-empty a { color: var(--soft-primary); font-weight: 700; text-decoration: none; font-size: 13px; }
-
-/* ── Desktop: 3 columns ───────────────────────────────── */
-@media (min-width: 1024px) {
-  .soft-grid { grid-template-columns: 5fr 4fr 4fr; gap: 22px; }
-  .soft-home { max-width: 1240px; margin: 0 auto; width: 100%; }
-  .soft-col .home-today-grid { flex-wrap: nowrap; }
-}
-
-@media (min-width: 1400px) {
-  .soft-grid { grid-template-columns: 5fr 4fr 4fr; }
-  .soft-home { max-width: 1360px; }
-}
