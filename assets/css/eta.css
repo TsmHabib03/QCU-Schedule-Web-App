@@ -999,3 +999,256 @@
   .bus-sched-scroll { max-height: none; overflow: visible; }
   .bus-panel { border-top-width: 2px; break-inside: avoid; }
 }
+
+/* ============================================================
+   SOFT-UI THEME OVERLAY (matches the Home dashboard design)
+   Loaded last so it wins the cascade over the civic flat style.
+   Tokens mirror soft-ui.css: bg #F4F7FC, primary #4A3AFF,
+   navy #1A1B41, pastels peach/mint/lavender, radius 28px.
+   ============================================================ */
+
+/* Page container + spacing */
+.student-shell .page-container.section-stack { gap: 18px; padding-bottom: 140px; }
+
+/* ── Page header card: floating white, purple icon chip ── */
+.student-shell .portal-card {
+  border-radius: 28px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.03) !important;
+  padding: 22px !important;
+}
+.bus-page-head { align-items: center; gap: 16px; }
+.bus-page-mark {
+  width: 48px; height: 48px;
+  display: grid; place-items: center;
+  background: #4A3AFF;
+  color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 22px -6px rgba(74, 58, 255, 0.5);
+  flex-shrink: 0;
+}
+.bus-page-mark i, .bus-page-mark svg { width: 24px; height: 24px; stroke-width: 2; }
+.page-title {
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  color: #1A1B41 !important;
+  letter-spacing: -0.02em;
+}
+.bus-free-badge {
+  background: #E0F7F6 !important;
+  color: #0F766E !important;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  padding: 5px 12px !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  box-shadow: none !important;
+}
+.caption { color: #8E92AD !important; }
+
+/* ── Route panel: floating white card ── */
+.bus-panel {
+  background: #fff !important;
+  border: 1px solid rgba(0, 0, 0, 0.03) !important;
+  border-top: 0 !important;
+  border-radius: 28px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  padding: 22px !important;
+}
+.bus-panel--muted { background: #fff !important; }
+
+.bus-panel-head { gap: 12px; }
+.bus-panel-title-group { gap: 10px; }
+.bus-panel-icon {
+  color: #4A3AFF;
+  width: 20px; height: 20px;
+}
+.bus-panel-title {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  color: #1A1B41 !important;
+  letter-spacing: -0.02em;
+}
+
+/* Route number badge: purple circle */
+.bus-route-no {
+  background: #4A3AFF !important;
+  color: #fff !important;
+  border-radius: 9999px !important;
+  width: 46px; height: 46px;
+  display: grid; place-items: center;
+  font-weight: 800;
+  box-shadow: 0 10px 22px -6px rgba(74, 58, 255, 0.5);
+  font-size: 18px !important;
+}
+.bus-route-corridor { color: #1A1B41 !important; font-weight: 800 !important; }
+.bus-route-anchor { color: #4A3AFF !important; font-weight: 700 !important; }
+.bus-route-note { color: #4B4F6B !important; line-height: 1.6; }
+
+/* ── Facts: pastel grid (peach/mint/lavender rotation) ── */
+.bus-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  border: 0 !important;
+  margin-top: 16px !important;
+}
+@media (min-width: 640px) {
+  .bus-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.bus-fact {
+  border: 0 !important;
+  border-radius: 20px;
+  padding: 13px 15px;
+  background: #EDEAFF;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.bus-fact:nth-child(3n + 1) { background: #FFE8D6; }
+.bus-fact:nth-child(3n + 2) { background: #E0F7F6; }
+.bus-fact:nth-child(3n) { background: #EDEAFF; }
+.bus-fact-k {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8E92AD !important;
+}
+.bus-fact-v {
+  font-size: 13.5px !important;
+  font-weight: 800 !important;
+  color: #1A1B41 !important;
+}
+.bus-fact-v--free { color: #0F766E !important; }
+.bus-fact-v--muted { color: #8E92AD !important; font-weight: 700 !important; }
+
+/* Advisory: lavender row */
+.bus-advisory {
+  background: #EDEAFF;
+  border: 0 !important;
+  border-left: 4px solid #7B6CF6 !important;
+  border-radius: 14px;
+  padding: 12px 14px !important;
+  margin-top: 14px !important;
+}
+.bus-advisory-icon { color: #7B6CF6 !important; }
+
+/* ── Map: rounded soft frame ── */
+.eta-map-wrapper {
+  border: 1px solid rgba(0, 0, 0, 0.03) !important;
+  border-radius: 28px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  background: #F4F7FC;
+}
+.map-route-overlay {
+  border-radius: 16px !important;
+  border: 0 !important;
+  border-top: 0 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+  padding: 10px 14px !important;
+}
+.map-route-overlay-no {
+  background: #4A3AFF !important;
+  border-radius: 9999px !important;
+  width: 22px; height: 22px;
+  font-size: 11px;
+}
+.map-legend {
+  border-radius: 16px !important;
+  border: 0 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ── Schedule tabs: purple active pill like the calendar ── */
+.bus-sched-tabs {
+  display: flex;
+  gap: 8px;
+  background: #F4F7FC;
+  border: 0 !important;
+  border-radius: 9999px;
+  padding: 5px;
+  margin-top: 14px !important;
+}
+.bus-sched-tab {
+  flex: 1;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: transparent !important;
+  padding: 9px 10px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.bus-sched-tab[aria-selected="true"] {
+  background: #4A3AFF !important;
+  color: #fff;
+  box-shadow: 0 8px 18px -6px rgba(74, 58, 255, 0.5);
+}
+.bus-sched-tab[aria-selected="true"] .bus-sched-tab-name,
+.bus-sched-tab[aria-selected="true"] .bus-sched-tab-meta { color: #fff !important; }
+.bus-sched-tab-name {
+  font-size: 12px !important;
+  font-weight: 700;
+  color: #8E92AD;
+}
+.bus-sched-tab:not([aria-selected="true"]):hover { background: #ECEBFF !important; }
+.bus-sched-tab-meta { font-size: 10.5px !important; color: #8E92AD; font-weight: 600; }
+
+/* Schedule body rows */
+.bus-sched-body { margin-top: 14px !important; }
+.bus-sched-dir {
+  border: 0 !important;
+  border-radius: 20px !important;
+  background: #F4F7FC;
+  padding: 14px 16px !important;
+}
+.bus-sched-dir + .bus-sched-dir { margin-top: 10px !important; }
+.bus-sched-dir-label { color: #1A1B41 !important; font-weight: 800 !important; }
+.bus-sched-row { border-color: rgba(26, 27, 65, 0.08) !important; }
+.bus-sched-time { color: #4A3AFF !important; font-weight: 700 !important; }
+.bus-sched-foot { color: #8E92AD !important; }
+
+/* ── About list: pastel rows with icon chips (like Home goals) ── */
+.bus-about-lead { color: #4B4F6B !important; font-weight: 600; }
+.bus-about-list { gap: 10px !important; }
+.bus-about-item {
+  border: 0 !important;
+  border-radius: 20px;
+  background: #F4F7FC;
+  padding: 13px 15px !important;
+  gap: 12px !important;
+  align-items: flex-start !important;
+}
+.bus-about-item:nth-child(odd) { background: #FFE8D6; }
+.bus-about-item:nth-child(even) { background: #E0F7F6; }
+.bus-about-item i, .bus-about-item svg {
+  width: 20px; height: 20px;
+  stroke-width: 2;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.bus-about-item:nth-child(odd) i, .bus-about-item:nth-child(odd) svg { color: #FF9F6E; }
+.bus-about-item:nth-child(even) i, .bus-about-item:nth-child(even) svg { color: #35C4C8; }
+.bus-about-item-k { color: #1A1B41 !important; font-weight: 800 !important; font-size: 13px !important; }
+.bus-about-item-d { color: #5C607E !important; font-size: 12px !important; }
+
+/* Source footer + official link button */
+.bus-source {
+  border-top: 1px solid rgba(26, 27, 65, 0.08);
+  margin-top: 14px !important;
+  padding-top: 14px !important;
+}
+.bus-source-note { color: #8E92AD !important; }
+.btn-primary, .bus-official-link {
+  background: #4A3AFF !important;
+  color: #fff !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 10px 22px -6px rgba(74, 58, 255, 0.5);
+  font-weight: 700;
+  padding: 10px 16px !important;
+}
