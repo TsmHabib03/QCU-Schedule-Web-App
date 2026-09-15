@@ -1424,3 +1424,86 @@
   border-radius: 20px !important;
   background: #F8F9FE !important;
 }
+
+/* ════════════════════════════════════════════════════════
+   SETTINGS — soft-UI theme, matches Home
+   ════════════════════════════════════════════════════════ */
+
+/* Page spacing: clear the fixed bottom nav */
+.student-shell .page-container.settings-page { gap: 18px; padding-bottom: 140px; }
+
+/* ── Settings rows: pastel cards rotating like the Home goals ── */
+.student-shell .settings-page .settings-item {
+  border: 0 !important;
+  border-radius: 22px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  background: #E0F7F6 !important;
+  padding: 16px 18px !important;
+  gap: 14px !important;
+  text-align: left;
+  text-decoration: none;
+  width: 100%;
+  transition: transform .15s ease;
+}
+.student-shell .settings-page .settings-item:hover { transform: translateY(-2px); }
+/* Pastel rotation: mint → peach → lavender down the list.
+   The rows are mixed element types (a/label/button/div), so nth-of-type
+   restarts per tag — target the parent's children by position instead. */
+.student-shell .settings-page section > .settings-item:nth-child(3n + 1) { background: #E0F7F6 !important; }
+.student-shell .settings-page section > .settings-item:nth-child(3n + 2) { background: #FFE8D6 !important; }
+.student-shell .settings-page section > .settings-item:nth-child(3n)     { background: #EDEAFF !important; }
+
+.settings-label-title { color: #1A1B41 !important; font-weight: 800 !important; }
+.settings-label-sub { color: #5C607E !important; }
+
+/* Row trailing icons: navy, sized to the theme */
+.student-shell .settings-page .settings-item > i,
+.student-shell .settings-page .settings-item > svg {
+  width: 20px; height: 20px;
+  stroke-width: 2;
+  color: #1A1B41;
+}
+/* Google row keeps its green identity but softened */
+.student-shell .settings-page .settings-item-google > i,
+.student-shell .settings-page .settings-item-google > svg { color: #0F9D58; }
+
+/* ── Toggle: purple switch ── */
+.student-shell .settings-page input[type="checkbox"] {
+  accent-color: #4A3AFF;
+  width: 20px; height: 20px;
+  flex-shrink: 0;
+}
+
+/* PWA chip: soft pill */
+.student-shell .settings-page .chip {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, 0.75) !important;
+  color: #1A1B41 !important;
+  font-weight: 700;
+  padding: 5px 12px !important;
+}
+
+/* ── Reset button: white soft secondary ── */
+.student-shell .settings-page .action-button.secondary {
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: #fff !important;
+  color: #1A1B41 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  font-weight: 700;
+  padding: 12px 18px !important;
+}
+.student-shell .settings-page .action-button.secondary:hover {
+  background: #FFE8D6 !important;
+  color: #C2410C !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Heading */
+.student-shell .settings-page .page-title {
+  color: #1A1B41 !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+}
+.student-shell .settings-page .caption { color: #8E92AD !important; }
