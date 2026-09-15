@@ -961,8 +961,14 @@ function handleBatchWrite(actor, payload) {
 }
 
 function applyAtomicOps(ops, actorUserId) {
+  // Writes with native SpreadsheetApp calls. The script lock is already held
+  // by handleBatchWrite, so these writes are serialized app-wide — the same
+  // guarantee the Sheets REST batchUpdate gave, without depending on the
+  // script's OAuth scopes covering the Sheets API (UrlFetchApp + bearer token
+  // fails with 401/403 on deployments whose authorized scopes lack
+  // spreadsheets.googleapis.com, which made every COR confirmation fail).
   var registry = getEntityRegistry();
-  var requests = [];
+  var touched = {};
   ops.forEach(function(op) {
     var entity = registry[op.kind];
     var data = getSheetData(entity.sheet);
@@ -972,17 +978,27 @@ function applyAtomicOps(ops, actorUserId) {
     row.updatedBy = actorUserId;
     row.updatedAt = new Date().toISOString();
     var offset = data.index[String(op.id)];
-    var values = objectToRow(data.header,row).map(function(value) {
-      return {userEnteredValue: typeof value === 'boolean' ? {boolValue:value} : typeof value === 'number' ? {numberValue:value} : {stringValue:String(value == null ? '' : value)}};
-    });
-    if (offset === undefined) requests.push({appendCells:{sheetId:data.sheet.getSheetId(),rows:[{values:values}],fields:'userEnteredValue'}});
-    else requests.push({updateCells:{range:{sheetId:data.sheet.getSheetId(),startRowIndex:offset+1,endRowIndex:offset+2,startColumnIndex:0,endColumnIndex:data.header.length},rows:[{values:values}],fields:'userEnteredValue'}});
+    var values = objectToRow(data.header,row);
+    if (offset === undefined) {
+      var startRow = data.sheet.getLastRow() + 1;
+      ensureSheetSize(data.sheet, startRow, data.header.length);
+      data.sheet.getRange(startRow, 1, 1, data.header.length).setValues([values]);
+      data.index[String(op.id)] = data.rows.length;
+      data.rows.push(values);
+    } else {
+      var current = rowToObject(data.header, data.rows[offset]);
+      row.createdAt = row.createdAt || current.createdAt;
+      row.createdBy = row.createdBy || current.createdBy;
+      row.version = (Number(current.version) || 0) + 1;
+      values = objectToRow(data.header,row);
+      data.sheet.getRange(offset + 2, 1, 1, data.header.length).setValues([values]);
+      data.rows[offset] = values;
+    }
+    touched[entity.sheet] = true;
   });
-  var response = UrlFetchApp.fetch('https://sheets.googleapis.com/v4/spreadsheets/' + databaseSpreadsheet().getId() + ':batchUpdate', {
-    method:'post',contentType:'application/json',headers:{Authorization:'Bearer ' + ScriptApp.getOAuthToken()},payload:JSON.stringify({requests:requests}),muteHttpExceptions:true
-  });
-  if (response.getResponseCode() !== 200) throw apiError('INTERNAL_ERROR','Schedule confirmation could not be saved. Check status before retrying.');
-  _sheetCache = {};
+  // Rows shifted on append; offsets cached for other sheets are unaffected,
+  // but drop the cache for every touched sheet the same way applyOps does.
+  Object.keys(touched).forEach(function(name) { delete _sheetCache[name]; });
   return {applied:ops.length,skipped:[]};
 }
 

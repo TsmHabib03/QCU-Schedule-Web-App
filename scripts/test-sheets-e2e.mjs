@@ -155,7 +155,11 @@ async function main() {
       startTime: "09:00", endTime: "10:30", locationText: "Room 301", sortOrder: 1,
     });
     Users.update(currentUser, { state: "ACTIVE", corRecordId: corRecord.id });
-    CorRecords.update(corRecord, { status: "COMPLETE" });
+    // Re-read after the resets above: `corRecord` from the earlier hydrate is an
+    // orphan once the maps were replaced, so updating it would silently drop
+    // the COMPLETE transition from this flush (which is exactly what hid the
+    // broken applyAtomicOps path from this suite for so long).
+    CorRecords.update(CorRecords.getById(corRecord.id), { status: "COMPLETE" });
 
     check("commit queued as one batch", Repo.pending() === 7, String(Repo.pending()));
     const commit = await Repo.flush(env, ACTOR);

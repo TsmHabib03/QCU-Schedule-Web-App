@@ -144,7 +144,7 @@ function validateDraft(draft, catalog) {
 // ---------------------------------------------------------------------------
 function commitRecords(user, draft, _catalog) {
   const previousSchedule = Schedules.getActiveByUserId(user.userId);
-  const previousEnrollment = Enrollments.getActiveByUserId(user.userId);
+  const previousEnrollment = Enrollments.getByUserId(user.userId).find((e) => e.status === "ACTIVE") || null;
   // 1. Create Student Profile
   const profile = Profiles.create({
     profileId: `prf_${user.corRecordId}`,
@@ -554,7 +554,7 @@ export async function onRequestPost(context) {
     return resp;
   } catch (error) {
     if (error.code === 'ALREADY_COMPLETE') return json({status:'COMPLETE',message:'This COR is already confirmed.'});
-    if (error.code) return jobError(error);
+    if (error.code) { console.error("COR confirmation failed:", error.code, String(error?.message || error)); return jobError(error); }
     console.error("COR confirmation failed:", String(error?.message || error));
     return json(
       { status: "ERROR", error: "Failed to confirm COR. Please try again." },
