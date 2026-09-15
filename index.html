@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
 <link rel="stylesheet" href="assets/css/styles.css?v=55">
 <link rel="stylesheet" href="assets/css/student.css?v=2">
-<link rel="stylesheet" href="assets/css/soft-ui.css?v=3">
+<link rel="stylesheet" href="assets/css/soft-ui.css?v=5">
 <link rel="stylesheet" href="assets/css/entry.css?v=1">
 <script>
   // Auth gate: start the session check immediately so the network round-trip
@@ -239,6 +239,7 @@
             <span>
               <span class="home-weather-chip-temp" id="weather-chip-temp">--°</span>
               <span class="home-weather-chip-cond" id="weather-chip-cond">Checking…</span>
+              <span class="home-weather-chip-loc" id="weather-chip-loc">QCU San Bartolome</span>
             </span>
           </a>
         </div>
@@ -265,14 +266,15 @@
             <a class="home-bus-link" href="campus-eta.html">View route</a>
           </div>
 
-          <!-- Semester progress -->
-          <div id="semester-progress" class="soft-progress" hidden>
+          <!-- Weekly Schedule Progress -->
+          <div id="week-progress" class="soft-week-progress" hidden>
             <div class="soft-progress-head">
-              <p class="soft-progress-title">Semester progress</p>
-              <span class="soft-progress-pct" id="progress-pct">—%</span>
+              <p class="soft-progress-title">Weekly Schedule Progress</p>
+              <span class="soft-progress-pct" id="week-progress-pct">—%</span>
             </div>
-            <div class="soft-progress-track"><div class="soft-progress-fill" id="progress-fill"></div></div>
-            <p class="soft-progress-sub" id="progress-sub"></p>
+            <div class="soft-week-grid" id="week-progress-grid"></div>
+            <div class="soft-progress-track"><div class="soft-progress-fill" id="week-progress-fill"></div></div>
+            <p class="soft-progress-sub" id="week-progress-sub"></p>
           </div>
         </section>
 
@@ -285,19 +287,20 @@
           <div class="soft-calendar" id="soft-calendar" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
 
           <div class="soft-col-head">
-            <h2 class="soft-col-title">Monthly Goals</h2>
+            <h2 class="soft-col-title">Classroom Updates</h2>
+            <a class="soft-col-link" href="google.html">Open Google</a>
           </div>
           <div id="monthly-goals" class="soft-goals" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
         </section>
 
-        <!-- RIGHT: Today's Timeline -->
+        <!-- RIGHT: Tasks & Notes -->
         <section class="soft-col" aria-labelledby="timeline-heading">
           <div class="soft-col-head">
-            <h2 id="timeline-heading" class="soft-col-title">Today's Timeline</h2>
-            <a class="soft-col-link" href="today.html">Day view</a>
+            <h2 id="timeline-heading" class="soft-col-title">Tasks &amp; Notes</h2>
+            <a class="soft-col-link" href="workspace.html">Open workspace</a>
           </div>
           <div class="soft-timeline-wrap">
-            <div id="soft-timeline" class="soft-timeline" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
+            <div id="soft-timeline" class="soft-notes" data-loading-region="dashboard" aria-busy="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div>
           </div>
         </section>
 
@@ -327,7 +330,7 @@
   <script src="assets/js/lucide.min.js?v=1"></script>
   <script>if (window.lucide) window.lucide.createIcons();</script>
 <script src="assets/js/academic.js?v=41"></script>
-<script src="assets/js/app.js?v=61"></script>
+<script src="assets/js/app.js?v=62"></script>
 <script src="assets/js/install-prompt.js?v=1"></script>
   <script>
     // Weather chip: keyless Open-Meteo, campus coordinates (same source the

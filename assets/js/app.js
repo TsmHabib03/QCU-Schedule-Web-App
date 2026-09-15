@@ -661,136 +661,190 @@ function renderHomeCalendar() {
   });
 }
 
-/* Monthly goals: derived from the user's real subjects + tasks (no dedicated
-   endpoint) — one row per enrolled subject with an open task, plus a
-   "no late submissions" goal when tasks exist. Falls back to subjects. */
-function renderMonthlyGoals() {
+/* Google Classroom updates → middle column goals list. Uses the existing
+   /api/google/updates endpoint (announcements, materials, assignments).
+   Falls back to a connect prompt when Google isn't linked. */
+let classroomCache = { at: 0, data: null };
+async function renderClassroomUpdates() {
   const goalsEl = document.getElementById("monthly-goals");
   if (!goalsEl) return;
-  const pastels = ["soft-goal--peach", "soft-goal--mint", "soft-goal--lavender"];
-  const icons = ["book-open", "check-circle-2", "zap"];
-
-  const subjects = (state.academic?.enrollmentSubjects || []);
-  const openTasks = (state.dashboard?.tasks || []).filter(t => t.status !== "DONE" && t.status !== "COMPLETED");
-
-  let goals = [];
-  // Real goals from open tasks grouped by subject.
-  const bySubject = {};
-  openTasks.forEach(t => {
-    const key = t.subjectCode || "General";
-    bySubject[key] = bySubject[key] || { title: [], count: 0, name: t.subjectName || t.subjectCode || "General" };
-    bySubject[key].count++;
-    if (t.title) bySubject[key].title.push(t.title);
-  });
-  Object.entries(bySubject).slice(0, 3).forEach(([code, g]) => {
-    goals.push(`${code}: ${g.count} open task${g.count > 1 ? "s" : ""}`);
-  });
-  if (!goals.length && subjects.length) {
-    subjects.slice(0, 3).forEach(s => goals.push(`Keep up with ${s.subjectCode || s.title}`));
+  if (classroomCache.data && Date.now() - classroomCache.at < 5 * 60 * 1000) {
+    paintClassroom(goalsEl, classroomCache.data);
+    return;
   }
-  if (!goals.length && state.schedule.length) {
-    // Fallback: unique subjects from the confirmed schedule.
-    const codes = [...new Set(state.schedule.filter(x => !x.noClasses && x.course).map(x => x.course))];
-    codes.slice(0, 3).forEach(c => goals.push(`Keep up with ${c}`));
-    if (!goals.length && state.schedule.some(x => !x.noClasses)) goals.push("Attend all classes this month");
+  try {
+    const resp = await fetch("/api/google/updates", { credentials: "include", cache: "no-store" });
+    const data = await resp.json();
+    if (data.status === "NOT_CONNECTED" || resp.status === 401) {
+      paintClassroom(goalsEl, { notConnected: true });
+      classroomCache = { at: Date.now(), data: { notConnected: true } };
+      return;
+    }
+    if (data.status !== "OK" && data.status !== "PARTIAL") throw new Error(data.status || "HTTP " + resp.status);
+    classroomCache = { at: Date.now(), data };
+    paintClassroom(goalsEl, data);
+  } catch (_) {
+    paintClassroom(goalsEl, { unavailable: true });
   }
-  if (!goals.length) goals.push("Upload your COR to get started");
-
-  goalsEl.innerHTML = goals.slice(0, 3).map((g, i) => `
-    <div class="soft-goal ${pastels[i % pastels.length]}">
-      <span class="soft-goal-icon"><i data-lucide="${icons[i % icons.length]}" aria-hidden="true"></i></span>
-      <p class="soft-goal-title">${esc(g)}</p>
-      <a class="soft-goal-more" href="workspace.html" aria-label="Open workspace">
-        <i data-lucide="more-vertical" aria-hidden="true"></i>
-      </a>
-    </div>`).join("");
 }
 
-/* Today's Timeline: hour rows on the left, class blocks positioned by time,
-   current-time indicator line. Re-renders every minute via tick(). */
-function renderHomeTimeline() {
-  const tlEl = document.getElementById("soft-timeline");
-  if (!tlEl) return;
-  const now = new Date();
-  const today = QCU_TIME.weekday(now);
-  const classes = state.schedule
-    .filter(x => x.day === today && !x.noClasses)
-    .sort((a, b) => parseMinutes(a.start) - parseMinutes(b.start));
+function paintClassroom(el, data) {
+  const pastels = ["soft-goal--peach", "soft-goal--mint", "soft-goal--lavender"];
+  const meta = {
+    announcement: { icon: "megaphone", label: "New post" },
+    material:     { icon: "file-text", label: "New material" },
+    assignment:   { icon: "clipboard-check", label: "New task" },
+    email:        { icon: "mail", label: "Email" },
+  };
 
-  if (!classes.length) {
-    tlEl.innerHTML = `
-      <div class="soft-timeline-empty">
-        <i data-lucide="coffee" aria-hidden="true"></i>
-        <p>No classes today</p>
-        <a href="schedule.html">View full schedule</a>
+  if (data.notConnected) {
+    el.innerHTML = `
+      <a class="soft-goal soft-goal--lavender" href="google.html">
+        <span class="soft-goal-icon"><i data-lucide="log-in" aria-hidden="true"></i></span>
+        <p class="soft-goal-title">Connect Google Classroom to see announcements, materials, and assignments here.</p>
+        <i data-lucide="arrow-up-right" aria-hidden="true" class="soft-goal-more"></i>
+      </a>`;
+    iconify();
+    return;
+  }
+  if (data.unavailable) {
+    el.innerHTML = `
+      <div class="soft-goal soft-goal--lavender">
+        <span class="soft-goal-icon"><i data-lucide="cloud-off" aria-hidden="true"></i></span>
+        <p class="soft-goal-title">Classroom updates are unavailable right now.</p>
       </div>`;
+    iconify();
     return;
   }
 
-  // Hour range: floor of first class to ceil of last class (min 8:00–17:00).
-  const HOURS = [[8, 0], [17, 0]];
-  const firstMin = parseMinutes(classes[0].start);
-  const lastMin = parseMinutes(classes[classes.length - 1].end);
-  const startHour = Math.min(HOURS[0][0], Math.floor(firstMin / 60));
-  const endHour = Math.max(HOURS[1][0], Math.ceil(lastMin / 60));
-  const PX_PER_MIN = 1.1; // ~66px per hour
-
-  const rows = [];
-  for (let h = startHour; h <= endHour; h++) {
-    rows.push(h);
+  const updates = (data.updates || []).filter(u => u.source === "classroom").slice(0, 4);
+  if (!updates.length) {
+    el.innerHTML = `
+      <div class="soft-goal soft-goal--mint">
+        <span class="soft-goal-icon"><i data-lucide="check-circle-2" aria-hidden="true"></i></span>
+        <p class="soft-goal-title">No new posts from your classes.</p>
+      </div>`;
+    iconify();
+    return;
   }
-  const totalMin = (endHour - startHour) * 60;
 
-  const blocks = classes.map((c, i) => {
-    const s = parseMinutes(c.start) - startHour * 60;
-    const e = parseMinutes(c.end) - startHour * 60;
-    const pastels = ["pastel-mint", "pastel-peach", "pastel-lavender"];
-    const status = getStatus(c, now);
-    const featured = status === "current";
-    const pastel = featured ? "" : " " + pastels[i % pastels.length];
+  el.innerHTML = updates.map((u, i) => {
+    const m = meta[u.type] || meta.announcement;
     return `
-      <div class="soft-tl-block ${featured ? "is-featured" : ""}${pastel}" style="top:${s * PX_PER_MIN}px;height:${Math.max(36, (e - s) * PX_PER_MIN)}px">
-        <p class="soft-tl-title">${esc(c.subject)}</p>
-        <p class="soft-tl-meta">${formatTime(c.start)} – ${formatTime(c.end)}${c.room ? " · " + esc(c.room) : ""}</p>
+      <a class="soft-goal ${pastels[i % pastels.length]}" href="${esc(u.link || "google.html")}" target="_blank" rel="noopener">
+        <span class="soft-goal-icon"><i data-lucide="${m.icon}" aria-hidden="true"></i></span>
+        <span class="soft-goal-copy">
+          <span class="soft-goal-course">${esc(u.courseName || "Class")}</span>
+          <p class="soft-goal-title">${m.label} · ${esc(u.title || "")}</p>
+        </span>
+        <i data-lucide="arrow-up-right" aria-hidden="true" class="soft-goal-more"></i>
+      </a>`;
+  }).join("");
+  iconify();
+}
+
+/* Tasks & Notes → right column vertical list (timestamp + content).
+   Data already lives in state.dashboard (tasks + notes from /api/v1/dashboard). */
+function renderTasksNotesColumn() {
+  const el = document.getElementById("soft-timeline");
+  if (!el) return;
+  const tasks = (state.dashboard?.tasks || []).filter(t => t.status !== "DONE" && t.status !== "COMPLETED");
+  const notes = state.dashboard?.notes || [];
+
+  const items = [
+    ...tasks.map(t => ({
+      kind: "task",
+      icon: "clipboard-check",
+      title: t.title || "Untitled task",
+      meta: [t.subjectCode, t.dueDate ? "Due " + new Date(t.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : null].filter(Boolean).join(" · "),
+      stamp: t.updatedAt || t.createdAt,
+    })),
+    ...notes.map(n => ({
+      kind: "note",
+      icon: "notebook-pen",
+      title: n.title || "Untitled note",
+      meta: (n.body || "").slice(0, 90) + ((n.body || "").length > 90 ? "…" : ""),
+      stamp: n.updatedAt || n.createdAt,
+    })),
+  ].sort((a, b) => new Date(b.stamp || 0) - new Date(a.stamp || 0)).slice(0, 8);
+
+  if (!items.length) {
+    el.innerHTML = `
+      <div class="soft-timeline-empty">
+        <i data-lucide="notebook-pen" aria-hidden="true"></i>
+        <p>No tasks or notes yet</p>
+        <a href="workspace.html">Create your first one</a>
+      </div>`;
+    iconify();
+    return;
+  }
+
+  el.innerHTML = items.map((it, i) => {
+    const pastels = ["pastel-mint", "pastel-peach", "pastel-lavender"];
+    const stamp = it.stamp
+      ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(it.stamp))
+      : "";
+    return `
+      <div class="soft-note ${pastels[i % pastels.length]}">
+        <span class="soft-note-icon"><i data-lucide="${it.icon}" aria-hidden="true"></i></span>
+        <span class="soft-note-body">
+          <p class="soft-note-title">${esc(it.title)}</p>
+          ${it.meta ? `<p class="soft-note-meta">${esc(it.meta)}</p>` : ""}
+          ${stamp ? `<p class="soft-note-stamp">${esc(stamp)}</p>` : ""}
+        </span>
       </div>`;
   }).join("");
-
-  // Current-time indicator: only when within the rendered window.
-  const nowMin = minutesNow(now) - startHour * 60;
-  const showNow = nowMin >= 0 && nowMin <= totalMin;
-  const nowLine = showNow ? `
-    <div class="soft-tl-now" style="top:${nowMin * PX_PER_MIN}px">
-      <span class="soft-tl-now-dot"></span>
-      <span class="soft-tl-now-line"></span>
-      <span class="soft-tl-now-time">${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).format(now)}</span>
-    </div>` : "";
-
-  tlEl.innerHTML = `
-    <div class="soft-tl-canvas" style="height:${totalMin * PX_PER_MIN}px">
-      ${rows.map(h => `
-        <div class="soft-tl-hour" style="top:${(h - startHour) * 60 * PX_PER_MIN}px">
-          <span class="soft-tl-hour-label">${formatTime(String(h).padStart(2, "0") + ":00").replace(":00", "")}</span>
-          <span class="soft-tl-hour-rule"></span>
-        </div>`).join("")}
-      ${blocks}
-      ${nowLine}
-    </div>`;
+  iconify();
 }
 
-/* Semester progress: units completed this term vs a full load (21 units). */
-function renderSemesterProgress() {
-  const wrap = document.getElementById("semester-progress");
+/* Weekly Schedule Progress: compact Mon–Sun grid + % of this week's class
+   sessions already done (ended) vs total. */
+function renderWeekProgress() {
+  const wrap = document.getElementById("week-progress");
   if (!wrap) return;
-  const totalUnits = state.dashboard?.schedule?.totalUnits || 0;
-  if (!totalUnits) { wrap.hidden = true; return; }
-  const FULL_LOAD = 21;
-  const pct = Math.min(100, Math.round((totalUnits / FULL_LOAD) * 100));
+  const now = new Date();
+  const today = QCU_TIME.weekday(now);
+  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const classes = state.schedule.filter(x => !x.noClasses);
+
+  if (!classes.length) { wrap.hidden = true; return; }
   wrap.hidden = false;
-  setText("progress-pct", pct + "%");
-  document.getElementById("progress-fill").style.width = pct + "%";
-  setText("progress-sub", `${totalUnits} of ${FULL_LOAD} units enrolled this term`);
+
+  // This week's Monday (week starts Monday, Asia/Manila).
+  const dow = (now.getDay() + 6) % 7;
+  const monday = new Date(now); monday.setDate(now.getDate() - dow);
+
+  let total = 0, done = 0;
+  const grid = days.map((d, i) => {
+    const dayClasses = classes.filter(x => x.day === d);
+    const date = new Date(monday); date.setDate(monday.getDate() + i);
+    const isToday = d === today;
+    const isPast = date < now && !isToday;
+    const dayDone = dayClasses.filter(x => isPast || (isToday && getStatus(x, now) === "finished")).length;
+    total += dayClasses.length;
+    done += dayDone;
+    return `
+      <button type="button" class="soft-week-day${isToday ? " is-today" : ""}${dayClasses.length && dayDone === dayClasses.length ? " is-done" : ""}" data-day="${d}" aria-label="${d}: ${dayClasses.length} classes">
+        <span class="soft-week-day-label">${d.slice(0, 3)}</span>
+        <span class="soft-week-day-count">${dayClasses.length || "–"}</span>
+      </button>`;
+  }).join("");
+
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  setText("week-progress-pct", pct + "%");
+  document.getElementById("week-progress-fill").style.width = pct + "%";
+  setText("week-progress-sub", `${done} of ${total} class sessions done this week`);
+  const gridEl = document.getElementById("week-progress-grid");
+  if (gridEl) {
+    gridEl.innerHTML = grid;
+    gridEl.querySelectorAll(".soft-week-day").forEach(btn =>
+      btn.addEventListener("click", () => openDayModal(btn.dataset.day)));
+  }
 }
 
+
+/* Today Task cards: next subject first, exact start/end times, break slots.
+   No static empty state — a real "free day" card only when data says so. */
 function renderHome() {
   if (state.error && !state.dashboard) {
     const skeleton = document.getElementById('hero-skeleton');
@@ -809,30 +863,37 @@ function renderHome() {
   const heroSkeleton = document.getElementById("hero-skeleton");
   if (heroSkeleton) heroSkeleton.style.display = "none";
 
-  // Left column: today's task cards.
+  // Left column: today's task cards (next subject, current, breaks, finished).
   const grid = document.getElementById("today-grid");
   if (grid) {
     const today = QCU_TIME.weekday(now);
-    const todaysClasses = state.schedule.filter(x => x.day === today && !x.noClasses);
-    const { current } = getCurrentAndNext(now);
-    let classIndex = 0;
-    const tiles = todaysClasses.map(item => {
-      const tile = todayTileTemplate(item, { feature: item === current, i: classIndex });
+    const todaysClasses = state.schedule
+      .filter(x => x.day === today && !x.noClasses)
+      .sort((a, b) => parseMinutes(a.start) - parseMinutes(b.start));
+    const { current, next } = getCurrentAndNext(now);
+    const feature = current || next;
+    let classIndex = 0, breakIndex = 0;
+    const tiles = [];
+    todaysClasses.forEach(item => {
+      tiles.push(todayTileTemplate(item, { feature: item === feature, i: classIndex }));
       classIndex++;
-      return tile;
+      const nextClass = todaysClasses[classIndex];
+      if (nextClass) {
+        const gap = parseMinutes(nextClass.start) - parseMinutes(item.end);
+        if (gap >= BREAK_MIN) {
+          tiles.push(breakTileTemplate(item.end, nextClass.start, gap, breakIndex));
+          breakIndex++;
+        }
+      }
     });
-    setInnerHTML(grid, tiles.length ? tiles.join("") : `
-      <div class="soft-empty-tile">
-        <i data-lucide="coffee" aria-hidden="true"></i>
-        <p>No classes today</p>
-      </div>`);
+    setInnerHTML(grid, tiles.join(""));
   }
 
   renderHomeBusCard();
-  renderSemesterProgress();
+  renderWeekProgress();
   renderHomeCalendar();
-  renderMonthlyGoals();
-  renderHomeTimeline();
+  renderClassroomUpdates();
+  renderTasksNotesColumn();
   iconify();
 }
 
