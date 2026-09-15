@@ -1167,3 +1167,260 @@
   border-radius: 28px !important;
   box-shadow: 0 25px 60px rgba(26, 27, 65, 0.18) !important;
 }
+
+/* ════════════════════════════════════════════════════════
+   GOOGLE INTEGRATION — soft-UI theme, matches Home
+   ════════════════════════════════════════════════════════ */
+
+/* Page spacing: clear the fixed bottom nav */
+.student-shell .page-container.google-page { gap: 18px; padding-bottom: 140px; }
+
+/* Intro icon chip: lavender square with the link icon */
+.google-page-intro-icon {
+  background: #EDEAFF !important;
+  color: #7B6CF6 !important;
+  border-radius: 18px !important;
+  border: 0 !important;
+  width: 48px; height: 48px;
+  display: grid; place-items: center;
+}
+.google-page-intro-icon svg, .google-page-intro-icon i { width: 22px; height: 22px; }
+.google-section-kicker, .workspace-kicker {
+  color: #4A3AFF !important;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Cards: floating white ── */
+.student-shell .google-page .portal-card {
+  border-radius: 28px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.03) !important;
+  padding: 22px !important;
+}
+
+/* Status badge: pill */
+.google-status-badge {
+  border-radius: 9999px !important;
+  border: 0 !important;
+  font-weight: 700;
+  padding: 5px 12px !important;
+  font-size: 11px !important;
+}
+.google-status-badge.is-connected { background: #E0F7F6; color: #0F766E; }
+.google-status-badge.is-error { background: #FFE8D6; color: #C2410C; }
+.google-status-badge.is-loading { background: #EDEAFF; color: #7B6CF6; }
+
+/* ── Account card: white with soft inner sections ── */
+.google-account-card {
+  border: 0 !important;
+  border-radius: 22px !important;
+  box-shadow: none !important;
+  background: #F8F9FE !important;
+  padding: 18px !important;
+}
+.google-account-card.is-disconnected { background: #F8F9FE !important; }
+.google-card-band {
+  background: #EDEAFF !important;
+  border: 0 !important;
+  border-radius: 18px 18px 0 0 !important;
+  color: #1A1B41;
+}
+.google-band-mark .brand-icon { width: 26px; height: 26px; }
+.google-band-copy span { color: #7B6CF6 !important; }
+.google-band-copy strong { color: #1A1B41 !important; }
+.google-card-code {
+  background: rgba(255,255,255,.7) !important;
+  color: #7B6CF6 !important;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  font-weight: 700;
+}
+.google-card-body { padding: 16px 16px 14px !important; }
+
+/* Card lead + seal */
+.google-card-seal {
+  background: #fff !important;
+  border: 0 !important;
+  border-radius: 15px !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.06);
+}
+.google-card-seal svg, .google-card-seal i { color: #4A3AFF !important; }
+.google-card-eyebrow { color: #8E92AD !important; }
+.google-card-lead h3, .google-account-identity h3 {
+  color: #1A1B41 !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.01em;
+}
+.google-card-lead p:last-child, .google-account-identity p:last-child { color: #5C607E !important; }
+
+/* Permission rows: pastel rows like the Home goal cards */
+.google-permissions-list {
+  border-top: 0 !important;
+  gap: 10px !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  margin-top: 16px !important;
+}
+@media (max-width: 640px) {
+  .google-permissions-list { grid-template-columns: 1fr !important; }
+}
+.google-permission-row {
+  background: #E0F7F6;
+  border-radius: 16px;
+  padding: 12px 14px !important;
+  gap: 10px !important;
+}
+.google-permission-row:nth-child(2) { background: #FFE8D6; }
+.google-permission-row svg, .google-permission-row i { color: #0F766E !important; }
+.google-permission-row:nth-child(2) svg, .google-permission-row:nth-child(2) i { color: #FF9F6E !important; }
+.google-permission-row strong { color: #1A1B41 !important; }
+.google-permission-row span { color: #5C607E !important; }
+
+/* Connect button: purple rounded with glow */
+.google-primary-button {
+  background: #4A3AFF !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 22px -6px rgba(74, 58, 255, 0.5);
+  font-weight: 700;
+  padding: 12px 18px !important;
+  color: #fff !important;
+}
+.google-primary-button:hover { background: #3D2EE0 !important; }
+.google-primary-button.is-disabled {
+  background: #EDEAFF !important;
+  color: #8E92AD !important;
+  box-shadow: none;
+}
+.google-secondary-button {
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: #F4F7FC !important;
+  color: #1A1B41 !important;
+  font-weight: 700;
+}
+.google-danger-button {
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: #FFE8D6 !important;
+  color: #C2410C !important;
+  font-weight: 700;
+}
+
+/* Secure note + inline error */
+.google-secure-note { color: #8E92AD !important; }
+.google-inline-error {
+  border-left: 4px solid #FF9F6E !important;
+  background: #FFE8D6 !important;
+  color: #C2410C !important;
+  border-radius: 12px;
+  border-top: 0; border-right: 0; border-bottom: 0;
+}
+
+/* ── Updates section ── */
+.google-updates-summary { gap: 10px; }
+.google-update-count {
+  background: #EDEAFF;
+  color: #4A3AFF !important;
+  border-radius: 9999px;
+  padding: 4px 10px;
+  font-weight: 800;
+}
+.google-feed-view-toggle {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: #F4F7FC !important;
+  padding: 4px !important;
+  gap: 4px;
+}
+.google-feed-view-toggle button {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: transparent !important;
+  color: #8E92AD;
+  font-weight: 700;
+  box-shadow: none !important;
+}
+.google-feed-view-toggle button.is-active {
+  background: #4A3AFF !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px -6px rgba(74, 58, 255, 0.5);
+}
+
+/* Filter row: soft pills */
+.google-update-filters { gap: 8px; }
+.google-filter-search {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: #F4F7FC !important;
+}
+.google-filter-search input { color: #1A1B41; font-weight: 600; }
+.google-filter-search input::placeholder { color: #8E92AD; }
+.google-filter-search svg, .google-filter-search i { color: #8E92AD; }
+.google-update-filters select {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: #F4F7FC !important;
+  font-weight: 700;
+  color: #1A1B41;
+  box-shadow: none !important;
+}
+.google-filter-new { color: #5C607E; font-weight: 700; }
+.google-filter-new input { accent-color: #4A3AFF; }
+.google-filter-reset {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: #EDEAFF !important;
+  color: #7B6CF6 !important;
+}
+
+/* Update cards: pastel rows (peach=new, white=seen) like Home Classroom rows */
+.google-updates-list { gap: 10px !important; }
+.google-update-card {
+  border: 0 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04) !important;
+  background: #fff !important;
+  padding: 14px 16px !important;
+  transition: transform .15s ease;
+}
+.google-update-card:hover { transform: translateY(-1px); }
+.google-update-card.is-new { background: #FFE8D6 !important; }
+.google-update-source-tag {
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: rgba(255,255,255,.75) !important;
+  color: #1A1B41 !important;
+  font-weight: 700;
+  padding: 3px 10px !important;
+}
+.google-update-card.is-new .google-update-source-tag { background: rgba(255,255,255,.8); }
+.google-update-title { color: #1A1B41 !important; font-weight: 700; }
+.google-update-meta { color: rgba(26,27,65,.5) !important; }
+.google-update-meta-item--due { color: #C2410C !important; }
+
+/* Offline notice */
+.google-offline-notice {
+  background: #FFE8D6 !important;
+  color: #C2410C !important;
+  border-radius: 12px;
+  border: 0 !important;
+}
+
+/* Privacy card: lavender */
+.google-privacy {
+  background: #EDEAFF !important;
+  border: 0 !important;
+}
+.google-privacy h3 { color: #1A1B41 !important; font-weight: 800; }
+.google-privacy p { color: #4B4F6B !important; }
+.google-privacy a { color: #4A3AFF !important; font-weight: 700; }
+
+/* Empty state (inherits workspace overlay) */
+.google-empty-state {
+  border: 0 !important;
+  border-radius: 20px !important;
+  background: #F8F9FE !important;
+}
