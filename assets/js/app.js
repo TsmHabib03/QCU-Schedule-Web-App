@@ -441,65 +441,124 @@ function weekStripTemplate(now = new Date()) {
   return `<div class="week-pill-strip">${pills}</div>`;
 }
 
-function todaySummaryTemplate(todaysClasses, now) {
-  const remaining = todaysClasses.filter(x => getStatus(x, now) !== "finished").length;
-  const statusText = !todaysClasses.length
-    ? "No classes today"
-    : remaining === 0
-      ? "All finished for the day"
-      : remaining === todaysClasses.length
-        ? "Full day ahead"
-        : `${remaining} still to go`;
+/* ── Today Task line-up (vertical) ───────────────────── */
+// Deterministic pastel per subject. tick() rebuilds this list every second, so
+// a random pick would make the boxes strobe; a subject keeps its tint instead.
+const TODAY_TINTS = ["peach", "mint", "lavender", "sky", "butter", "blush"];
 
-  const totalBreak = todaysClasses.reduce((sum, x, i) => {
-    const next = todaysClasses[i + 1];
-    if (!next) return sum;
-    const gap = parseMinutes(next.start) - parseMinutes(x.end);
-    return sum + (gap >= BREAK_MIN ? gap : 0);
-  }, 0);
+function todayTint(item) {
+  const key = String(item.course || item.subject || item.entryId || `${item.day}${item.start}`);
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return `pastel-${TODAY_TINTS[h % TODAY_TINTS.length]}`;
+}
 
-  const breakText = totalBreak > 0
-    ? `${formatGap(totalBreak)} of break time scheduled`
-    : "No scheduled breaks";
+function todayDuration(item) {
+  const s = parseMinutes(item.start), e = parseMinutes(item.end);
+  if (s !== s || e !== e || e <= s) return null;
+  return e - s;
+}
 
+function untilLabel(minutes) {
+  return minutes >= 60 ? formatGap(minutes) : `${minutes}m`;
+}
+
+// Live line for a class box: what is happening relative to the clock right now.
+function todayTiming(item, status, now) {
+  const mins = todayDuration(item);
+  const dur = mins === null ? "" : formatGap(mins);
+  const nowMin = minutesNow(now);
+  const start = parseMinutes(item.start), end = parseMinutes(item.end);
+
+  if (status === "current") {
+    const left = Math.max(0, end - nowMin);
+    const pct = mins ? Math.min(100, Math.max(0, ((nowMin - start) / mins) * 100)) : 0;
+    return {
+      live: left > 0
+        ? `${untilLabel(left)} left · ends ${formatTime(item.end)}`
+        : `Ending now · ends ${formatTime(item.end)}`,
+      pct
+    };
+  }
+  if (status === "next") {
+    return { live: `Starts in ${untilLabel(Math.max(0, start - nowMin))}${dur ? ` · ${dur} long` : ""}`, pct: null };
+  }
+  return { live: `${dur ? `${dur} long · ` : ""}starts ${formatTime(item.start)}`, pct: null };
+}
+
+function nowMarkerTemplate(now) {
+  const label = new Intl.DateTimeFormat([], { timeZone: QCU_TIME.zone, hour: "numeric", minute: "2-digit", hour12: true }).format(now);
   return `
-    <article class="home-today-card home-today-summary">
-      <span class="home-today-summary-label">Classes today</span>
-      <p class="home-today-summary-count">${todaysClasses.length}</p>
-      <p class="home-today-summary-sub">${statusText}</p>
-      <p class="home-today-summary-break">${breakText}</p>
+    <div class="home-today-now" role="presentation">
+      <span class="home-today-now-dot"></span>
+      <span class="home-today-now-line"></span>
+      <span class="home-today-now-label">Now · ${label}</span>
+    </div>`;
+}
+
+// Classes whose time already passed collapse to one compact muted line.
+function todayDoneRowTemplate(item) {
+  const mins = todayDuration(item);
+  return `
+    <article class="home-today-done-row ${todayTint(item)}">
+      <span class="home-today-done-check"><i data-lucide="check-circle-2"></i></span>
+      <span class="home-today-done-main">
+        <span class="home-today-done-subject">${item.subject}</span>
+        <span class="home-today-done-meta">
+          <span class="home-today-done-time">${formatTime(item.start)} – ${formatTime(item.end)}</span>
+          ${mins === null ? "" : `<span class="home-today-done-duration">${formatGap(mins)}</span>`}
+        </span>
+      </span>
     </article>`;
 }
 
+function todayEmptyTile() {
+  return `
+    <div class="soft-empty-tile">
+      <i data-lucide="calendar-x-2"></i>
+      <span class="soft-empty-title">No classes today</span>
+      <span class="soft-empty-sub">Enjoy the break — your full week is on the Schedule page.</span>
+    </div>`;
+}
+
+function todayAllDoneRow() {
+  return `
+    <div class="home-today-all-done">
+      <i data-lucide="check-circle-2"></i>
+      <span>All classes done for today</span>
+    </div>`;
+}
+
 function todayTileTemplate(item, opts) {
-  const status = getStatus(item, new Date());
+  const now = new Date();
+  const status = getStatus(item, now);
   const statusWord = { current: "In session", next: "Up next", finished: "Done", upcoming: "Scheduled" }[status] || statusLabel(status);
   const bname = buildingLabel(item);
+  const mins = todayDuration(item);
+  const timing = todayTiming(item, status, now);
   const feature = opts.feature ? " home-today-card--feature" : "";
-  // Pastel rotation by class order (peach → mint → lavender), independent of
-  // DOM position; the feature/current tile keeps its solid purple.
-  const pastel = [" pastel-peach", " pastel-mint", " pastel-lavender"][(opts.i || 0) % 3];
-  const tileClass = (status === "current" || opts.feature) ? "" : pastel;
+  const place = [bname, item.room, item.floor && item.floor !== "—" ? item.floor : ""].filter(Boolean).join(" · ");
   const stagger = opts.i !== undefined ? ` style="--i:${opts.i}"` : "";
 
   return `
-    <article class="home-today-card ${status}-tile${feature}${tileClass}"${stagger}>
+    <article class="home-today-card ${status}-tile${feature} ${todayTint(item)}"${stagger}>
       <div class="home-today-rail">
         <span class="home-today-rail-time">${formatTime(item.start)}</span>
-        <span class="home-today-rail-end">${formatTime(item.end)}</span>
         <span class="home-today-rail-rule"></span>
+        <span class="home-today-rail-end">${formatTime(item.end)}</span>
       </div>
       <div class="home-today-body">
         <div class="home-today-head">
           <span class="home-today-status">${statusWord}</span>
-          <span class="home-today-course">${item.course}</span>
+          ${item.course ? `<span class="home-today-course">${item.course}</span>` : ""}
         </div>
         <h3 class="home-today-subject">${item.subject}</h3>
-        <p class="home-today-building">${bname}</p>
-        <div class="home-today-meta">
-          <span><i data-lucide="map-pin"></i>${item.room}</span>
-          <span><i data-lucide="layers"></i>${item.floor}</span>
+        ${place ? `<p class="home-today-building"><i data-lucide="map-pin"></i>${place}</p>` : ""}
+        <div class="home-today-foot">
+          ${mins === null ? "" : `<span class="home-today-duration"><i data-lucide="timer"></i>${formatGap(mins)}</span>`}
+          <span class="home-today-live">${timing.live}</span>
         </div>
+        ${timing.pct === null ? "" : `<div class="home-today-progress" role="presentation"><span style="width:${timing.pct.toFixed(1)}%"></span></div>`}
       </div>
     </article>`;
 }
@@ -509,10 +568,11 @@ function breakTileTemplate(start, end, minutes, i) {
     <article class="home-break-tile" style="--i:${i || 0}">
       <div class="home-break-rail">
         <span>${formatTime(start)}</span>
+        <span class="home-break-rail-dash">–</span>
         <span>${formatTime(end)}</span>
       </div>
       <div class="home-break-body">
-        <span class="home-break-label"><i data-lucide="utensils"></i>Break time</span>
+        <span class="home-break-label"><i data-lucide="utensils"></i>Break</span>
         <p class="home-break-title">Free for ${formatGap(minutes)}</p>
         <p class="home-break-sub">Time to eat, rest, or explore the campus.</p>
       </div>
@@ -879,29 +939,46 @@ function renderHome() {
   const heroSkeleton = document.getElementById("hero-skeleton");
   if (heroSkeleton) heroSkeleton.style.display = "none";
 
-  // Left column: today's task cards (next subject, current, breaks, finished).
+  // Left column: today's line-up. Finished classes collapse to compact rows,
+  // then a "now" marker, then the current/next class as the purple feature box,
+  // breaks, and the rest of the day in order.
   const grid = document.getElementById("today-grid");
   if (grid) {
     const today = QCU_TIME.weekday(now);
     const todaysClasses = state.schedule
       .filter(x => x.day === today && !x.noClasses)
       .sort((a, b) => parseMinutes(a.start) - parseMinutes(b.start));
-    const { current, next } = getCurrentAndNext(now);
-    const feature = current || next;
-    let classIndex = 0, breakIndex = 0;
     const tiles = [];
-    todaysClasses.forEach(item => {
-      tiles.push(todayTileTemplate(item, { feature: item === feature, i: classIndex }));
-      classIndex++;
-      const nextClass = todaysClasses[classIndex];
-      if (nextClass) {
-        const gap = parseMinutes(nextClass.start) - parseMinutes(item.end);
-        if (gap >= BREAK_MIN) {
-          tiles.push(breakTileTemplate(item.end, nextClass.start, gap, breakIndex));
-          breakIndex++;
+
+    if (!todaysClasses.length) {
+      tiles.push(todayEmptyTile());
+    } else {
+      const done = todaysClasses.filter(x => getStatus(x, now) === "finished");
+      const ahead = todaysClasses.filter(x => getStatus(x, now) !== "finished");
+
+      done.forEach(item => tiles.push(todayDoneRowTemplate(item)));
+
+      if (ahead.length) {
+        tiles.push(nowMarkerTemplate(now));
+        const lastDone = done[done.length - 1];
+        if (lastDone) {
+          const gap = parseMinutes(ahead[0].start) - parseMinutes(lastDone.end);
+          if (gap >= BREAK_MIN) tiles.push(breakTileTemplate(lastDone.end, ahead[0].start, gap, 0));
         }
+        const feature = ahead[0];   // in session now, or the next class up
+        let breakIndex = 0;
+        ahead.forEach((item, i) => {
+          tiles.push(todayTileTemplate(item, { feature: item === feature, i }));
+          const nextClass = ahead[i + 1];
+          if (nextClass) {
+            const gap = parseMinutes(nextClass.start) - parseMinutes(item.end);
+            if (gap >= BREAK_MIN) tiles.push(breakTileTemplate(item.end, nextClass.start, gap, breakIndex++));
+          }
+        });
+      } else {
+        tiles.push(todayAllDoneRow());
       }
-    });
+    }
     setInnerHTML(grid, tiles.join(""));
   }
 

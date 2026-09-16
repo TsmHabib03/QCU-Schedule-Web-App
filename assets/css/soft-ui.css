@@ -26,6 +26,12 @@
   --soft-mint-icon: #35C4C8;
   --soft-lavender: #EDEAFF;
   --soft-lav-icon: #7B6CF6;
+  --soft-sky: #DCEBFF;
+  --soft-sky-icon: #3D7FE0;
+  --soft-butter: #FFF2CE;
+  --soft-butter-icon: #C99022;
+  --soft-blush: #FFE3EC;
+  --soft-blush-icon: #DE5F8C;
   --soft-radius: 28px;
   --soft-radius-sm: 22px;
   --soft-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
@@ -122,13 +128,19 @@
   }
 }
 .home-weather-chip svg { width: 38px; height: 38px; }   /* bigger cloud on the stretched chip */
-.home-weather-chip-temp { font-size: 24px; font-weight: 800; line-height: 1; }
-.home-weather-chip-cond { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+/* Temp / condition / location stack vertically inside the chip's text block
+   (as inline spans they collided on one line: "27° THUNDERSTORM"). */
+.home-weather-chip > span { text-align: right; }        /* mobile banner: meta block hugs the right edge */
+.home-weather-chip-temp { display: block; font-size: 24px; font-weight: 800; line-height: 1; }
+.home-weather-chip-cond { display: block; font-size: 12px; opacity: 0.85; margin-top: 4px; }
 .home-weather-chip-loc {
   display: block;
   font-size: 11px;
   opacity: 0.75;
   margin-top: 2px;
+}
+@media (min-width: 768px) {
+  .home-weather-chip > span { text-align: left; }       /* compact chip: meta reads after the icon */
 }
 
 /* Hero becomes greeting left / weather right */
@@ -202,111 +214,365 @@
 /* ════════════════════════════════════════════════════════
    TODAY TASK: horizontal pastel cards
    ════════════════════════════════════════════════════════ */
-.home-today-grid {
+.student-shell .home-today-grid {
   display: flex !important;
-  gap: 16px;
-  overflow-x: auto;
-  padding: 4px 2px 12px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  flex-direction: column !important;   /* long edge-to-edge boxes, stacked */
+  gap: 12px !important;
+  overflow: visible !important;
+  padding: 4px 2px 2px !important;
   grid-template-columns: none !important;
 }
-.home-today-grid::-webkit-scrollbar { display: none; }
+.student-shell .home-today-grid > * { flex: 0 0 auto !important; width: 100% !important; min-width: 0 !important; }
 
-.home-today-grid > * { flex-shrink: 0; width: 172px; }
-
-/* summary card → narrow purple feature */
-.home-today-summary {
-  background: var(--soft-primary) !important;
-  color: #fff;
-  border-radius: var(--soft-radius) !important;
-  box-shadow: var(--soft-shadow-primary) !important;
-  width: 172px !important;
-  padding: 18px !important;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 2px;
-}
-.home-today-summary-label { color: rgba(255,255,255,.75) !important; font-size: 11px !important; }
-.home-today-summary-count { color: #fff !important; font-size: 40px !important; font-weight: 800 !important; line-height: 1 !important; }
-.home-today-summary-sub, .home-today-summary-break { color: rgba(255,255,255,.8) !important; font-size: 11px !important; }
-
-/* class tiles → pastel square cards */
-.home-today-card {
-  border-radius: var(--soft-radius) !important;
-  box-shadow: var(--soft-shadow) !important;
-  padding: 18px !important;
-  min-height: 178px;
-  display: flex;
-  flex-direction: column;
-  border: 0 !important;
-}
-.home-today-card .home-today-rail { display: none; }
-.home-today-card .home-today-body { display: flex; flex-direction: column; height: 100%; }
-
-.home-today-card.current-tile,
-.home-today-card.home-today-card--feature {
-  background: var(--soft-primary) !important;
-  color: #fff;
-}
-.home-today-card.current-tile .home-today-subject,
-.home-today-card.home-today-card--feature .home-today-subject,
-.home-today-card.current-tile .home-today-building,
-.home-today-card.current-tile .home-today-course,
-.home-today-card.current-tile .home-today-meta { color: #fff !important; }
-
-.home-today-card.current-tile .home-today-meta svg,
-.home-today-card.home-today-card--feature .home-today-meta svg { stroke: rgba(255,255,255,.8); }
-
-/* pastel rotation — explicit classes set by tile order in todayTileTemplate */
-.home-today-card.pastel-peach    { background: var(--soft-peach) !important; }
-.home-today-card.pastel-mint     { background: var(--soft-mint) !important; }
-.home-today-card.pastel-lavender { background: var(--soft-lavender) !important; }
-.home-today-card.finished-tile.pastel-lavender { opacity: .85; }
-
-.home-today-card .home-today-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: auto;
-  padding-bottom: 10px;
-}
-.home-today-status {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 5px 10px;
-  border-radius: 9999px;
-  background: rgba(255,255,255,.65);
-  color: var(--soft-navy);
-}
-.home-today-card.current-tile .home-today-status,
-.home-today-card.home-today-card--feature .home-today-status {
-  background: rgba(255,255,255,.2);
-  color: #fff;
-}
-.home-today-course { font-size: 11px; font-weight: 700; color: var(--soft-grey); }
-.home-today-card .home-today-subject { font-size: 15px !important; font-weight: 800 !important; line-height: 1.25 !important; margin: 0 !important; }
-.home-today-card .home-today-building { font-size: 11px; font-weight: 600; color: var(--soft-grey); margin: 4px 0 0; }
-.home-today-card .home-today-meta { margin-top: 8px; gap: 10px; }
-.home-today-card .home-today-meta span { font-size: 11px; font-weight: 600; }
-.home-today-card .home-today-meta svg { width: 13px; height: 13px; }
-
-/* break tile → slim pastel row */
-.home-break-tile {
-  background: #fff !important;
-  border-radius: var(--soft-radius) !important;
-  box-shadow: var(--soft-shadow) !important;
-  padding: 14px 18px !important;
+/* class box → long full-width row: time rail | details */
+.student-shell .home-today-card {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  padding: 18px 20px !important;
   min-height: 0 !important;
-  width: 172px !important;
-  align-self: stretch;
+  border: 0 !important;
+  border-radius: var(--soft-radius) !important;
+  box-shadow: var(--soft-shadow) !important;
+  opacity: 1 !important;
+  animation: none !important;
+  transform: none !important;
+  overflow: hidden;
+  --tile-accent: var(--soft-navy);
+}
+.student-shell .home-today-card:hover,
+.student-shell .home-today-card:active {
+  box-shadow: var(--soft-shadow) !important;
+  transform: none !important;
+  border-color: transparent !important;
+}
+
+/* left time rail: start big, accent rule, end under it */
+.student-shell .home-today-card .home-today-rail {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 4px !important;
+  flex: 0 0 auto !important;
+  width: 86px !important;
+  padding: 0 14px 0 0 !important;
+  border-right: 1px solid rgba(26, 27, 65, 0.10) !important;
+}
+.student-shell .home-today-card .home-today-rail-time {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  line-height: 1.15 !important;
+  color: var(--soft-navy) !important;
+  font-variant-numeric: tabular-nums;
+}
+.student-shell .home-today-card .home-today-rail-end {
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  color: var(--soft-grey) !important;
+  font-variant-numeric: tabular-nums;
+}
+.student-shell .home-today-card .home-today-rail-rule {
+  display: block !important;
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--tile-accent);
+  opacity: .6;
+  margin: 2px 0;
+}
+.student-shell .home-today-card .home-today-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  padding: 0 0 0 16px !important;
+}
+
+/* Deterministic pastels — the tint comes from the subject, so a box keeps its
+   colour on every re-render (the home tick redraws this list every second). */
+.student-shell .home-today-card.pastel-peach,
+.student-shell .home-today-done-row.pastel-peach       { background: var(--soft-peach) !important;    --tile-accent: #E07A3E; }
+.student-shell .home-today-card.pastel-mint,
+.student-shell .home-today-done-row.pastel-mint        { background: var(--soft-mint) !important;     --tile-accent: #17A8AE; }
+.student-shell .home-today-card.pastel-lavender,
+.student-shell .home-today-done-row.pastel-lavender    { background: var(--soft-lavender) !important; --tile-accent: #7B6CF6; }
+.student-shell .home-today-card.pastel-sky,
+.student-shell .home-today-done-row.pastel-sky         { background: var(--soft-sky) !important;      --tile-accent: #3D7FE0; }
+.student-shell .home-today-card.pastel-butter,
+.student-shell .home-today-done-row.pastel-butter      { background: var(--soft-butter) !important;   --tile-accent: #C99022; }
+.student-shell .home-today-card.pastel-blush,
+.student-shell .home-today-done-row.pastel-blush       { background: var(--soft-blush) !important;    --tile-accent: #DE5F8C; }
+
+/* the class in session now (or the next one up) → solid purple */
+.student-shell .home-today-card.current-tile,
+.student-shell .home-today-card.home-today-card--feature {
+  background: var(--soft-primary) !important;
+  color: #fff !important;
+  box-shadow: var(--soft-shadow-primary) !important;
+  --tile-accent: #fff;
+}
+
+.student-shell .home-today-card .home-today-head {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+  flex-wrap: nowrap !important;
+}
+.student-shell .home-today-card .home-today-status {
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+  letter-spacing: .04em !important;
+  text-transform: uppercase !important;
+  padding: 4px 10px !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, .8) !important;
+  color: var(--soft-navy) !important;
+  white-space: nowrap;
+}
+.student-shell .home-today-card .home-today-course {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  color: var(--soft-grey) !important;
+  margin-left: auto !important;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.student-shell .home-today-card .home-today-subject {
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  line-height: 1.3 !important;
+  margin: 0 !important;
+  color: var(--soft-navy) !important;
+  overflow-wrap: anywhere;
+}
+.student-shell .home-today-card .home-today-building {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0 0 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #5C6079 !important;
+}
+.student-shell .home-today-card .home-today-building svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  stroke-width: 2.2;
+  color: var(--tile-accent);
+}
+.student-shell .home-today-card .home-today-foot {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-top: auto !important;
+  padding-top: 12px !important;
+}
+.student-shell .home-today-card .home-today-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--tile-accent);
+  background: rgba(255, 255, 255, .78);
+  border-radius: 9999px;
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.student-shell .home-today-card .home-today-duration svg { width: 12px; height: 12px; stroke-width: 2.2; }
+.student-shell .home-today-card .home-today-live { font-size: 11.5px; font-weight: 700; color: #6C7089; }
+.student-shell .home-today-card .home-today-progress {
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, .55);
+  margin-top: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.student-shell .home-today-card .home-today-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background: var(--tile-accent);
+}
+
+/* feature card (in session / next up): white type on solid purple */
+.student-shell .home-today-card:is(.current-tile, .home-today-card--feature) :is(
+  .home-today-subject, .home-today-building, .home-today-live,
+  .home-today-duration, .home-today-course, .home-today-rail-time, .home-today-rail-end
+) { color: #fff !important; }
+.student-shell .home-today-card:is(.current-tile, .home-today-card--feature) .home-today-status {
+  background: rgba(255, 255, 255, .22) !important;
+  color: #fff !important;
+}
+.student-shell .home-today-card:is(.current-tile, .home-today-card--feature) .home-today-rail {
+  border-right-color: rgba(255, 255, 255, .3) !important;
+}
+.student-shell .home-today-card:is(.current-tile, .home-today-card--feature) .home-today-rail-rule { opacity: .85; }
+.student-shell .home-today-card:is(.current-tile, .home-today-card--feature) .home-today-progress { background: rgba(255, 255, 255, .3); }
+.student-shell .home-today-card:is(.current-tile, .home-today-card--feature) .home-today-duration {
+  background: rgba(255, 255, 255, .18);
+}
+
+/* finished classes → one compact muted line: subject · time · duration */
+.student-shell .home-today-done-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 20px;
+  box-shadow: var(--soft-shadow);
+  opacity: .78;
+}
+.student-shell .home-today-done-check {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, .92);
+  color: var(--tile-accent);
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
 }
-.home-break-rail { display: none; }
-.home-break-label {
+.student-shell .home-today-done-check svg { width: 14px; height: 14px; stroke-width: 2.6; }
+.student-shell .home-today-done-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.student-shell .home-today-done-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.student-shell .home-today-done-subject {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #3A3C58;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.student-shell .home-today-done-time {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #6C7089;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.student-shell .home-today-done-duration {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--tile-accent);
+  background: rgba(255, 255, 255, .85);
+  border-radius: 9999px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+/* Phones: subject on its own line so nothing has to be truncated. */
+@media (max-width: 479px) {
+  .student-shell .home-today-done-row { align-items: flex-start; }
+  .student-shell .home-today-done-main { flex-direction: column; align-items: flex-start; gap: 3px; }
+  .student-shell .home-today-done-subject { white-space: normal; overflow: visible; }
+}
+
+/* "now" marker that splits the past from the rest of the day */
+.student-shell .home-today-now { display: flex; align-items: center; gap: 8px; padding: 2px 4px; }
+.student-shell .home-today-now-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  background: var(--soft-primary);
+  box-shadow: 0 0 0 4px rgba(74, 58, 255, .16);
+  flex-shrink: 0;
+}
+.student-shell .home-today-now-line {
+  flex: 1 1 auto;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgba(74, 58, 255, .35), rgba(74, 58, 255, .05));
+}
+.student-shell .home-today-now-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--soft-primary);
+  white-space: nowrap;
+}
+
+/* every class already finished */
+.student-shell .home-today-all-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: var(--soft-shadow);
+  color: var(--soft-grey);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.student-shell .home-today-all-done svg { width: 16px; height: 16px; }
+
+/* break tile → slim full-width row between class boxes */
+.student-shell .home-break-tile {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  padding: 12px 18px !important;
+  background: #fff !important;
+  border-radius: 20px !important;
+  box-shadow: var(--soft-shadow) !important;
+  opacity: 1 !important;
+  animation: none !important;
+  transform: none !important;
+  grid-template-columns: none !important;
+}
+.student-shell .home-break-rail {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 5px !important;
+  flex: 0 0 auto !important;
+  padding: 0 !important;
+  border: 0 !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  color: var(--soft-grey) !important;
+  font-variant-numeric: tabular-nums;
+}
+.student-shell .home-break-body {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 !important;
+}
+.student-shell .home-break-label {
   background: var(--soft-lavender);
   color: var(--soft-lav-icon);
   border-radius: 9999px;
@@ -317,10 +583,11 @@
   gap: 5px;
   align-items: center;
   width: fit-content;
+  flex-shrink: 0;
 }
-.home-break-label svg { width: 12px; height: 12px; }
-.home-break-title { font-size: 13px; font-weight: 700; margin: 6px 0 0; color: var(--soft-navy); }
-.home-break-sub { font-size: 11px; color: var(--soft-grey); margin: 2px 0 0; }
+.student-shell .home-break-label svg { width: 12px; height: 12px; }
+.student-shell .home-break-title { font-size: 12.5px !important; font-weight: 800 !important; margin: 0 !important; color: var(--soft-navy) !important; }
+.student-shell .home-break-sub { display: none; }
 
 /* ════════════════════════════════════════════════════════
    CLASS TRACKER + COUNTDOWN (purple feature card)
@@ -564,6 +831,13 @@
   border-bottom: 0 !important;    /* the .soft-divider draws the line now */
   border-radius: 0;
 }
+/* styles.css (max-width:720px) sets .home-hero-main { flex:1 1 0; overflow:hidden },
+   which collapses this block to 0px tall in a column flex parent — the greeting and
+   the student name were invisible on phones. */
+.student-shell .home-hero .home-hero-main {
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+}
 .home-hero-greeting {
   /* Greeting + name = ONE left-aligned block (flex-col items-start). */
   display: flex;
@@ -577,13 +851,16 @@
   width: 100%;
 }
 @media (min-width: 768px) {
-  .home-hero {
-    flex-direction: row;         /* md+: greeting left, weather right */
+  /* Must out-specify the base `.student-shell .home-hero { flex-direction: column }`
+     above, otherwise the hero stays stacked at every width (it did: the chip sat
+     under the greeting, left-hugging, instead of greeting-left / weather-right). */
+  .student-shell .home-hero {
+    flex-direction: row;
     justify-content: space-between;
     align-items: center;
     gap: 24px;
   }
-  .home-hero-side { width: auto; justify-content: flex-end; }
+  .student-shell .home-hero-side { width: auto; justify-content: flex-end; }
 }
 
 /* Divider between hero and the grid, with mt-8 breathing room below. */
@@ -604,10 +881,12 @@
 }
 
 /* Desktop: use the FULL width — the squished 1200px student.css cap and the
-   .soft-home 1240px cap made the 3 columns narrow and text wrap badly. */
-@media (min-width: 1024px) {
-  /* student.css turns .home-layout itself into a 2-col grid at desktop,
-     which stuffed our 3-col .soft-grid into one narrow cell. Flatten it. */
+   .soft-home 1240px cap made the 3 columns narrow and text wrap badly.
+   Applies from 768px: student.css turns .home-layout itself into a 2-col grid
+   (`minmax(0,1.45fr) minmax(0,1fr)`) at ≥768, which dropped the .soft-grid into
+   ONE narrow cell (~126px on a 768px tablet) and overflowed the calendar.
+   Flattening only at ≥1024 left every tablet width broken. */
+@media (min-width: 768px) {
   .student-shell .page-container.home-layout.soft-home {
     display: block;
     max-width: none !important;      /* w-full — span the screen */
@@ -667,18 +946,19 @@
 }
 .soft-col-link:hover { text-decoration: underline; }
 
-/* Left column: task cards keep horizontal scroll (mobile + desktop) */
+/* Left column: the line-up stacks vertically at every width */
 .soft-col .home-today-grid {
   display: flex;
-  overflow-x: auto;
-  gap: 14px;
-  padding: 4px 2px 10px;
+  flex-direction: column;
+  overflow: visible;
+  gap: 12px;
+  padding: 4px 2px 2px;
 }
-.soft-col .home-today-card { min-height: 168px; }
+.soft-col .home-today-card { min-height: 0; }
 
 .soft-empty-tile {
-  width: 172px;
-  height: 168px;
+  width: 100%;
+  min-height: 132px;
   flex-shrink: 0;
   background: #fff;
   border-radius: var(--soft-radius);
@@ -687,12 +967,16 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  padding: 24px 20px;
+  text-align: center;
   color: var(--soft-grey);
   font-weight: 600;
   font-size: 13px;
 }
-.soft-empty-tile svg { width: 28px; height: 28px; stroke-width: 1.6; }
+.soft-empty-tile svg { width: 30px; height: 30px; stroke-width: 1.6; }
+.soft-empty-title { font-size: 14px; font-weight: 800; color: var(--soft-navy); }
+.soft-empty-sub { font-size: 12px; font-weight: 600; color: var(--soft-grey); max-width: 320px; }
 
 /* Semester progress (bottom-left) */
 .soft-progress {
@@ -1748,4 +2032,65 @@
   font-weight: 700;
   box-shadow: 0 10px 22px -6px rgba(74, 58, 255, 0.5);
   padding: 12px 18px !important;
+}
+
+/* ════════════════════════════════════════════════════════
+   DESKTOP NAV (≥1024px): the mobile bottom bar becomes a top
+   app bar. Placed at the END of the file so it wins both the
+   base `.bottom-nav { position: fixed !important }` and the
+   earlier ≥1024 block (equal specificity, later wins).
+   ════════════════════════════════════════════════════════ */
+@media (min-width: 1024px) {
+  .student-shell .bottom-nav {
+    position: sticky !important;     /* in flow above <main>, pins on scroll */
+    top: 0 !important;
+    bottom: auto !important;
+    left: auto;
+    right: auto;
+    width: 100%;
+    border-radius: 0 0 24px 24px;    /* rounded on the side facing the page */
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06) !important;
+    padding: 10px 0 !important;
+    z-index: 40;
+  }
+  .student-shell .bottom-nav > div {
+    width: 100% !important;
+    max-width: none !important;      /* beat student.css's 1200px strip */
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    padding: 0 32px !important;      /* matches the page container padding */
+    margin: 0 !important;
+  }
+  .student-shell .bottom-nav .nav-item {
+    flex-direction: row !important;  /* icon beside label on a wide bar */
+    gap: 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    padding: 10px 14px !important;
+    border-radius: 14px !important;
+  }
+  .student-shell .bottom-nav .nav-item svg { width: 20px !important; height: 20px !important; }
+  .student-shell .bottom-nav .nav-item:hover { background: rgba(74, 58, 255, 0.05); }
+  .student-shell .bottom-nav .nav-item.active { color: var(--soft-primary); font-weight: 700 !important; }
+  /* Classroom FAB: an inline 34px circle in the row — it must not break out
+     above the bar the way it does over the mobile bottom bar. */
+  .student-shell .bottom-nav .nav-item.nav-fab {
+    margin-top: 0 !important;
+    align-self: center !important;
+  }
+  .student-shell .bottom-nav .nav-item.nav-fab .nav-fab-btn {
+    width: 34px !important;
+    height: 34px !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  .student-shell .bottom-nav .nav-item.nav-fab .nav-fab-btn svg { width: 18px !important; height: 18px !important; }
+  .student-shell .bottom-nav .nav-item.nav-fab .nav-fab-label {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    top: 0 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+  }
 }

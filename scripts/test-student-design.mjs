@@ -68,12 +68,54 @@ try {
           .filter(el => el.checkVisibility()).filter(el => { const r = el.getBoundingClientRect(); return r.left < -1 || r.right > innerWidth + 1; })
           .map(el => el.tagName + ':' + el.textContent.trim().slice(0, 60));
         const firstNav = document.querySelector('#bottom-nav a').getBoundingClientRect();
-        return { overflow: document.documentElement.scrollWidth > innerWidth, clipped, navTop: nav.top, navBottom: nav.bottom, mainTop: main.top, firstNavLeft: firstNav.left, mainLeft: main.left + parseFloat(getComputedStyle(document.getElementById('main-content')).paddingLeft) };
+        const navEl = document.getElementById('bottom-nav');
+        const navStrip = navEl.firstElementChild;
+        const mainStyle = getComputedStyle(document.getElementById('main-content'));
+        return { overflow: document.documentElement.scrollWidth > innerWidth, clipped, navTop: nav.top, navBottom: nav.bottom, mainTop: main.top, firstNavLeft: firstNav.left, mainLeft: main.left + parseFloat(mainStyle.paddingLeft), navPos: getComputedStyle(navEl).position, navFlex: getComputedStyle(navStrip).flexDirection, navPadLeft: parseFloat(getComputedStyle(navStrip).paddingLeft), mainPadLeft: parseFloat(mainStyle.paddingLeft), navHeight: navEl.getBoundingClientRect().height };
       });
       if (geometry.overflow || geometry.clipped.length) failures.push(`${name} at ${width}: ${JSON.stringify(geometry)}`);
       assert(width >= 1024 ? geometry.navBottom <= geometry.mainTop : geometry.navTop >= 900, `${name}: navigation placement at ${width}`);
-      if (width >= 1024 && ['index', 'schedule'].includes(name)) assert(Math.abs(geometry.firstNavLeft - geometry.mainLeft) < 2, 'Desktop navigation aligns with content');
+      if (width >= 1024) {
+        // Desktop nav is a top app bar: in flow above <main>, tabs in a row, and
+        // horizontally aligned to the page container's padding.
+        assert.equal(geometry.navPos, 'sticky', `${name}: desktop nav is a top app bar at ${width}`);
+        assert.equal(geometry.navFlex, 'row', `${name}: desktop nav tabs sit in a row at ${width}`);
+        assert(geometry.navHeight >= 50, `${name}: desktop nav height at ${width} (${geometry.navHeight})`);
+        assert.equal(geometry.navPadLeft, geometry.mainPadLeft, `${name}: desktop nav shares the content padding at ${width}`);
+      }
       if ([390, 1440].includes(width)) await page.screenshot({ path: resolve(output, `${name}-${width}.png`), fullPage: true });
+      if (name === 'index') {
+        // Today Task line-up: vertical, full-width boxes, live timing.
+        // Fixture clock is Mon 14 Sep 08:30 PHT → class-1 (08:00–10:00) is in
+        // session and class-2 (11:00–13:00) is next.
+        const today = await page.evaluate(() => {
+          const grid = document.getElementById('today-grid');
+          const kids = [...grid.children];
+          const feature = grid.querySelector('.home-today-card--feature');
+          const bar = grid.querySelector('.home-today-card--feature .home-today-progress span');
+          const cs = getComputedStyle(grid);
+          return {
+            dir: cs.flexDirection,
+            width: Math.round(grid.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)),
+            first: kids[0]?.className || '',
+            featureBg: feature ? getComputedStyle(feature).backgroundColor : null,
+            featureWidth: feature ? Math.round(feature.getBoundingClientRect().width) : 0,
+            progress: bar ? bar.style.width : null,
+            rows: kids.map(el => ({ cls: el.className, w: Math.round(el.getBoundingClientRect().width), text: el.innerText.replace(/\n/g, ' | ') }))
+          };
+        });
+        const text = today.rows.map(r => r.text).join(' || ');
+        assert.equal(today.dir, 'column', 'Today Task stacks vertically');
+        assert.match(today.first, /home-today-now/, 'Today Task starts with the Now marker');
+        assert(today.rows.every(r => Math.abs(r.w - today.width) < 2), `Today Task boxes span the column: ${JSON.stringify(today.rows)}`);
+        assert.equal(today.featureWidth, today.width, 'In-session box fills the column');
+        assert.equal(today.featureBg, 'rgb(74, 58, 255)', 'In-session box is the purple feature card');
+        assert.match(text, /8:00 AM[\s\S]*10:00 AM/, `Start/end times render: ${text}`);
+        assert.match(text, /1h 30m left · ends 10:00 AM/, `Live time left renders: ${text}`);
+        assert.match(today.progress || '', /%$/, 'In-session box shows a progress bar');
+        assert.match(text, /Free for 1h/, `Break row renders between classes: ${text}`);
+        assert.match(text, /UP NEXT[\s\S]*Starts in 2h 30m · 2h long/, `Next class renders its countdown: ${text}`);
+      }
       if (name === 'schedule') {
         assert.equal(await page.locator('#schedule-result').textContent(), '4 classes this week');
         await page.getByRole('button', { name: 'Monday', exact: true }).click();
@@ -120,6 +162,45 @@ try {
     await context.close();
     console.log(`PASS student interactions and navigation at ${width}px`);
   }
+  // Today Task line-up: a finished day collapses to compact rows + a closing row,
+  // and a day with no classes shows the soft empty tile (never a blank column).
+  {
+    const finishedContext = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Asia/Manila' });
+    await finishedContext.route('**/*', route => {
+      const url = new URL(route.request().url());
+      if (url.origin !== origin) return route.abort();
+      if (url.pathname.startsWith('/api/')) return route.fulfill({ status: 200, json: reply(url.pathname) });
+      return route.continue();
+    });
+    const finishedPage = await finishedContext.newPage();
+    // Mon 14 Sep 14:30 PHT — both Monday fixtures already ended.
+    await finishedPage.clock.install({ time: new Date('2026-09-14T06:30:00Z') });
+    await finishedPage.goto(`${origin}/index.html`, { waitUntil: 'load' });
+    await finishedPage.locator('#auth-dashboard').waitFor({ state: 'visible' });
+    await finishedPage.waitForFunction(() => !document.querySelector('[data-loading-region], [data-loading-cover]'));
+    const finished = await finishedPage.evaluate(() => {
+      const grid = document.getElementById('today-grid');
+      const cs = getComputedStyle(grid);
+      const width = Math.round(grid.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+      return { width, kids: [...grid.children].map(el => ({ cls: el.className, w: Math.round(el.getBoundingClientRect().width), text: el.innerText.replace(/\n/g, ' | ') })) };
+    });
+    assert.equal(finished.kids.length, 3, `Finished day = 2 done rows + closing row: ${JSON.stringify(finished.kids)}`);
+    assert(finished.kids.slice(0, 2).every(k => /home-today-done-row/.test(k.cls) && Math.abs(k.w - finished.width) < 2), `Done rows span the column: ${JSON.stringify(finished.kids)}`);
+    assert.match(finished.kids[0].text, /Fundamentals of Programming \| 8:00 AM – 10:00 AM \| 2h/, `Done row keeps subject, time and duration: ${finished.kids[0].text}`);
+    assert.match(finished.kids[2].cls, /home-today-all-done/, 'A finished day closes with the all-done row');
+    assert.equal(await finishedPage.locator('#today-grid .home-today-card--feature').count(), 0, 'No feature box once every class ended');
+
+    mode = 'empty';
+    await finishedPage.reload({ waitUntil: 'load' });
+    await finishedPage.locator('#auth-dashboard').waitFor({ state: 'visible' });
+    await finishedPage.waitForFunction(() => !document.querySelector('[data-loading-region], [data-loading-cover]'));
+    const emptyText = await finishedPage.locator('#today-grid').innerText();
+    assert.match(emptyText, /No classes today/, `No-class day shows the empty tile: ${emptyText}`);
+    mode = 'populated';
+    await finishedContext.close();
+    console.log('PASS today line-up: finished rows, all-done row, and empty day');
+  }
+
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await context.route('**/*', route => {
     const url = new URL(route.request().url());
