@@ -87,6 +87,10 @@ const samples = {
 
 let failures = 0;
 
+// Columns the sheet adapter rewrites on read, with the test's own sample value
+// proving the rewrite happened (a numeric day becomes its canonical name).
+const NORMALISED_COLUMNS = new Set(["dayOfWeek", "startTime", "endTime"]);
+
 function fail(message) {
   failures++;
   console.error(`  FAIL ${message}`);
@@ -113,12 +117,29 @@ for (const kind of SNAPSHOT_KINDS) {
     if (!(key in restored)) {
       lost.push(key);
     } else if (JSON.stringify(restored[key]) !== JSON.stringify(value)) {
+      // Schedule entries are canonicalised on read on purpose: the COR import
+      // wrote numeric days (0 = Sunday) and Sheets can return a real datetime
+      // for a "08:00" cell, while every consumer compares "MONDAY"/"HH:mm".
+      // Any other column changing shape is still a bug.
+      if (kind === "scheduleEntries" && NORMALISED_COLUMNS.has(key)) continue;
       changed.push(`${key}: ${JSON.stringify(value)} -> ${JSON.stringify(restored[key])}`);
     }
   }
 
   if (lost.length) fail(`${kind}: dropped ${lost.join(", ")}`);
   if (changed.length) fail(`${kind}: altered ${changed.join("; ")}`);
+
+  // The canonicalisation those skips allow must actually be happening — a
+  // numeric COR day has to come back as a name, or conflict checks and the day
+  // picker silently compare the wrong things again.
+  if (kind === "scheduleEntries") {
+    if (restored.dayOfWeek !== "MONDAY") {
+      fail(`scheduleEntries: numeric day was not canonicalised (got ${JSON.stringify(restored.dayOfWeek)})`);
+    }
+    if (restored.startTime !== "09:00" || restored.endTime !== "10:30") {
+      fail(`scheduleEntries: times were not canonicalised (${restored.startTime}–${restored.endTime})`);
+    }
+  }
 
   // The sheet's primary key column must be populated, or the row cannot be
   // located again and every write would append a duplicate.

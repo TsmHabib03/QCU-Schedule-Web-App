@@ -15,10 +15,9 @@ import {
   CatalogBuildings,
   CatalogRooms,
 } from "../../repo/index.js";
+import { normalizeDayOfWeek, normalizeTime, isClockTime } from "../../_lib/day-time.js";
 
-const VALID_DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
 const VALID_MODALITIES = ["ONSITE", "ONLINE", "HYBRID", "TBA"];
-const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export async function onRequestPost(context) {
   try {
@@ -54,13 +53,17 @@ export async function onRequestPost(context) {
       return json({ status: "VALIDATION_FAILED", error: "No active schedule" }, 422);
     }
 
-    // ── Validate enrollmentSubjectId ───────────────────────────────────
-    const { enrollmentSubjectId } = body;
-    if (!enrollmentSubjectId) {
+    // ── Resolve the subject ────────────────────────────────────────────
+    // Accepts an enrollment-subject id or a subject code, so the class editor
+    // works whether it knows ids (academic catalog loaded) or only codes.
+    const requested = typeof body.enrollmentSubjectId === "string" ? body.enrollmentSubjectId.trim() : "";
+    if (!requested) {
       return json({ status: "VALIDATION_FAILED", error: "enrollmentSubjectId is required" }, 422);
     }
 
-    const ens = EnrollmentSubjects.getById(enrollmentSubjectId);
+    const ens =
+      EnrollmentSubjects.getById(requested) ||
+      EnrollmentSubjects.resolveByCode(activeEnrollment.enrollmentId, requested);
     if (!ens) {
       return json({ status: "VALIDATION_FAILED", error: "Enrollment subject not found" }, 422);
     }
@@ -70,19 +73,21 @@ export async function onRequestPost(context) {
     if (ens.userId !== user.userId) {
       return json({ status: "FORBIDDEN", error: "Subject does not belong to you" }, 403);
     }
+    const enrollmentSubjectId = ens.ensId;
 
     // ── Validate dayOfWeek ─────────────────────────────────────────────
-    const { dayOfWeek } = body;
-    if (!dayOfWeek || !VALID_DAYS.includes(dayOfWeek)) {
+    const dayOfWeek = normalizeDayOfWeek(body.dayOfWeek);
+    if (!dayOfWeek) {
       return json({ status: "VALIDATION_FAILED", error: "Invalid dayOfWeek" }, 422);
     }
 
     // ── Validate times ─────────────────────────────────────────────────
-    const { startTime, endTime } = body;
+    const startTime = normalizeTime(body.startTime);
+    const endTime = normalizeTime(body.endTime);
     if (!startTime || !endTime) {
       return json({ status: "VALIDATION_FAILED", error: "startTime and endTime are required" }, 422);
     }
-    if (!TIME_RE.test(startTime) || !TIME_RE.test(endTime)) {
+    if (!isClockTime(startTime) || !isClockTime(endTime)) {
       return json({ status: "VALIDATION_FAILED", error: "Time must be HH:mm format (24h)" }, 422);
     }
     if (startTime >= endTime) {
@@ -145,9 +150,9 @@ export async function onRequestPost(context) {
       (e) =>
         e.status === "ACTIVE" &&
         e.enrollmentSubjectId === enrollmentSubjectId &&
-        e.dayOfWeek === dayOfWeek &&
-        e.startTime === startTime &&
-        e.endTime === endTime
+        normalizeDayOfWeek(e.dayOfWeek) === dayOfWeek &&
+        normalizeTime(e.startTime) === startTime &&
+        normalizeTime(e.endTime) === endTime
     );
     if (isDuplicate) {
       return json({
@@ -182,7 +187,9 @@ export async function onRequestPost(context) {
     });
 
     // ── Resolve and return ─────────────────────────────────────────────
-    const subject = Subjects.getById(enrollmentSubjectId);
+    // Code/title come from the enrollment's subject row (where COR import stored
+    // the snapshot); the shared Subjects catalog is only a fallback.
+    const catalogSubject = ens?.matchedSubjectId ? Subjects.getById(ens.matchedSubjectId) : null;
     const building = buildingId ? CatalogBuildings.getById(buildingId) : null;
     const room = roomId ? CatalogRooms.getById(roomId) : null;
 
@@ -194,9 +201,9 @@ export async function onRequestPost(context) {
         entryId: entry.smeId,
         scheduleId: entry.scheduleId,
         enrollmentSubjectId: entry.enrollmentSubjectId,
-        code: subject?.subjectCode || "",
-        title: subject?.title || "",
-        units: subject?.units || 0,
+        code: ens?.subjectCodeSnapshot || catalogSubject?.subjectCode || "",
+        title: ens?.subjectTitleSnapshot || catalogSubject?.title || "",
+        units: ens?.units || catalogSubject?.units || 0,
         modality: entry.modality,
         dayOfWeek: entry.dayOfWeek,
         startTime: entry.startTime,

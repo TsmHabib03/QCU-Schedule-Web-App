@@ -60,7 +60,7 @@ import { onRequestGet as academicSubjects } from "../functions/api/v1/academic/s
 import { onRequestGet as academicBuildings } from "../functions/api/v1/academic/buildings.js";
 import { onRequestGet as academicRooms } from "../functions/api/v1/academic/rooms.js";
 
-import { CatalogSeed, Users, Enrollments, Schedules, ScheduleEntries } from "../functions/api/repo/index.js";
+import { CatalogSeed, Users, Enrollments, Schedules, ScheduleEntries, Subjects, EnrollmentSubjects } from "../functions/api/repo/index.js";
 import { readFileSync } from "node:fs";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
@@ -258,12 +258,35 @@ function seedSyntheticStudents() {
       status: "ACTIVE",
     });
 
+    // Entries point at an EnrollmentSubjects row (that is what COR confirm
+    // creates in production). Without these rows the seeds were not a realistic
+    // account: the class editor had no subject ids to send, so create/edit could
+    // not be exercised locally at all.
+    const ensBySubjectId = new Map();
+    for (const entry of s.entries) {
+      if (ensBySubjectId.has(entry.subjectId)) continue;
+      const catalogSubject = Subjects.getById(entry.subjectId);
+      const ens = EnrollmentSubjects.create({
+        enrollmentId: enrollment.enrollmentId,
+        userId: user.userId,
+        subjectId: entry.subjectId,
+        subjectCode: catalogSubject?.subjectCode || entry.subjectId,
+        subjectName: catalogSubject?.title || "",
+        units: catalogSubject?.units || 0,
+        matchedSubjectId: entry.subjectId,
+        classSection: s.sectionLabel,
+        sourceType: "COR_IMPORT",
+        status: "ACTIVE",
+      });
+      ensBySubjectId.set(entry.subjectId, ens.ensId);
+    }
+
     for (const entry of s.entries) {
       ScheduleEntries.create({
         scheduleId: schedule.scheduleId,
         enrollmentId: enrollment.enrollmentId,
         userId: user.userId,
-        enrollmentSubjectId: entry.subjectId,
+        enrollmentSubjectId: ensBySubjectId.get(entry.subjectId) || entry.subjectId,
         dayOfWeek: entry.dayOfWeek,
         startTime: entry.startTime,
         endTime: entry.endTime,

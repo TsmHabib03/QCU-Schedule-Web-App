@@ -76,6 +76,7 @@ import {
   readSnapshot,
   writeBatch,
 } from "./sheets-adapter.js";
+import { normalizeDayOfWeek, minutesOfDay } from "../_lib/day-time.js";
 
 const MAX_CACHED_USERS = 200;
 
@@ -631,6 +632,25 @@ export const EnrollmentSubjects = {
       (s) => s.userId === userId
     );
   },
+
+  /**
+   * Resolve a subject by its code within one enrollment.
+   *
+   * Clients that predate the enrollment-subject catalog send the COR code
+   * ("CC102") where an id is expected — resolving it here keeps those clients
+   * working instead of failing every save with "Enrollment subject not found".
+   */
+  resolveByCode(enrollmentId, subjectCode) {
+    if (!subjectCode) return null;
+    const wanted = String(subjectCode).trim().toUpperCase();
+    return (
+      Array.from(_enrollmentSubjects.values()).find(
+        (s) =>
+          s.enrollmentId === enrollmentId &&
+          String(s.subjectCodeSnapshot || "").trim().toUpperCase() === wanted
+      ) || null
+    );
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -746,14 +766,27 @@ export const ScheduleEntries = {
    * If excludeId is provided, that entry is skipped (for update scenarios).
    */
   hasConflict(scheduleId, dayOfWeek, startTime, endTime, excludeId) {
+    // Both sides are normalised: entries can carry a numeric day ("from COR")
+    // or a name ("from the class editor"), and a raw string compare of times
+    // breaks on anything but zero-padded "HH:mm".
+    const day = normalizeDayOfWeek(dayOfWeek);
+    const start = minutesOfDay(startTime);
+    const end = minutesOfDay(endTime);
+    if (!day || start === null || end === null) return [];
+
     const conflicts = [];
     for (const e of _scheduleEntries.values()) {
       if (e.scheduleId !== scheduleId) continue;
-      if (e.dayOfWeek !== dayOfWeek) continue;
+      if (normalizeDayOfWeek(e.dayOfWeek) !== day) continue;
       if (e.status !== "ACTIVE") continue;
       if (excludeId && e.smeId === excludeId) continue;
+
+      const eStart = minutesOfDay(e.startTime);
+      const eEnd = minutesOfDay(e.endTime);
+      if (eStart === null || eEnd === null) continue;
+
       // Overlap: A.start < B.end AND B.start < A.end
-      if (startTime < e.endTime && e.startTime < endTime) {
+      if (start < eEnd && eStart < end) {
         conflicts.push(e);
       }
     }

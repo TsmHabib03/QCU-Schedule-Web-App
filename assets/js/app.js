@@ -1197,7 +1197,7 @@ function renderSchedule() {
   }
   const now   = new Date();
   const today = QCU_TIME.weekday(now);
-  const entries = orderedSchedule(now).filter(item => !item.noClasses && (scheduleDay === "all" || item.day === scheduleDay));
+  const entries = orderedSchedule(now).filter(item => !item.noClasses && (scheduleDay === "all" || normalizeDayName(item.day) === normalizeDayName(scheduleDay)));
   const summary = `${entries.length} class${entries.length === 1 ? "" : "es"} ${scheduleDay === "all" ? "this week" : `on ${scheduleDay}`}`;
   const result = document.getElementById("schedule-result");
   if (result && result.textContent !== summary) result.textContent = summary;
@@ -2112,9 +2112,18 @@ async function deleteScheduleEntryApi(entryId) {
   return await resp.json();
 }
 
+// The API returns canonical days ("MONDAY"); every view in this file compares
+// title-case day names ("Monday") — including dayNames.indexOf() ordering and
+// the schedule page's day filter buttons — so map to that one form here.
+function dayTitleCase(value) {
+  const canonical = normalizeDayName(value);
+  if (!canonical) return "";
+  return canonical[0] + canonical.slice(1).toLowerCase();
+}
+
 function mapApiEntry(item) {
   return {
-    day: item.dayOfWeek,
+    day: dayTitleCase(item.dayOfWeek),
     start: item.startTime,
     end: item.endTime,
     subject: item.title || "",
@@ -2143,6 +2152,32 @@ const CRUD_DAY_MAP = {
 };
 const CRUD_DAY_REVERSE = Object.fromEntries(Object.entries(CRUD_DAY_MAP).map(([k, v]) => [v, k]));
 
+// Entries arrive with the day capitalised ("Monday") from the API mapping, while
+// the picker's option values are canonical ("MONDAY"). Comparing the two forms
+// directly never matched, so the Day select silently defaulted to its first
+// option (Monday) for every class — editing a Wednesday class moved it.
+function normalizeDayName(value) {
+  if (value == null) return "";
+  const raw = String(value).trim();
+  if (!raw) return "";
+  if (/^\d+$/.test(raw)) {
+    const names = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+    const n = Number(raw);
+    if (n >= 0 && n <= 6) return names[n];
+    if (n === 7) return "SUNDAY";
+    return "";
+  }
+  const head = raw.toUpperCase().replace(/[^A-Z]/g, " ").trim().split(/\s+/)[0] || "";
+  const aliases = {
+    MON: "MONDAY", MONDAY: "MONDAY", TUE: "TUESDAY", TUES: "TUESDAY", TUESDAY: "TUESDAY",
+    WED: "WEDNESDAY", WEDS: "WEDNESDAY", WEDNESDAY: "WEDNESDAY",
+    THU: "THURSDAY", THUR: "THURSDAY", THURS: "THURSDAY", THURSDAY: "THURSDAY",
+    FRI: "FRIDAY", FRIDAY: "FRIDAY", SAT: "SATURDAY", SATURDAY: "SATURDAY",
+    SUN: "SUNDAY", SUNDAY: "SUNDAY",
+  };
+  return aliases[head] || "";
+}
+
 let _crudEditingEntry = null;
 let _crudEnrollmentSubjects = [];
 let _crudReturnFocus = null;
@@ -2157,14 +2192,19 @@ function openCrudModal(entry = null) {
   const isEdit = !!entry;
   const title = isEdit ? "Edit Class" : "Add Class";
 
+  const editingDay = normalizeDayName(entry?.day);
   const dayOptions = Object.entries(CRUD_DAY_MAP).map(([abbr, full]) =>
-    `<option value="${full}" ${entry?.day === full ? "selected" : ""}>${abbr} (${full})</option>`
+    `<option value="${full}" ${editingDay === full ? "selected" : ""}>${abbr} (${full})</option>`
   ).join("");
 
   const buildingOptions = (state.buildings || []).map(b =>
     `<option value="${b.buildingId}" ${entry?.buildingId === b.buildingId ? "selected" : ""}>${esc(b.name)}</option>`
   ).join("");
 
+  // The modal used to show native validation bubbles only — a `required` select
+  // with no options (a class whose subject is not in the catalog) blocked the
+  // submit and looked like a dead button. `novalidate` hands validation to
+  // handleCrudSubmit, which writes a visible message next to the field.
   content.innerHTML = `
     <div class="modal-drag-handle"></div>
     <div class="modal-inner">
@@ -2178,10 +2218,10 @@ function openCrudModal(entry = null) {
         </button>
       </div>
 
-      <form id="crud-form" class="crud-form">
+      <form id="crud-form" class="crud-form" novalidate>
         <div class="crud-field">
           <label for="crud-subject">Subject</label>
-          <select id="crud-subject" required>
+          <select id="crud-subject" required aria-required="true">
             <option value="">Select subject…</option>
           </select>
         </div>
@@ -2294,30 +2334,56 @@ function populateSubjectDropdown(entry) {
     _crudEnrollmentSubjects = state.academic.enrollmentSubjects;
   }
 
-  // Fallback: use known subjects from current schedule if no enrollment subjects available
+  // Fallback: use known subjects from current schedule if no enrollment subjects available.
+  // The schedule carries the class's real enrollmentSubjectId, so the picker can
+  // offer an id instead of falling back to a subject code (a code sent as an id
+  // made every save fail with "Enrollment subject not found").
   if (!_crudEnrollmentSubjects.length && state.schedule.length) {
     const seen = new Set();
     state.schedule.forEach(s => {
-      if (s.course && !seen.has(s.course)) {
-        seen.add(s.course);
+      const key = s.enrollmentSubjectId || s.course;
+      if (key && !seen.has(key)) {
+        seen.add(key);
         _crudEnrollmentSubjects.push({
-          enrollmentSubjectId: null,
-          subjectCode: s.course,
-          title: s.subject,
+          enrollmentSubjectId: s.enrollmentSubjectId || null,
+          subjectCode: s.course || "",
+          title: s.subject || "",
         });
       }
     });
   }
 
-  _crudEnrollmentSubjects.forEach(es => {
+  select.innerHTML = '<option value="">Select subject…</option>';
+
+  const options = _crudEnrollmentSubjects.slice();
+
+  // Whatever the catalog knows, the class being edited must stay selectable —
+  // otherwise the picker shows the placeholder and the save is blocked.
+  if (entry && (entry.enrollmentSubjectId || entry.course)) {
+    const covered = options.some(es =>
+      (entry.enrollmentSubjectId && es.enrollmentSubjectId === entry.enrollmentSubjectId) ||
+      (!entry.enrollmentSubjectId && entry.course && es.subjectCode === entry.course)
+    );
+    if (!covered) {
+      options.unshift({
+        enrollmentSubjectId: entry.enrollmentSubjectId || null,
+        subjectCode: entry.course || "",
+        title: entry.subject || "",
+        isCurrent: true,
+      });
+    }
+  }
+
+  options.forEach(es => {
     const opt = document.createElement("option");
     opt.value = es.enrollmentSubjectId || es.subjectCode || "";
-    opt.textContent = es.title
+    const label = es.title
       ? `${es.title} (${es.subjectCode || "?"})`
       : es.subjectCode || "";
+    opt.textContent = es.isCurrent ? `${label} — current` : label;
     if (entry?.enrollmentSubjectId && es.enrollmentSubjectId === entry.enrollmentSubjectId) {
       opt.selected = true;
-    } else if (entry?.course && es.subjectCode === entry.course) {
+    } else if (!entry?.enrollmentSubjectId && entry?.course && es.subjectCode === entry.course) {
       opt.selected = true;
     }
     select.appendChild(opt);
@@ -2350,31 +2416,58 @@ async function handleCrudSubmit(existingEntry) {
   const saveBtn = document.getElementById("crud-save-btn");
   if (errorEl) { errorEl.style.display = "none"; errorEl.textContent = ""; }
   if (saveBtn?.disabled) return;
-  window.QCULoading.button(saveBtn, true);
+
+  const field = (id) => document.getElementById(id);
+  const fail = (input, message) => {
+    const err = new Error(message);
+    err.field = input;
+    throw err;
+  };
 
   try {
-    const subjectVal = document.getElementById("crud-subject")?.value || "";
-    const dayVal = document.getElementById("crud-day")?.value || "";
-    const startVal = document.getElementById("crud-start")?.value || "";
-    const endVal = document.getElementById("crud-end")?.value || "";
-    const modalityVal = document.getElementById("crud-modality")?.value || "ONSITE";
-    const buildingVal = document.getElementById("crud-building")?.value || "";
-    const roomVal = document.getElementById("crud-room")?.value || "";
-    const locationVal = document.getElementById("crud-location")?.value || "";
+    const subjectEl = field("crud-subject");
+    const dayEl = field("crud-day");
+    const startEl = field("crud-start");
+    const endEl = field("crud-end");
+    const modalityEl = field("crud-modality");
+    const buildingEl = field("crud-building");
+    const roomEl = field("crud-room");
+    const locationEl = field("crud-location");
 
-    // Basic validation
-    if (!subjectVal) throw new Error("Please select a subject.");
-    if (!dayVal) throw new Error("Please select a day.");
-    if (!startVal || !endVal) throw new Error("Please enter start and end times.");
-    if (startVal >= endVal) throw new Error("End time must be after start time.");
+    [subjectEl, dayEl, startEl, endEl].forEach(el => el?.removeAttribute("aria-invalid"));
 
-    // Check for enrollmentSubjectId vs subjectCode
+    const subjectVal = subjectEl?.value || "";
+    const dayVal = dayEl?.value || "";
+    const startVal = startEl?.value || "";
+    const endVal = endEl?.value || "";
+    const modalityVal = modalityEl?.value || "ONSITE";
+    const buildingVal = buildingEl?.value || "";
+    const roomVal = roomEl?.value || "";
+    const locationVal = locationEl?.value || "";
+
+    // ── Validation (shown in the modal, never a silent native bubble) ──
+    if (!subjectVal) {
+      if (!subjectEl || subjectEl.options.length <= 1) {
+        fail(subjectEl, "No subjects are available for your enrollment yet. Import your COR first, then try again.");
+      }
+      fail(subjectEl, "Please select a subject.");
+    }
+    if (!dayVal) fail(dayEl, "Please select a day.");
+    if (!startVal || !endVal) fail(startEl, "Please enter start and end times.");
+    if (startVal >= endVal) fail(endEl, "End time must be after start time.");
+
     const es = _crudEnrollmentSubjects.find(s =>
       s.enrollmentSubjectId === subjectVal || s.subjectCode === subjectVal
     );
 
+    // Only send the subject when it is actually different. Resending an
+    // unchanged subject is what made a plain "move this class to Monday" fail
+    // with "Enrollment subject not found".
+    const currentSubject = existingEntry?.enrollmentSubjectId || null;
+    const nextSubject = es?.enrollmentSubjectId || (currentSubject && subjectVal === currentSubject ? currentSubject : subjectVal);
+    const subjectChanged = Boolean(existingEntry?.entryId) && nextSubject !== currentSubject;
+
     const payload = {
-      enrollmentSubjectId: es?.enrollmentSubjectId || subjectVal,
       dayOfWeek: dayVal,
       startTime: startVal,
       endTime: endVal,
@@ -2383,6 +2476,11 @@ async function handleCrudSubmit(existingEntry) {
       roomId: roomVal || null,
       locationText: locationVal || null,
     };
+    if (!existingEntry?.entryId || subjectChanged) {
+      payload.enrollmentSubjectId = nextSubject;
+    }
+
+    window.QCULoading.button(saveBtn, true);
 
     let result;
     if (existingEntry?.entryId) {
@@ -2392,7 +2490,14 @@ async function handleCrudSubmit(existingEntry) {
     }
 
     if (!result?.ok) {
-      const msg = result?.error?.message || result?.error || "Failed to save entry.";
+      const code = result?.error?.code;
+      let msg = result?.error?.message || result?.error || "Failed to save entry.";
+      if (code === "SCHEDULE_CONFLICT" && Array.isArray(result?.error?.conflicts)) {
+        const clash = result.error.conflicts[0];
+        const clashDay = clash.dayOfWeek ? `${clash.dayOfWeek[0]}${clash.dayOfWeek.slice(1).toLowerCase()}` : "";
+        const span = clash.startTime && clash.endTime ? ` ${clash.startTime}–${clash.endTime}` : "";
+        if (clashDay || span) msg = `That overlaps another class on ${clashDay}${span}. Pick a different day or time.`;
+      }
       throw new Error(msg);
     }
 
@@ -2404,6 +2509,10 @@ async function handleCrudSubmit(existingEntry) {
     // Reload schedule from API and re-render
     await reloadSchedule();
   } catch (err) {
+    if (err?.field) {
+      err.field.setAttribute("aria-invalid", "true");
+      err.field.focus();
+    }
     if (errorEl) {
       errorEl.textContent = err.message || "An error occurred.";
       errorEl.style.display = "block";

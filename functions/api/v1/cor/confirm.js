@@ -29,6 +29,7 @@ import {
   CatalogSeed,
   Departments,
 } from "../../repo/index.js";
+import { normalizeDayOfWeek } from "../../_lib/day-time.js";
 import { jobError } from './_jobs.js';
 
 // In-memory stores for confirmed data — NOW DELEGATED TO REPO
@@ -228,7 +229,11 @@ function commitRecords(user, draft, _catalog) {
           enrollmentId: enrollment.enrollmentId,
           userId: user.userId,
           enrollmentSubjectId: enrollmentSubject.ensId,
-          dayOfWeek: DAY_MAP[dayVal] ?? null,
+          // Canonical day name, matching the class editor. The numeric form
+          // (DAY_MAP) is what older rows hold and what the sheet adapter still
+          // normalises on read, but new rows are written in one shape so
+          // conflict checks and the day picker never have to guess.
+          dayOfWeek: normalizeDayOfWeek(dayVal) || null,
           dayLabel: dayVal || null,
           startTime: startVal || null,
           endTime: endVal || null,

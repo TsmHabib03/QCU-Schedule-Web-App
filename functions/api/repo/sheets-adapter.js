@@ -15,6 +15,8 @@
 // command exactly once, signs that string, and posts { canonical, signature }.
 // Signing the literal string avoids any dependence on JSON key ordering.
 
+import { normalizeDayOfWeek, normalizeTime } from "../_lib/day-time.js";
+
 const REQUEST_TIMEOUT_MS = 30_000;
 // Read failures may retry within the same deadline. Mutations are never
 // blindly replayed; their caller must reconcile the saved result first.
@@ -345,6 +347,19 @@ export function fromRow(kind, row) {
       // A hand-edited cell should not take down the whole request.
       console.warn(`repo: unparseable extraJson on ${kind} ${row[spec.sheetId]}`);
     }
+  }
+
+  // Schedule entries are the one entity with two historical encodings: COR
+  // import wrote numeric days and Sheets sometimes coerced "08:00" into a real
+  // time value. Canonicalise on the way in so every consumer — conflict checks,
+  // the week table, the class editor — compares one representation.
+  if (kind === "scheduleEntries") {
+    const day = normalizeDayOfWeek(out.dayOfWeek);
+    if (day) out.dayOfWeek = day;
+    const start = normalizeTime(out.startTime);
+    if (start) out.startTime = start;
+    const end = normalizeTime(out.endTime);
+    if (end) out.endTime = end;
   }
 
   return out;

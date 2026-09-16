@@ -15,10 +15,9 @@ import {
   CatalogBuildings,
   CatalogRooms,
 } from "../../../repo/index.js";
+import { normalizeDayOfWeek, normalizeTime, isClockTime } from "../../../_lib/day-time.js";
 
-const VALID_DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
 const VALID_MODALITIES = ["ONSITE", "ONLINE", "HYBRID", "TBA"];
-const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // ── PATCH (update) ─────────────────────────────────────────────────────
 
@@ -86,27 +85,27 @@ export async function onRequestPatch(context) {
     }
 
     // ── Merge updates ──────────────────────────────────────────────────
-    const dayOfWeek = body.dayOfWeek || entry.dayOfWeek;
-    const startTime = body.startTime || entry.startTime;
-    const endTime = body.endTime || entry.endTime;
+    // Day and time arrive in whatever shape the caller has (numeric day from
+    // COR, "8:00 AM", "8:00") and are stored canonically.
+    const dayOfWeek = normalizeDayOfWeek(body.dayOfWeek) || normalizeDayOfWeek(entry.dayOfWeek);
+    const startTime = normalizeTime(body.startTime) || normalizeTime(entry.startTime);
+    const endTime = normalizeTime(body.endTime) || normalizeTime(entry.endTime);
     const modality = body.modality || entry.modality;
     const buildingId = body.buildingId !== undefined ? body.buildingId : entry.buildingId;
     const roomId = body.roomId !== undefined ? body.roomId : entry.roomId;
     const locationText = body.locationText !== undefined ? body.locationText : entry.locationText;
 
     // ── Validate dayOfWeek ─────────────────────────────────────────────
-    if (body.dayOfWeek && !VALID_DAYS.includes(body.dayOfWeek)) {
+    if (!dayOfWeek) {
       return json({ status: "VALIDATION_FAILED", error: "Invalid dayOfWeek" }, 422);
     }
 
     // ── Validate times ─────────────────────────────────────────────────
-    if (body.startTime || body.endTime) {
-      const st = body.startTime || startTime;
-      const et = body.endTime || endTime;
-      if (!TIME_RE.test(st) || !TIME_RE.test(et)) {
+    if (body.startTime !== undefined || body.endTime !== undefined) {
+      if (!isClockTime(startTime) || !isClockTime(endTime)) {
         return json({ status: "VALIDATION_FAILED", error: "Time must be HH:mm format (24h)" }, 422);
       }
-      if (st >= et) {
+      if (startTime >= endTime) {
         return json({ status: "VALIDATION_FAILED", error: "endTime must be after startTime" }, 422);
       }
     }
@@ -135,14 +134,35 @@ export async function onRequestPatch(context) {
       return json({ status: "VALIDATION_FAILED", error: "buildingId is required when roomId is provided" }, 422);
     }
 
-    // ── Validate enrollmentSubjectId if changed ────────────────────────
-    if (body.enrollmentSubjectId) {
-      const ens = EnrollmentSubjects.getById(body.enrollmentSubjectId);
-      if (!ens) {
+    // ── Resolve the subject ────────────────────────────────────────────
+    // Only touched when the caller actually asks for a different subject — a
+    // day-only edit must never fail because the existing subject id cannot be
+    // re-resolved (that is what broke "move my class to Monday"). A subject
+    // *code* is accepted and resolved to the enrollment's subject row, so older
+    // clients that only know codes keep working.
+    let enrollmentSubjectId = entry.enrollmentSubjectId;
+    const requestedSubject =
+      typeof body.enrollmentSubjectId === "string" ? body.enrollmentSubjectId.trim() : null;
+
+    if (requestedSubject && requestedSubject !== entry.enrollmentSubjectId) {
+      const ens =
+        EnrollmentSubjects.getById(requestedSubject) ||
+        EnrollmentSubjects.resolveByCode(enrollment.enrollmentId, requestedSubject);
+
+      if (ens) {
+        if (ens.enrollmentId !== enrollment.enrollmentId) {
+          return json({ status: "FORBIDDEN", error: "Subject does not belong to your enrollment" }, 403);
+        }
+        enrollmentSubjectId = ens.ensId;
+      } else if (!EnrollmentSubjects.getById(entry.enrollmentSubjectId)) {
+        // Neither the requested subject nor this class's own subject exists in
+        // the catalog (a legacy COR import, or a COR that was re-confirmed and
+        // recreated its subject rows). There is nothing sane to compare against,
+        // so keep the class's existing subject rather than stranding the save —
+        // editing the day or time must still work.
+        enrollmentSubjectId = entry.enrollmentSubjectId;
+      } else {
         return json({ status: "VALIDATION_FAILED", error: "Enrollment subject not found" }, 422);
-      }
-      if (ens.enrollmentId !== enrollment.enrollmentId) {
-        return json({ status: "FORBIDDEN", error: "Subject does not belong to your enrollment" }, 403);
       }
     }
 
@@ -176,10 +196,10 @@ export async function onRequestPatch(context) {
       (e) =>
         e.smeId !== entryId &&
         e.status === "ACTIVE" &&
-        e.enrollmentSubjectId === (body.enrollmentSubjectId || entry.enrollmentSubjectId) &&
-        e.dayOfWeek === dayOfWeek &&
-        e.startTime === startTime &&
-        e.endTime === endTime
+        e.enrollmentSubjectId === enrollmentSubjectId &&
+        normalizeDayOfWeek(e.dayOfWeek) === dayOfWeek &&
+        normalizeTime(e.startTime) === startTime &&
+        normalizeTime(e.endTime) === endTime
     );
     if (isDuplicate) {
       return json({
@@ -200,10 +220,8 @@ export async function onRequestPatch(context) {
       buildingId: buildingId || null,
       roomId: roomId || null,
       locationText: locationText || null,
+      enrollmentSubjectId,
     };
-    if (body.enrollmentSubjectId) {
-      updates.enrollmentSubjectId = body.enrollmentSubjectId;
-    }
     if (body.sortOrder !== undefined) {
       updates.sortOrder = body.sortOrder;
     }
@@ -211,7 +229,10 @@ export async function onRequestPatch(context) {
     const updated = ScheduleEntries.update(entry, updates);
 
     // ── Resolve and return ─────────────────────────────────────────────
-    const subject = Subjects.getById(updated.enrollmentSubjectId);
+    // The subject comes from the enrollment's own row (that is where COR import
+    // stored the code/title snapshot); the catalog is only a fallback.
+    const ens = EnrollmentSubjects.getById(updated.enrollmentSubjectId);
+    const catalogSubject = ens?.matchedSubjectId ? Subjects.getById(ens.matchedSubjectId) : null;
     const building = updated.buildingId ? CatalogBuildings.getById(updated.buildingId) : null;
     const room = updated.roomId ? CatalogRooms.getById(updated.roomId) : null;
 
@@ -223,9 +244,9 @@ export async function onRequestPatch(context) {
         entryId: updated.smeId,
         scheduleId: updated.scheduleId,
         enrollmentSubjectId: updated.enrollmentSubjectId,
-        code: subject?.subjectCode || "",
-        title: subject?.title || "",
-        units: subject?.units || 0,
+        code: ens?.subjectCodeSnapshot || catalogSubject?.subjectCode || "",
+        title: ens?.subjectTitleSnapshot || catalogSubject?.title || "",
+        units: ens?.units || catalogSubject?.units || 0,
         modality: updated.modality,
         dayOfWeek: updated.dayOfWeek,
         startTime: updated.startTime,
