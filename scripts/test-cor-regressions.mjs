@@ -6,6 +6,8 @@ import { platformSessionHeader } from '../functions/api/auth/_lib.js';
 import { Users, CorRecords, CorDrafts, Concurrency } from '../functions/api/repo/index.js';
 import { onRequestPost as upload } from '../functions/api/v1/cor/upload.js';
 import { onRequestPost as processCor } from '../functions/api/v1/cor/process.js';
+import { parseDays, geminiResultToDraft } from '../functions/api/v1/cor/_gemini.js';
+import { parseDayTokens, parseDayIndexes } from '../functions/api/_lib/day-time.js';
 import { onRequestPost as review } from '../functions/api/v1/cor/review.js';
 import { onRequestGet as statusGet } from '../functions/api/v1/cor/status.js';
 
@@ -224,3 +226,60 @@ networkResponse = new Response('Missing page', {status:404});
 handlers.fetch({request:new Request('https://example.test/missing'),respondWith:promise=>{reply=promise;}});
 assert.equal((await reply).status,404);
 console.log('PASS service worker never replaces a network 404 with cached content');
+
+// ---------------------------------------------------------------------------
+// The day column of a COR must survive every way it is printed.
+// ---------------------------------------------------------------------------
+// Regression: the day letters used to be chunked two at a time after
+// upper-casing, so "MWF" imported as Friday alone, "MW" and "TTh" imported
+// nothing, "Th" became Tuesday and "SAT" became Tuesday. A schedule that does
+// not match the COR is worse than no schedule at all.
+for (const [printed, expected] of [
+  ['M', ['MONDAY']],
+  ['MW', ['MONDAY', 'WEDNESDAY']],
+  ['MWF', ['MONDAY', 'WEDNESDAY', 'FRIDAY']],
+  ['M/W/F', ['MONDAY', 'WEDNESDAY', 'FRIDAY']],
+  ['M-W-F', ['MONDAY', 'WEDNESDAY', 'FRIDAY']],
+  ['TTh', ['TUESDAY', 'THURSDAY']],
+  ['TThS', ['TUESDAY', 'THURSDAY', 'SATURDAY']],
+  ['MTWThF', ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']],
+  ['M-T-W-TH-F', ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']],
+  ['MON WED FRI', ['MONDAY', 'WEDNESDAY', 'FRIDAY']],
+  ['Mon/Wed', ['MONDAY', 'WEDNESDAY']],
+  ['TH', ['THURSDAY']],
+  ['Th', ['THURSDAY']],
+  ['T', ['TUESDAY']],
+  ['SAT', ['SATURDAY']],
+  ['Sun', ['SUNDAY']],
+  ['S', ['SATURDAY']],
+  ['2:30 PM', []],
+]) {
+  assert.deepEqual(parseDays(printed), expected, `day column "${printed}"`);
+}
+assert.deepEqual(parseDays('MWF'), parseDays('M/W/F'), 'separators do not change the meaning');
+assert.deepEqual(parseDays(''), [], 'empty stays empty');
+
+// And the draft that the review step displays must carry one meeting per day.
+const multiDay = geminiResultToDraft({
+  studentNumber: '2021-0001',
+  subjects: [{ code: 'CS101', name: 'Computing', units: 3, days: 'MWF', startTime: '8:00AM', endTime: '9:30AM' }],
+});
+assert.equal(multiDay.subjects[0].schedule.length, 3, 'three meetings for MWF');
+assert.deepEqual(multiDay.subjects[0].schedule.map(m => m.day.value), ['MONDAY', 'WEDNESDAY', 'FRIDAY']);
+assert.ok(multiDay.subjects[0].schedule.every(m => m.time.start === '08:00' && m.time.end === '09:30'), 'times normalise to 24h on every meeting');
+assert.equal(multiDay.validationIssues.filter(i => /no valid day/.test(i.message)).length, 0, 'a readable day column raises no day warning');
+const unreadableDay = geminiResultToDraft({ subjects: [{ code: 'CS102', name: 'Data', units: 3, days: 'TBA', startTime: '8:00AM', endTime: '9:00AM' }] });
+assert.equal(unreadableDay.validationIssues.filter(i => /no valid day/.test(i.message)).length, 1, 'an unreadable day column is still reported');
+console.log('PASS COR day columns import every printed day (MW, MWF, M/W/F, TTh, TThS, Th, SAT)');
+// Both extraction paths (the Gemini draft and the OCR text fallback) must read
+// the same day column the same way, so neither can drift from the other again.
+for (const printed of ['M', 'MW', 'MWF', 'M/W/F', 'TTh', 'TThS', 'MTWThF', 'MON WED FRI', 'Th', 'SAT', 'TBA', 'MW 8:00 AM']) {
+  assert.deepEqual(parseDays(printed), parseDayTokens(printed), `shared parser agrees for "${printed}"`);
+}
+assert.deepEqual(parseDayIndexes('MWF'), [1, 3, 5], 'OCR path gets Monday/Wednesday/Friday');
+assert.deepEqual(parseDayIndexes('TTh'), [2, 4], 'OCR path gets Tuesday/Thursday');
+assert.deepEqual(parseDayIndexes('MW'), [1, 3], 'OCR path keeps a compact MW');
+assert.deepEqual(parseDayIndexes('2:30 PM'), [], 'OCR path does not read a time as a day');
+assert.deepEqual(parseDayIndexes('TBA'), [], 'OCR path does not read TBA as Tuesday');
+console.log('PASS both extraction paths share one day parser (names and 1-7 indexes)');
+

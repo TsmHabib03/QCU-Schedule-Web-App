@@ -120,3 +120,68 @@ export function minutesOfDay(value) {
 function pad(n) {
   return String(n).padStart(2, "0");
 }
+
+// The day column of a COR is a compressed run of day initials — "M", "MW",
+// "M/W/F", "TTh", "TThS", "MWF", "MON WED FRI" — and every reader of it must
+// agree, because a schedule built from misread days is worse than no schedule.
+// Two private parsers used to disagree here: one chunked the letters two at a
+// time after upper-casing (so "MWF" became Friday alone, "MW"/"TTh" became
+// nothing, "Th" became Tuesday), the other only understood separated tokens
+// (so "MW"/"TTh" became nothing). Both now call this.
+//
+// Longest token wins at each position, compared case-insensitively so "Th"
+// stays Thursday while a lone "T" stays Tuesday.
+const DAY_TOKENS = [
+  ["SUNDAY", "SUNDAY"], ["SUN", "SUNDAY"], ["SU", "SUNDAY"],
+  ["MONDAY", "MONDAY"], ["MON", "MONDAY"], ["MO", "MONDAY"],
+  ["TUESDAY", "TUESDAY"], ["TUES", "TUESDAY"], ["TUE", "TUESDAY"], ["TU", "TUESDAY"],
+  ["WEDNESDAY", "WEDNESDAY"], ["WEDS", "WEDNESDAY"], ["WED", "WEDNESDAY"], ["WE", "WEDNESDAY"],
+  ["THURSDAY", "THURSDAY"], ["THURS", "THURSDAY"], ["THUR", "THURSDAY"], ["THU", "THURSDAY"], ["TH", "THURSDAY"],
+  ["FRIDAY", "FRIDAY"], ["FRI", "FRIDAY"], ["FR", "FRIDAY"],
+  ["SATURDAY", "SATURDAY"], ["SAT", "SATURDAY"], ["SA", "SATURDAY"],
+  ["M", "MONDAY"], ["T", "TUESDAY"], ["W", "WEDNESDAY"], ["F", "FRIDAY"], ["S", "SATURDAY"],
+];
+
+/**
+ * Read a COR day column into canonical day names, deduplicated in week order.
+ *
+ * Returns [] when nothing recognisable is present, so callers can report the
+ * subject instead of inventing a day for it.
+ */
+export function parseDayTokens(input) {
+  const raw = String(input || "")
+    // "TBA"/"TBD" are not days, and the "T" would otherwise import as Tuesday.
+    .replace(/\b(tba|tbd|tbc|to\s+be\s+(?:announced|determined|confirmed))\b/gi, " ")
+    // Clock times and AM/PM are not days either ("MW 8:00 AM" must not gain a
+    // Monday from the "M" in AM, or another from the "M" in PM).
+    .replace(/\d{1,2}[:.]\d{2}\s*(am|pm)?/gi, " ")
+    .replace(/\b\d{1,2}\s*(am|pm)\b/gi, " ");
+  const found = new Set();
+  let i = 0;
+  while (i < raw.length) {
+    if (!/[A-Za-z]/.test(raw[i])) { i++; continue; }
+    let matched = null;
+    for (const [token, dayName] of DAY_TOKENS) {
+      const slice = raw.slice(i, i + token.length);
+      if (slice.length === token.length && slice.toUpperCase() === token) {
+        matched = { token, dayName };
+        break;
+      }
+    }
+    if (matched) {
+      found.add(matched.dayName);
+      i += matched.token.length;
+    } else {
+      i++;
+    }
+  }
+  return DAY_ORDER.filter((day) => found.has(day));
+}
+
+/**
+ * Same input, Monday-first 1-7 indexes (the form the legacy OCR path and older
+ * sheet rows use).
+ */
+export function parseDayIndexes(input) {
+  return parseDayTokens(input).map((day) => DAY_ORDER.indexOf(day) + 1);
+}

@@ -11,39 +11,13 @@ import {
 } from "../../auth/_lib.js";
 import { CorRecords, CorDrafts, CorFiles } from "../../repo/index.js";
 import { extractWithGemini, geminiResultToDraft, GEMINI_MODELS } from "./_gemini.js";
+import { parseDayIndexes } from "../../_lib/day-time.js";
 import { isConfigured, jobCall, jobError } from './_jobs.js';
 
 
 // ---------------------------------------------------------------------------
 // Day/time parsing helpers
 // ---------------------------------------------------------------------------
-const DAY_MAP = {
-  mon: 1, monday: 1, m: 1,
-  tue: 2, tues: 2, tuesday: 2,
-  wed: 3, wednesday: 3, w: 3,
-  thu: 4, thur: 4, thursday: 4, thurs: 4, r: 4,
-  fri: 5, friday: 5, f: 5,
-  sat: 6, saturday: 6, s: 6,
-  sun: 7, sunday: 7,
-};
-
-function parseDays(text) {
-  if (!text) return [];
-  const t = text.toLowerCase().replace(/[^a-z/\s]/g, "").trim();
-  const days = [];
-  // Try full words first
-  for (const [key, val] of Object.entries(DAY_MAP)) {
-    if (key.length > 2 && t.includes(key) && !days.includes(val)) days.push(val);
-  }
-  if (days.length > 0) return days.sort();
-  // Try single letters: M W F or T Th
-  const parts = t.split(/[\s/,]+/).filter(Boolean);
-  for (const p of parts) {
-    if (DAY_MAP[p] && !days.includes(DAY_MAP[p])) days.push(DAY_MAP[p]);
-  }
-  return days.sort();
-}
-
 function parseTime12h(text) {
   if (!text) return null;
   const m = text.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
@@ -206,7 +180,7 @@ function parseCorText(text, googleName) {
     if (dayMatches.length > 0 && timeMatches.length >= 2) {
       const days = [];
       for (const dm of dayMatches) {
-        const parsed = parseDays(dm[0]);
+        const parsed = parseDayIndexes(dm[0]);
         days.push(...parsed);
       }
       const uniqueDays = [...new Set(days)].sort();

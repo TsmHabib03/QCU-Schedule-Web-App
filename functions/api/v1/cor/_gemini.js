@@ -135,8 +135,10 @@ Rules:
   throw new Error(`All Gemini models failed. Last error: ${lastError}`);
 }
 
+import { parseDayTokens } from "../../_lib/day-time.js";
+export { parseDayTokens as parseDays };
+
 export function geminiResultToDraft(result) {
-  const dayNameMap = { M: "Monday", T: "Tuesday", W: "Wednesday", TH: "Thursday", F: "Friday", S: "Saturday", SU: "Sunday" };
 
   // OCR of a COR prints times in many shapes ("8:00AM", "8.00 AM", "0730").
   // Anything unreadable must not silently disappear: it is reported as a
@@ -166,20 +168,16 @@ export function geminiResultToDraft(result) {
     const start24 = to24h(s.startTime);
     const end24 = to24h(s.endTime);
     if (s.days && start24 && end24) {
-      const dayChars = String(s.days).replace(/[^A-Za-z]/g, "").match(/[A-Z]{1,2}/g) || [];
-      for (const dc of dayChars) {
-        const dayName = dayNameMap[dc.toUpperCase()];
-        if (dayName) {
-          schedule.push({
-            day: { value: dayName, sourceText: s.days, confidence: 0.90 },
-            time: {
-              start: start24,
-              end: end24,
-              sourceText: s.startTime + " - " + s.endTime,
-              confidence: 0.85,
-            },
-          });
-        }
+      for (const dayName of parseDayTokens(s.days)) {
+        schedule.push({
+          day: { value: dayName, sourceText: s.days, confidence: 0.90 },
+          time: {
+            start: start24,
+            end: end24,
+            sourceText: s.startTime + " - " + s.endTime,
+            confidence: 0.85,
+          },
+        });
       }
     }
 
