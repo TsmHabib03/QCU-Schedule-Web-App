@@ -25,7 +25,8 @@
     "test:auth": "node scripts/test-auth-recovery.mjs",
     "build:css": "tailwindcss -i ./assets/css/entry.tailwind.css -o ./assets/css/entry.css --minify",
     "watch:css": "tailwindcss -i ./assets/css/entry.tailwind.css -o ./assets/css/entry.css --watch",
-    "test:schedule": "node scripts/test-day-time.mjs && node scripts/test-schedule-crud.mjs"
+    "test:schedule": "node scripts/test-day-time.mjs && node scripts/test-schedule-crud.mjs",
+    "test:accounts": "node scripts/test-account-gates.mjs"
   },
   "devDependencies": {
     "@fontsource-variable/public-sans": "^5.3.0",

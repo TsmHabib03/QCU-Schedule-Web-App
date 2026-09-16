@@ -339,6 +339,48 @@
 
   const FILE_TYPES = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png' };
   const MAX_SIZE = 10 * 1024 * 1024;
+  // The photograph travels as base64 inside the signed request envelope, and the
+  // database rejects any request body above 2,000,000 characters. Base64 inflates
+  // by about 33%, so the real ceiling is roughly 1.4 MB — phone photos (2-4 MB)
+  // were passing this page's 10 MB check and then dying inside the database with
+  // an error the interface could only report as "try again". Images are shrunk
+  // here instead, which keeps extraction quality (2000px, JPEG) and a few
+  // hundred KB per upload.
+  const TRANSPORT_SAFE_BYTES = 1_200_000;
+  const MAX_IMAGE_EDGE = 2000;
+
+  async function optimizeImage(file) {
+    if (!file.type.startsWith('image/')) return { file, optimized: false };
+    if (file.size <= TRANSPORT_SAFE_BYTES) return { file, optimized: false };
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(bitmap.width, bitmap.height));
+      const width = Math.max(1, Math.round(bitmap.width * scale));
+      const height = Math.max(1, Math.round(bitmap.height * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      // White base: JPEG has no alpha, and a transparent PNG would otherwise
+      // composite to black and obscure the print on the COR.
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, width, height);
+      context.drawImage(bitmap, 0, 0, width, height);
+      if (bitmap.close) bitmap.close();
+      let quality = 0.85;
+      let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+      while (blob && blob.size > TRANSPORT_SAFE_BYTES && quality > 0.45) {
+        quality -= 0.1;
+        blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+      }
+      if (!blob || blob.size >= file.size) return { file, optimized: false };
+      const name = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+      return { file: new File([blob], name, { type: 'image/jpeg', lastModified: file.lastModified }), optimized: true };
+    } catch (error) {
+      console.warn('COR image optimization skipped:', error);
+      return { file, optimized: false };
+    }
+  }
 
   if (fileInput) {
     fileInput.addEventListener("change", () => {
@@ -360,7 +402,7 @@
     });
   }
 
-  function handleFileSelect(file) {
+  async function handleFileSelect(file) {
     if (uploadInFlight) return;
     removeFile();
     hideError();
@@ -377,11 +419,27 @@
       showError("File too large. Maximum size is 10 MB.");
       return;
     }
+    // Shrink large photos before they reach the upload channel, and be explicit
+    // when a document cannot be shrunk and is past what the channel accepts.
+    let optimized = false;
+    if (expectedType !== 'application/pdf') {
+      const result = await optimizeImage(file);
+      file = result.file;
+      optimized = result.optimized;
+    }
+    if (expectedType === 'application/pdf' && file.size > TRANSPORT_SAFE_BYTES) {
+      showError(`This PDF is ${(file.size / (1024 * 1024)).toFixed(1)} MB, and the upload channel accepts about 1.2 MB. Export a smaller copy (or split it) and try again.`);
+      return;
+    }
+    if (file.size > TRANSPORT_SAFE_BYTES) {
+      showError("This photo could not be shrunk enough to upload. Retake it at a lower resolution and try again.");
+      return;
+    }
     selectedFile = file;
     fileNameEl.textContent = file.name;
     const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
     const typeLabel = expectedType === "application/pdf" ? "PDF" : expectedType === "image/png" ? "PNG" : "JPG";
-    fileMetaEl.textContent = `${sizeMB} MB  \u00B7  ${typeLabel}`;
+    fileMetaEl.textContent = `${sizeMB} MB  \u00B7  ${typeLabel}${optimized ? "  \u00B7  optimized" : ""}`;
     fileSummary.classList.add("visible");
     uploadBtn.disabled = Date.now() < retryAt;
     document.getElementById("upload-zone-text").textContent = "Choose a different file";
@@ -428,6 +486,14 @@
       const resp = await sendUpload(formData, requestIdFor(selectedFile), progressFill, progressText);
       const data = await resp.json();
       if (data.status === 'RATE_LIMITED') { cooldown(data.retryAfter); return; }
+      // The server explains rejected uploads (size, type, unreadable page) in
+      // data.error. Show that instead of a blanket "try again" — the size limit
+      // is the one students actually hit.
+      if (resp.status >= 400 && resp.status < 500 && ['PAYLOAD_TOO_LARGE', 'VALIDATION_FAILED'].includes(data.status)) {
+        showError(data.error || 'This file could not be accepted. Choose a different copy and try again.');
+        pauseRecovery('The file was rejected before it was saved. Adjust the file and upload again.');
+        return;
+      }
       if (resp.status >= 500 || !data.status || ['SERVICE_UNAVAILABLE','OFFLINE','ERROR'].includes(data.status)) {
         await recoverUpload();
         return;

@@ -556,6 +556,16 @@ export async function resolveUser(context) {
     updatedAt: ts,
   };
 
+  // Defence in depth: the database already refuses CLOSED/SUSPENDED identities,
+  // but the Worker must not hand out a session on the strength of a stale
+  // in-memory row if that gate is ever bypassed (a transient failure, an older
+  // script version, or a future refactor). A deleted account has no session.
+  const accountStatus = String(user.accountStatus || "ACTIVE").toUpperCase();
+  if (["CLOSED", "DELETED", "SUSPENDED"].includes(accountStatus)) {
+    console.warn("resolveUser: refusing session for", accountStatus, "account", user.userId);
+    return null;
+  }
+
   // Make the map hold this exact object, so a later Users.update() marks the
   // right row dirty instead of mutating a copy no flush can find.
   return { user: Users.adopt(user), session };

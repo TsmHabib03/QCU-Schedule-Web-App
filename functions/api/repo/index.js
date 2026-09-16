@@ -688,12 +688,29 @@ export const Schedules = {
     return _schedules.get(scheduleId) || null;
   },
 
-  /** Get active schedule for a user. Returns null if none. */
+  /**
+   * Every active schedule for a user, newest revision first.
+   *
+   * A sheet can legitimately hold more than one active row: every COR confirm
+   * before the archiving rule existed left its predecessor active, and the
+   * confirm path only ever archived the single row it happened to fetch. Picking
+   * the first match (sheet row order = oldest first) meant the app kept
+   * resolving to a stale schedule and showed the student their old timetable
+   * instead of the COR they had just imported.
+   */
+  getActiveAllByUserId(userId) {
+    return Array.from(_schedules.values())
+      .filter((s) => s.userId === userId && s.isActive && s.status === "ACTIVE")
+      .sort((a, b) => {
+        const revision = (Number(b.revisionNumber) || 0) - (Number(a.revisionNumber) || 0);
+        if (revision !== 0) return revision;
+        return String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+      });
+  },
+
+  /** Get the current schedule for a user (newest active), or null. */
   getActiveByUserId(userId) {
-    for (const s of _schedules.values()) {
-      if (s.userId === userId && s.isActive && s.status === "ACTIVE") return s;
-    }
-    return null;
+    return this.getActiveAllByUserId(userId)[0] || null;
   },
 
   /** Update schedule fields. */

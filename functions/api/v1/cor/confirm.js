@@ -144,8 +144,11 @@ function validateDraft(draft, catalog) {
 // Commit logic — create all records in one operation (via repository)
 // ---------------------------------------------------------------------------
 function commitRecords(user, draft, _catalog) {
-  const previousSchedule = Schedules.getActiveByUserId(user.userId);
-  const previousEnrollment = Enrollments.getByUserId(user.userId).find((e) => e.status === "ACTIVE") || null;
+  // Every previously active schedule/enrollment, not just one: a sheet can hold
+  // several active rows from earlier confirms, and archiving only the first left
+  // the rest competing for "the current schedule".
+  const previousSchedules = Schedules.getActiveAllByUserId(user.userId);
+  const previousEnrollments = Enrollments.getByUserId(user.userId).filter((e) => e.status === "ACTIVE");
   // 1. Create Student Profile
   const profile = Profiles.create({
     profileId: `prf_${user.corRecordId}`,
@@ -247,8 +250,18 @@ function commitRecords(user, draft, _catalog) {
   }
 
   // 5. Update COR record to COMPLETE
-  if (previousSchedule && previousSchedule.scheduleId !== schedule.scheduleId) Schedules.update(previousSchedule,{isActive:false,status:'ARCHIVED'});
-  if (previousEnrollment && previousEnrollment.enrollmentId !== enrollment.enrollmentId) Enrollments.update(previousEnrollment,{status:'ARCHIVED'});
+  // Archive every other active schedule and enrollment, so exactly one remains
+  // and it is the one this COR just created.
+  for (const stale of previousSchedules) {
+    if (stale.scheduleId !== schedule.scheduleId) {
+      Schedules.update(stale, { isActive: false, status: "ARCHIVED", archivedAt: new Date().toISOString(), revisionReason: "Replaced by COR re-import" });
+    }
+  }
+  for (const stale of previousEnrollments) {
+    if (stale.enrollmentId !== enrollment.enrollmentId) {
+      Enrollments.update(stale, { status: "ARCHIVED" });
+    }
+  }
   const corRecord = CorRecords.getById(user.corRecordId);
   if (corRecord) {
     CorRecords.update(corRecord, { status: "COMPLETE" });

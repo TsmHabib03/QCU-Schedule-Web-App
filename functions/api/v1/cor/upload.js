@@ -11,7 +11,16 @@ import { CorRecords, CorFiles, CorDrafts, Concurrency, Users } from "../../repo/
 import { extractWithGemini, geminiResultToDraft } from "./_gemini.js";
 import { isConfigured, jobCall, jobError, encodeBytes } from './_jobs.js';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MiB
+// The file travels as base64 inside the signed request envelope, and the Apps
+// Script side rejects any body above 2,000,000 characters. Base64 inflates by
+// ~33%, so the true ceiling is about 1.4 MB. This used to advertise 10 MiB: a
+// 2-4 MB phone photo passed here and then failed inside the database, surfacing
+// as an unexplained "try again". The limit now matches the channel, and the
+// onboarding page shrinks photos to fit it.
+const MAX_ENVELOPE_CHARS = 2_000_000;
+const BASE64_OVERHEAD = 1.37;                       // 4 base64 chars per 3 bytes
+const MAX_FILE_SIZE = Math.floor(MAX_ENVELOPE_CHARS / BASE64_OVERHEAD) - 60_000; // ~1.4 MB with JSON headroom
+const SIZE_MESSAGE = `This file is larger than the ${Math.round(MAX_FILE_SIZE / 1024)} KB upload limit. Photos are shrunk automatically - for a PDF, export a smaller copy or split it.`;
 const MIME_BY_EXTENSION = { '.pdf': 'application/pdf', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' };
 const ALLOWED_EXTENSIONS = new Set([".pdf", ".jpg", ".jpeg", ".png"]);
 
@@ -46,7 +55,7 @@ function validateFile(extension, mimeType, fileSize) {
     return { valid: false, error: "UNSUPPORTED_FILE_TYPE", message: "Choose a PDF, JPG, or PNG file." };
   }
   if (fileSize > MAX_FILE_SIZE) {
-    return { valid: false, error: "PAYLOAD_TOO_LARGE", message: "This file is larger than the allowed limit (10 MB)." };
+    return { valid: false, error: "PAYLOAD_TOO_LARGE", message: SIZE_MESSAGE };
   }
   if (fileSize === 0) {
     return { valid: false, error: "FILE_CORRUPT", message: "We could not read this file. Try exporting or photographing it again." };
@@ -108,7 +117,7 @@ export async function onRequestPost(context) {
 
     // Parse multipart form data
     if (Number(context.request.headers.get('Content-Length')) > MAX_FILE_SIZE + 65536) {
-      return json({ status: 'PAYLOAD_TOO_LARGE', error: 'Choose a file smaller than 10 MB.' }, 413);
+      return json({ status: 'PAYLOAD_TOO_LARGE', error: SIZE_MESSAGE }, 413);
     }
     let form;
     try { form = await context.request.formData(); }

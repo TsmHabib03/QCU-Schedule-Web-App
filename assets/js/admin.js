@@ -100,18 +100,24 @@ async function openUser(id, button) {
   busy = true; $('message').textContent = 'Loading account details…';
   window.QCULoading.button(button, true);
   try {
-    const data = await api('?userId=' + encodeURIComponent(id)); selected = data.user;
-    $('detail-title').textContent = selected.displayName || (selected.accountStatus === 'DELETED' ? 'Deleted account' : 'Closed account');
-    $('detail-content').replaceChildren(record('Account',[selected]),record('Profile',data.profiles),record('Enrollment',data.enrollments),record('Schedule',data.schedule),record('COR processing',data.cor),record('Records affected by deletion',[data.dependencies]));
-    $('action-form').reset(); $('action-form').hidden = data.protected; $('action-message').textContent = '';
-    for (const option of $('operation').options) {
-      option.disabled = option.value === 'reactivate' ? selected.accountStatus !== 'SUSPENDED' : option.value === 'suspend' ? selected.accountStatus !== 'ACTIVE' : option.value === 'close' ? selected.accountStatus === 'CLOSED' || selected.accountStatus === 'DELETED' : option.value === 'purge' ? selected.accountStatus === 'DELETED' : false;
-    }
-    $('operation').value = selected.accountStatus === 'SUSPENDED' ? 'reactivate' : selected.accountStatus === 'CLOSED' ? 'purge' : selected.accountStatus === 'DELETED' ? 'purge_full' : 'suspend';
-    updateOperation();
+    const data = await api('?userId=' + encodeURIComponent(id));
+    renderDetail(data);
     if (!$('details').open) $('details').showModal(); $('message').textContent = '';
   } catch (error) { $('message').textContent = error.message; }
   finally { window.QCULoading.button(button, false); releaseBusy(); }
+}
+// Draw the account panel from a GET response. Reused after a mutation so the
+// panel shows the status the database actually stored, not the one we asked for.
+function renderDetail(data) {
+  selected = data.user;
+  $('detail-title').textContent = selected.displayName || (selected.accountStatus === 'DELETED' ? 'Deleted account' : 'Closed account');
+  $('detail-content').replaceChildren(record('Account',[selected]),record('Profile',data.profiles),record('Enrollment',data.enrollments),record('Schedule',data.schedule),record('COR processing',data.cor),record('Records affected by deletion',[data.dependencies]));
+  $('action-form').reset(); $('action-form').hidden = data.protected; $('action-message').textContent = '';
+  for (const option of $('operation').options) {
+    option.disabled = option.value === 'reactivate' ? selected.accountStatus !== 'SUSPENDED' : option.value === 'suspend' ? selected.accountStatus !== 'ACTIVE' : option.value === 'close' ? selected.accountStatus === 'CLOSED' || selected.accountStatus === 'DELETED' : option.value === 'purge' ? selected.accountStatus === 'DELETED' : false;
+  }
+  $('operation').value = selected.accountStatus === 'SUSPENDED' ? 'reactivate' : selected.accountStatus === 'CLOSED' ? 'purge' : selected.accountStatus === 'DELETED' ? 'purge_full' : 'suspend';
+  updateOperation();
 }
 function updateOperation() {
   const deleting = $('operation').value === 'purge' || $('operation').value === 'purge_full';
@@ -162,8 +168,27 @@ $('action-form').onsubmit = async event => {
   try {
     await api('', body);
     saved = true;
+    // Prove the change landed instead of trusting the request: re-read the
+    // account and report the status the database actually stores. A purge_full
+    // removes the Users row, so a NOT_FOUND on the re-read is the confirmation.
+    const expected = { suspend: 'SUSPENDED', reactivate: 'ACTIVE', close: 'CLOSED', purge: 'DELETED', purge_full: 'DELETED' }[body.operation];
+    const summary = { suspend: 'Account suspended.', reactivate: 'Account reactivated. The student can sign in again.', close: 'Account closed.', purge: 'Account deleted. Its blocked identity and audit history were retained.', purge_full: 'Account fully deleted. All its records were removed and the student can register a fresh account.' }[body.operation];
     $('account-result').hidden = false;
-    $('account-result').textContent = ({ suspend: 'Account suspended.', reactivate: 'Account reactivated. The student can sign in again.', close: 'Account closed.', purge: 'Account deleted. Its blocked identity and audit history were retained.', purge_full: 'Account fully deleted. All its records were removed and the student can register a fresh account.' })[body.operation];
+    $('account-result').textContent = summary;
+    let verifiedStatus = null;
+    try {
+      const fresh = await api('?userId=' + encodeURIComponent(body.userId));
+      verifiedStatus = fresh.user?.accountStatus || null;
+      renderDetail(fresh);
+    } catch (error) {
+      if (error.status === 404) verifiedStatus = 'DELETED';
+      else $('account-result').textContent = summary + ' The account could not be re-checked: ' + error.message;
+    }
+    if (verifiedStatus && verifiedStatus !== expected) {
+      $('account-result').textContent = summary + ' Warning: the account still reports ' + verifiedStatus + ' — reopen these details or retry the deletion.';
+    } else if (verifiedStatus) {
+      $('account-result').textContent = summary + ' Verified: status is now ' + verifiedStatus + '.';
+    }
     $('details').close();
   } catch (error) {
     $('action-message').textContent = error.message + (error.code === 'CONFLICT' ? ' Close and reopen these details to get the current account version.' : '');
