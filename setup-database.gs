@@ -135,7 +135,17 @@ function setupDatabase() {
   recordMigration(ss, 'setupDatabase', 'Sheets created/migrated to schema v' + SCHEMA_VERSION);
   _sheetCache = {};
 
-  var summary = 'Created: ' + created + '\nMigrated: ' + migrated + '\nUnchanged: ' + unchanged;
+  // Existing rows written before the time columns were text hold real time
+  // values; repair them and lock the columns to plain text.
+  var repaired = 0;
+  try {
+    repaired = ensureTimeCellsAreText(ss);
+  } catch (e) {
+    Logger.log('Could not normalise time columns: ' + e);
+  }
+
+  var summary = 'Created: ' + created + '\nMigrated: ' + migrated + '\nUnchanged: ' + unchanged +
+    (repaired ? '\nTime cells repaired: ' + repaired : '');
   Logger.log('Done. ' + summary.replace(/\n/g, ', '));
   try {
     SpreadsheetApp.getUi().alert('Database setup complete!\n\n' + summary);
@@ -346,12 +356,78 @@ function rowToObject(header, row) {
     if (value === '' || value === null || value === undefined) {
       obj[key] = null;
     } else if (value instanceof Date) {
-      obj[key] = value.toISOString();
+      // Time-of-day columns hold "HH:mm" TEXT. When Sheets coerces "08:00" into a
+      // real time value, toISOString() hands the client "1899-12-30T00:00:00.000Z"
+      // (Manila is UTC+8) — nothing downstream could parse that back into 08:00,
+      // so classes rendered without a time and the weekly total showed 0 hours.
+      obj[key] = isTimeOfDayColumn(key) ? formatTimeCell(value) : value.toISOString();
     } else {
       obj[key] = value;
     }
   }
   return obj;
+}
+
+/** Columns that store a clock time of day rather than an instant. */
+var TIME_OF_DAY_COLUMNS = ['startTime', 'endTime', 'sourceStartTime', 'sourceEndTime'];
+
+function isTimeOfDayColumn(key) {
+  // Explicit list, not a *Time suffix: confidenceTime is a number, not a clock.
+  return TIME_OF_DAY_COLUMNS.indexOf(String(key)) >= 0;
+}
+
+/** "HH:mm" from a Sheets time value (a Date in the script's timezone). */
+function formatTimeCell(value) {
+  try {
+    var h = value.getHours();
+    var m = value.getMinutes();
+    if (typeof h !== 'number' || typeof m !== 'number') return '';
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
+  } catch (e) {
+    return '';
+  }
+}
+
+/**
+ * Keep time-of-day columns as TEXT so they are never coerced again, and repair
+ * any value already stored as a time. Runs on every setupDatabase().
+ */
+var TIME_TEXT_COLUMNS = {
+  Schedule_Entries: ['startTime', 'endTime'],
+  COR_Draft_Meetings: ['startTime', 'endTime', 'sourceStartTime', 'sourceEndTime'],
+};
+
+function ensureTimeCellsAreText(ss) {
+  var sheetNames = Object.keys(TIME_TEXT_COLUMNS);
+  var repaired = 0;
+  for (var s = 0; s < sheetNames.length; s++) {
+    var name = sheetNames[s];
+    var sheet = ss.getSheetByName(name);
+    if (!sheet) continue;
+    var lastCol = sheet.getLastColumn();
+    if (lastCol < 1) continue;
+    var header = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
+    var cols = TIME_TEXT_COLUMNS[name];
+    for (var c = 0; c < cols.length; c++) {
+      var idx = header.indexOf(cols[c]);
+      if (idx < 0) continue;
+      // Whole column, not just the filled rows: appended rows inherit the format.
+      var colRange = sheet.getRange(2, idx + 1, Math.max(sheet.getMaxRows() - 1, 1), 1);
+      if (typeof colRange.setNumberFormat === 'function') colRange.setNumberFormat('@');
+      var values = colRange.getValues();
+      var changed = false;
+      for (var r = 0; r < values.length; r++) {
+        if (values[r][0] instanceof Date) {
+          values[r][0] = formatTimeCell(values[r][0]);
+          changed = true;
+          repaired++;
+        }
+      }
+      if (changed) colRange.setValues(values);
+    }
+  }
+  if (repaired) Logger.log('Repaired ' + repaired + ' time cell(s) that Sheets had stored as dates');
+  return repaired;
 }
 
 /** Convert an object into a positional row array for the given header. */

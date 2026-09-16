@@ -138,30 +138,43 @@ Rules:
 export function geminiResultToDraft(result) {
   const dayNameMap = { M: "Monday", T: "Tuesday", W: "Wednesday", TH: "Thursday", F: "Friday", S: "Saturday", SU: "Sunday" };
 
+  // OCR of a COR prints times in many shapes ("8:00AM", "8.00 AM", "0730").
+  // Anything unreadable must not silently disappear: it is reported as a
+  // validation issue so the review step can ask for a fix instead of the app
+  // quietly creating classes with no time.
   function to24h(t) {
     if (!t) return null;
-    const m = t.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+    const s = String(t).trim().toUpperCase().replace(/\./g, ":");
+    let m = s.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/);
+    if (!m) m = s.match(/(\d{1,2})(\d{2})\s*(AM|PM)?/);   // "0730", "830"
+    if (!m) m = s.match(/(\d{1,2})\s*(AM|PM)/);           // "8 AM"
     if (!m) return null;
-    let h = parseInt(m[1]);
-    const min = m[2];
+    let h = parseInt(m[1], 10);
+    const min = m[2] ? m[2] : "00";
     const mer = (m[3] || "").toLowerCase();
+    if (parseInt(min, 10) > 59 || h > 23) return null;
     if (mer === "pm" && h < 12) h += 12;
     if (mer === "am" && h === 12) h = 0;
     return String(h).padStart(2, "0") + ":" + min;
   }
 
-  const subjects = (result.subjects || []).map(s => {
+  const issues = [];
+  const rawSubjects = Array.isArray(result.subjects) ? result.subjects : [];
+
+  const subjects = rawSubjects.map((s, index) => {
     const schedule = [];
-    if (s.days && s.startTime && s.endTime) {
-      const dayChars = s.days.replace(/[^A-Za-z]/g, "").match(/[A-Z]{1,2}/g) || [];
+    const start24 = to24h(s.startTime);
+    const end24 = to24h(s.endTime);
+    if (s.days && start24 && end24) {
+      const dayChars = String(s.days).replace(/[^A-Za-z]/g, "").match(/[A-Z]{1,2}/g) || [];
       for (const dc of dayChars) {
         const dayName = dayNameMap[dc.toUpperCase()];
         if (dayName) {
           schedule.push({
             day: { value: dayName, sourceText: s.days, confidence: 0.90 },
             time: {
-              start: to24h(s.startTime),
-              end: to24h(s.endTime),
+              start: start24,
+              end: end24,
               sourceText: s.startTime + " - " + s.endTime,
               confidence: 0.85,
             },
@@ -169,6 +182,20 @@ export function geminiResultToDraft(result) {
         }
       }
     }
+
+    if (!schedule.length) {
+      const label = s.code || s.name || `Subject ${index + 1}`;
+      const what = !s.days
+        ? "the day and the time could not be read"
+        : (!start24 || !end24)
+          ? `the time could not be read (saw "${[s.startTime, s.endTime].filter(Boolean).join(" - ") || "nothing"}")`
+          : "no valid day was found";
+      issues.push({
+        field: `subjects[${index}].schedule`,
+        message: `${label}: ${what}. Set it in Schedule after importing, or upload a clearer photo of the COR.`,
+      });
+    }
+
     const buildingCode = s.buildingCode || null;
     const buildingName = s.buildingName || null;
     const floor = s.floor || null;
@@ -211,7 +238,7 @@ export function geminiResultToDraft(result) {
     },
     subjects,
     totalUnits: result.totalUnits || subjects.reduce((sum, s) => sum + (s.units?.value || 0), 0),
-    validationIssues: [],
+    validationIssues: issues,
     pipelineVersion: "gemini-flash-1",
     extractionSchemaVersion: "1",
   };

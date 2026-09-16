@@ -379,11 +379,39 @@ function formatBuilding(building) {
   };
 }
 
+// Times can arrive as "08:00", "8:00 AM" or a Google-Sheets time cell that the
+// Apps Script serialised as an ISO datetime on the 1899 epoch (UTC). Anything
+// unrecognised returns 0 so sorting never sees NaN.
 function timeToMinutes(timeStr) {
   if (!timeStr) return 0;
-  const parts = String(timeStr).split(":");
-  if (parts.length < 2) return 0;
-  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  const s = String(timeStr).trim();
+  let m = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)\b/i.exec(s);
+  if (m) {
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    if (h > 12 || min > 59) return 0;
+    const mer = m[3].toLowerCase();
+    if (mer === "pm" && h < 12) h += 12;
+    if (mer === "am" && h === 12) h = 0;
+    return h * 60 + min;
+  }
+  m = /^(\d{1,2}):(\d{2})(?::\d{2})?(?!\d)/.exec(s);
+  if (m) {
+    const h = parseInt(m[1], 10), min = parseInt(m[2], 10);
+    return (h > 23 || min > 59) ? 0 : h * 60 + min;
+  }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) {
+    const date = new Date(s);
+    if (Number.isNaN(date.getTime())) return 0;
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).formatToParts(date);
+    const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
+    const h = Number(p.hour), min = Number(p.minute);
+    if (!Number.isFinite(h) || !Number.isFinite(min) || h > 23 || min > 59) return 0;
+    return h * 60 + min;
+  }
+  return 0;
 }
 
 // ── Dashboard productivity helpers ────────────────────────────────────

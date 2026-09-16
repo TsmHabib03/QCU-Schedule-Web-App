@@ -12,7 +12,7 @@
     "dev": "node scripts/dev-server.mjs",
     "dev:wrangler": "wrangler pages dev . --port 8790",
     "google:configure": "node scripts/configure-google-oauth.mjs",
-    "sheets:test-mapping": "node scripts/test-sheets-mapping.mjs",
+    "sheets:test-mapping": "node scripts/test-sheets-mapping.mjs && node scripts/test-time-cells.mjs",
     "sheets:e2e": "node scripts/test-sheets-e2e.mjs",
     "sheets:emulator": "node scripts/sheets-emulator.mjs",
     "sheets:test": "node scripts/test-sheets-live.mjs",

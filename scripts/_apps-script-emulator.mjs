@@ -60,7 +60,7 @@ class FakeRange {
         if (typeof value === "string" && value.length > 50000) {
           throw new Error("Cell value exceeds 50000 characters");
         }
-        line[this.col - 1 + c] = value;
+        line[this.col - 1 + c] = this.sheet.coerceCell(this.col - 1 + c, value);
       }
     }
     return this;
@@ -68,6 +68,14 @@ class FakeRange {
 
   setValue(value) {
     return this.setValues([[value]]);
+  }
+
+  /** Sheets applies a number format per column; '@' means text. */
+  setNumberFormat(format) {
+    for (let c = 0; c < this.numCols; c++) {
+      this.sheet._colFormats[this.col - 1 + c] = format;
+    }
+    return this;
   }
 
   // Formatting is irrelevant to behaviour; accept and ignore.
@@ -82,6 +90,29 @@ class FakeSheet {
     this._rows = [];
     this._maxColumns = 26;
     this._maxRows = 1000;
+    this._colFormats = {};
+  }
+
+  /**
+   * Sheets stores a typed value, not the string you hand it: "08:00" in a
+   * general-format column becomes a real time value on the 1899 epoch, and the
+   * Apps Script then serialises it with toISOString(). Reproduce that so the
+   * "times arrive as ISO datetimes" bug can never hide behind a fake sheet that
+   * keeps every string verbatim. A column formatted as text ('@') keeps strings.
+   */
+  coerceCell(colIndex, value) {
+    if (this._colFormats[colIndex] === "@") return value;
+    if (typeof value !== "string") return value;
+    const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i.exec(value.trim());
+    if (!m) return value;
+    let h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    const sec = m[3] ? parseInt(m[3], 10) : 0;
+    const mer = (m[4] || "").toUpperCase();
+    if (min > 59 || h > 23 || (mer && h > 12)) return value;
+    if (mer === "PM" && h < 12) h += 12;
+    if (mer === "AM" && h === 12) h = 0;
+    return new Date(1899, 11, 30, h, min, sec);
   }
 
   getName() { return this.name; }
@@ -119,7 +150,7 @@ class FakeSheet {
 
   appendRow(values) {
     this._maxRows = Math.max(this._maxRows, this.getLastRow() + 1);
-    this._rows[this.getLastRow()] = values.slice();
+    this._rows[this.getLastRow()] = values.map((v, i) => this.coerceCell(i, v));
     return this;
   }
 
@@ -248,7 +279,8 @@ export async function loadAppsScript({ repoRoot, secret, properties = {}, driveF
   const factory = new Function(
     ...names,
     `${source}
-    return { doPost, doGet, setupDatabase, seedCatalogData, getSheetDefinitions, getEntityRegistry };`
+    return { doPost, doGet, setupDatabase, seedCatalogData, getSheetDefinitions, getEntityRegistry,
+      rowToObject, formatTimeCell, ensureTimeCellsAreText, isTimeOfDayColumn };`
   );
 
   const api = factory(...names.map((n) => globals[n]));

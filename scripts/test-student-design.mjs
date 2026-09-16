@@ -115,6 +115,25 @@ try {
         assert.match(today.progress || '', /%$/, 'In-session box shows a progress bar');
         assert.match(text, /Free for 1h/, `Break row renders between classes: ${text}`);
         assert.match(text, /UP NEXT[\s\S]*Starts in 2h 30m · 2h long/, `Next class renders its countdown: ${text}`);
+
+        // Day modal (weekly table): hours must add up, and a day whose classes
+        // lost their time must explain the dash instead of showing "Hours 0".
+        await page.evaluate(() => openDayModal('Monday'));
+        const modal = await page.locator('#day-modal-content').innerText();
+        assert.match(modal, /Fundamentals of Programming/, `Modal lists the class: ${modal}`);
+        assert.match(modal, /HOURS[\s\S]*4\b/, `Hours add up to 4: ${modal}`);
+        await page.locator('#day-modal [data-close-modal]').click();
+        await page.evaluate(() => {
+          window.__savedSchedule = state.schedule;
+          state.schedule = [{ day: 'Monday', start: '', end: '', subject: 'NSTP 1', course: 'NSTP 1', room: 'SB OG', floor: '—', units: 3, entryId: 'no-time', originType: 'COR_IMPORT' }];
+          openDayModal('Monday');
+        });
+        const timelessModal = await page.locator('#day-modal-content').innerText();
+        assert.match(timelessModal, /HOURS[\s\S]*—/, `Hours shows a dash when no time is saved: ${timelessModal}`);
+        assert.match(timelessModal, /Time not set/, `Timeless class says so: ${timelessModal}`);
+        assert.match(timelessModal, /no time saved yet/, `Modal explains the missing time: ${timelessModal}`);
+        await page.locator('#day-modal [data-close-modal]').click();
+        await page.evaluate(() => { state.schedule = window.__savedSchedule; renderHome(); });
       }
       if (name === 'schedule') {
         assert.equal(await page.locator('#schedule-result').textContent(), '4 classes this week');

@@ -180,6 +180,31 @@ async function main() {
     check("active schedule found via isActive in extraJson", Boolean(activeSchedule), "getActiveByUserId returned null");
     check("schedule entry survived", entries.length === 1, String(entries.length));
     check("entry time survived", entries[0]?.startTime === "09:00", String(entries[0]?.startTime));
+
+    section("Time cells: stored as text, read back as HH:mm");
+    // Writing "09:00" into a general-format cell makes Sheets store a time
+    // value, which used to reach the client as "1899-12-30T01:00:00.000Z" and
+    // rendered as a class with no time. The column must stay text.
+    const entriesSheet = gs.spreadsheet.getSheetByName("Schedule_Entries");
+    const entryHeader = entriesSheet.getRange(1, 1, 1, entriesSheet.getLastColumn()).getValues()[0].map(String);
+    const startCol = entryHeader.indexOf("startTime") + 1;
+    check(
+      "startTime column is locked to plain text",
+      entriesSheet._colFormats[startCol - 1] === "@",
+      String(entriesSheet._colFormats[startCol - 1])
+    );
+    const storedTimes = entriesSheet.getRange(2, startCol, Math.max(entriesSheet.getLastRow() - 1, 1), 1).getValues()
+      .map((r) => r[0]).filter((v) => v !== "");
+    check(
+      "the stored value is a plain HH:mm string",
+      storedTimes.length > 0 && storedTimes.every((v) => typeof v === "string" && /^\d{2}:\d{2}$/.test(v)),
+      JSON.stringify(storedTimes)
+    );
+    check(
+      "the API never hands back an ISO datetime",
+      entries.every((e) => /^\d{2}:\d{2}$/.test(String(e.startTime))),
+      JSON.stringify(entries.map((e) => e.startTime))
+    );
     check("entry dayLabel survived via extraJson", entries[0]?.dayLabel === "Monday", String(entries[0]?.dayLabel));
     check("enrollment subject survived", subjects.length === 1, String(subjects.length));
     check("roomSnapshot survived via extraJson", subjects[0]?.roomSnapshot === "Room 301", String(subjects[0]?.roomSnapshot));

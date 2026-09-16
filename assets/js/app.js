@@ -64,13 +64,52 @@ async function loadJson(path, fallback) {
 }
 
 function parseMinutes(v) {
-  // Missing or malformed times must never poison math downstream: a NaN here
-  // made the day-modal show "NaN" hours and "12:00 AM" fallbacks everywhere.
-  const m = /^(\d{1,2}):(\d{2})/.exec(String(v ?? "").trim());
-  if (!m) return NaN;
-  const h = Number(m[1]), min = Number(m[2]);
-  if (h > 23 || min > 59) return NaN;
-  return h * 60 + min;
+  // Times reach the UI in several shapes and every one of them must work:
+  //   "08:00"                    canonical 24h written by the schedule CRUD
+  //   "8:00 AM"                  COR drafts / hand-edited rows
+  //   "1899-12-30T00:00:00.000Z" Google Sheets time cells, which the Apps Script
+  //                              serialises with Date.toISOString(). Sheets holds
+  //                              time-only values on the 1899 epoch, and the ISO
+  //                              is UTC — so the campus timezone is what turns
+  //                              it back into the 08:00 the student typed.
+  // Missing or malformed values must never poison math downstream, so anything
+  // unrecognised returns NaN (callers skip it instead of rendering garbage).
+  const s = String(v ?? "").trim();
+  if (!s) return NaN;
+
+  // "H:MM am/pm" — must be checked before the bare 24h form, or "7:30pm" would
+  // silently parse as 07:30.
+  let m = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)\b/i.exec(s);
+  if (m) {
+    let h = Number(m[1]);
+    const min = Number(m[2]);
+    if (h > 12 || min > 59) return NaN;
+    const mer = m[3].toLowerCase();
+    if (mer === "pm" && h < 12) h += 12;
+    if (mer === "am" && h === 12) h = 0;
+    return h * 60 + min;
+  }
+
+  // "HH:MM" (optionally seconds). Trailing text is tolerated ("07:30 - 09:30").
+  m = /^(\d{1,2}):(\d{2})(?::\d{2})?(?!\d)/.exec(s);
+  if (m) {
+    const h = Number(m[1]), min = Number(m[2]);
+    return (h > 23 || min > 59) ? NaN : h * 60 + min;
+  }
+
+  // ISO datetime (Sheets time cell) — read it in campus time.
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) {
+    const d = new Date(s);
+    if (d.getTime() !== d.getTime()) return NaN;
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+      timeZone: QCU_TIME.zone, hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).formatToParts(d).map(x => [x.type, x.value]));
+    const h = Number(p.hour), min = Number(p.minute);
+    if (h !== h || min !== min || h > 23 || min > 59) return NaN;
+    return h * 60 + min;
+  }
+
+  return NaN;
 }
 
 function minutesNow(date = new Date()) {
@@ -78,9 +117,12 @@ function minutesNow(date = new Date()) {
 }
 
 function formatTime(v) {
-  if (parseMinutes(v) !== parseMinutes(v)) return "—";  // NaN-safe: no valid time
-  if (!v) return "—";
-  const [h, m] = v.split(":").map(Number);
+  // Derive the clock from parseMinutes so every accepted input shape formats
+  // identically (splitting the raw string broke on ISO values).
+  const mins = parseMinutes(v);
+  if (mins !== mins) return "—";
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
   const suffix = h >= 12 ? "PM" : "AM";
   const hour = h % 12 || 12;
   return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
@@ -122,12 +164,12 @@ function getCurrentAndNext(now = new Date()) {
 
 function countdownFor(item, now = new Date()) {
   if (!item) return "No class scheduled";
+  const s = parseMinutes(item.start), e = parseMinutes(item.end);
+  if (s !== s || e !== e) return "Time not set";
   const startDate = new Date(now);
   const endDate   = new Date(now);
-  const [sh, sm] = item.start.split(":").map(Number);
-  const [eh, em] = item.end.split(":").map(Number);
-  startDate.setHours(sh, sm, 0, 0);
-  endDate.setHours(eh, em, 0, 0);
+  startDate.setHours(Math.floor(s / 60), s % 60, 0, 0);
+  endDate.setHours(Math.floor(e / 60), e % 60, 0, 0);
   const status = getStatus(item, now);
   if (status === "current")  return `Ends in ${formatDuration((endDate - now) / 1000)}`;
   if (status === "finished") return "Finished";
@@ -460,13 +502,20 @@ function todayDuration(item) {
 }
 
 function untilLabel(minutes) {
-  return minutes >= 60 ? formatGap(minutes) : `${minutes}m`;
+  // minutesNow() is fractional (seconds included) — round before formatting or
+  // a countdown renders as "4h 59.616666666666674m".
+  const whole = Math.max(0, Math.round(minutes));
+  return whole >= 60 ? formatGap(whole) : `${whole}m`;
 }
 
 // Live line for a class box: what is happening relative to the clock right now.
 function todayTiming(item, status, now) {
   const mins = todayDuration(item);
-  const dur = mins === null ? "" : formatGap(mins);
+  if (mins === null || parseMinutes(item.start) !== parseMinutes(item.start)) {
+    // Nothing to count down from. Say so instead of rendering "starts —".
+    return { live: "Time not set · add it in Schedule", pct: null };
+  }
+  const dur = formatGap(mins);
   const nowMin = minutesNow(now);
   const start = parseMinutes(item.start), end = parseMinutes(item.end);
 
@@ -481,9 +530,9 @@ function todayTiming(item, status, now) {
     };
   }
   if (status === "next") {
-    return { live: `Starts in ${untilLabel(Math.max(0, start - nowMin))}${dur ? ` · ${dur} long` : ""}`, pct: null };
+    return { live: `Starts in ${untilLabel(start - nowMin)} · ${dur} long`, pct: null };
   }
-  return { live: `${dur ? `${dur} long · ` : ""}starts ${formatTime(item.start)}`, pct: null };
+  return { live: `${dur} long · starts ${formatTime(item.start)}`, pct: null };
 }
 
 function nowMarkerTemplate(now) {
@@ -499,13 +548,14 @@ function nowMarkerTemplate(now) {
 // Classes whose time already passed collapse to one compact muted line.
 function todayDoneRowTemplate(item) {
   const mins = todayDuration(item);
+  const hasTime = parseMinutes(item.start) === parseMinutes(item.start) && parseMinutes(item.end) === parseMinutes(item.end);
   return `
     <article class="home-today-done-row ${todayTint(item)}">
       <span class="home-today-done-check"><i data-lucide="check-circle-2"></i></span>
       <span class="home-today-done-main">
         <span class="home-today-done-subject">${item.subject}</span>
         <span class="home-today-done-meta">
-          <span class="home-today-done-time">${formatTime(item.start)} – ${formatTime(item.end)}</span>
+          <span class="home-today-done-time">${hasTime ? `${formatTime(item.start)} – ${formatTime(item.end)}` : "Time not set"}</span>
           ${mins === null ? "" : `<span class="home-today-done-duration">${formatGap(mins)}</span>`}
         </span>
       </span>
@@ -538,14 +588,15 @@ function todayTileTemplate(item, opts) {
   const timing = todayTiming(item, status, now);
   const feature = opts.feature ? " home-today-card--feature" : "";
   const place = [bname, item.room, item.floor && item.floor !== "—" ? item.floor : ""].filter(Boolean).join(" · ");
+  const hasTime = parseMinutes(item.start) === parseMinutes(item.start) && parseMinutes(item.end) === parseMinutes(item.end);
   const stagger = opts.i !== undefined ? ` style="--i:${opts.i}"` : "";
 
   return `
     <article class="home-today-card ${status}-tile${feature} ${todayTint(item)}"${stagger}>
       <div class="home-today-rail">
-        <span class="home-today-rail-time">${formatTime(item.start)}</span>
+        <span class="home-today-rail-time">${hasTime ? formatTime(item.start) : "TBA"}</span>
         <span class="home-today-rail-rule"></span>
-        <span class="home-today-rail-end">${formatTime(item.end)}</span>
+        <span class="home-today-rail-end">${hasTime ? formatTime(item.end) : "no time yet"}</span>
       </div>
       <div class="home-today-body">
         <div class="home-today-head">
@@ -959,9 +1010,12 @@ function renderHome() {
       done.forEach(item => tiles.push(todayDoneRowTemplate(item)));
 
       if (ahead.length) {
-        tiles.push(nowMarkerTemplate(now));
+        // The Now marker only means something when at least one class left has a
+        // real clock time (entries whose COR row lost its time are all "upcoming").
+        const hasClock = x => parseMinutes(x.start) === parseMinutes(x.start) && parseMinutes(x.end) === parseMinutes(x.end);
+        if (ahead.some(hasClock)) tiles.push(nowMarkerTemplate(now));
         const lastDone = done[done.length - 1];
-        if (lastDone) {
+        if (lastDone && hasClock(lastDone) && hasClock(ahead[0])) {
           const gap = parseMinutes(ahead[0].start) - parseMinutes(lastDone.end);
           if (gap >= BREAK_MIN) tiles.push(breakTileTemplate(lastDone.end, ahead[0].start, gap, 0));
         }
@@ -1005,22 +1059,29 @@ function openDayModal(day) {
   const classes = classesForDay(day);
   const isToday = day === QCU_TIME.weekday();
   // NaN-safe hours: entries with missing/malformed times are skipped, and the
-  // sum falls back to 0 so "NaN" can never render.
+  // stat shows "—" (never 0) when no class on the day carries a usable time.
   const hours = classes.reduce((sum, x) => {
     const s = parseMinutes(x.start), e = parseMinutes(x.end);
     if (s !== s || e !== e || e <= s) return sum;   // NaN or invalid range
     return sum + (e - s) / 60;
   }, 0);
+  const timedCount = classes.filter(x => {
+    const s = parseMinutes(x.start), e = parseMinutes(x.end);
+    return s === s && e === e && e > s;
+  }).length;
+  const hoursText = timedCount ? String(Math.round(hours * 10) / 10) : "—";
 
   const rows = classes.length
     ? classes.map(x => {
         const bname = buildingLabel(x);
+        const hasTime = parseMinutes(x.start) === parseMinutes(x.start) && parseMinutes(x.end) === parseMinutes(x.end);
         return `
           <div class="day-modal-row">
             <div class="day-modal-time">
-              <span class="day-modal-start">${formatTime(x.start)}</span>
+              ${hasTime ? `<span class="day-modal-start">${formatTime(x.start)}</span>
               <span class="day-modal-to">→</span>
-              <span class="day-modal-end">${formatTime(x.end)}</span>
+              <span class="day-modal-end">${formatTime(x.end)}</span>`
+              : `<span class="day-modal-start day-modal-notime">Time not set</span>`}
             </div>
             <div class="day-modal-main">
               <span class="day-modal-subject">${x.subject}</span>
@@ -1030,6 +1091,10 @@ function openDayModal(day) {
           </div>`;
       }).join("")
     : `<div class="day-modal-state">No classes scheduled on ${day}.</div>`;
+  const noTimesNote = classes.length && !timedCount
+    // Explain the "—" instead of leaving the stat looking broken.
+    ? `<p class="day-modal-note">These classes have no time saved yet. Import the COR again or set the time in Schedule.</p>`
+    : "";
 
   content.innerHTML = `
     <div class="modal-drag-handle"></div>
@@ -1051,11 +1116,12 @@ function openDayModal(day) {
         </div>
         <div class="day-modal-stat">
           <span class="day-modal-stat-label">Hours</span>
-          <span class="day-modal-stat-value">${hours || 0}</span>
+          <span class="day-modal-stat-value">${hoursText}</span>
         </div>
       </div>
 
       <div class="day-modal-rows">${rows}</div>
+      ${noTimesNote}
     </div>`;
 
   modal.classList.add("open");

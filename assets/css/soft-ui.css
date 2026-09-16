@@ -2094,3 +2094,19 @@
     font-weight: 600 !important;
   }
 }
+
+/* Day modal (weekly table): classes whose time never made it into the database
+   say so instead of rendering a bare "—" and a 0-hours stat. */
+.student-shell .day-modal-notime {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--soft-grey);
+  white-space: nowrap;
+}
+.student-shell .day-modal-note {
+  margin: 12px 2px 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--soft-grey);
+}
