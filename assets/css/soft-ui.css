@@ -2082,7 +2082,7 @@
     min-width: 0 !important;
   }
   .student-shell .bottom-nav .nav-item svg { width: 23px !important; height: 23px !important; stroke-width: 1.7 !important; }
-  .student-shell .bottom-nav .nav-item:hover { background: none !important; color: #6366F1 !important; }
+  .student-shell .bottom-nav .nav-item:hover { background: var(--soft-primary-soft) !important; color: #4F46E5 !important; }
   .student-shell .bottom-nav .nav-item.active { color: #4F46E5 !important; font-weight: 500 !important; background: none !important; }
   .student-shell .bottom-nav .nav-item.active::before,
   .student-shell .bottom-nav .nav-item.active::after { display: none !important; }
@@ -2388,15 +2388,6 @@
   background: #fff !important;
 }
 .student-shell .schedule-page .schedule-table { border-collapse: separate; border-spacing: 0; }
-.student-shell .schedule-page .schedule-table caption {
-  text-align: left;
-  padding: 18px 20px 4px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft-grey);
-}
 .student-shell .schedule-page .schedule-table th {
   padding: 10px 16px;
   font-size: 10.5px;
@@ -2620,9 +2611,106 @@
   .student-shell .schedule-page .student-heading .page-title { font-size: 20px; }
   .student-shell .schedule-page .student-actions { width: 100%; }
   .student-shell .schedule-page .student-actions .student-button { flex: 1 1 auto; justify-content: center; }
-  .student-shell .schedule-page .schedule-table td { padding: 14px; }
-  .student-shell .schedule-page .table-wrap { border-radius: 24px !important; }
 }
+
+/* ════════════════════════════════════════════════════════
+   FULL SCHEDULE — the week as cards up to 1023px, the table beyond.
+   The old split showed the stacked layout only up to 720px (student.css) while
+   the theme's own overrides ran to 767, so 721-1023 rendered a six-column table
+   with a 98px-wide location column, and below that the time text was clipped by
+   a nowrap rule inside a 66px grid cell. One breakpoint now: cards to 1023,
+   table from 1024 — the same line the nav dock uses.
+   ════════════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+  /* Cards float on the page background instead of inside a second white card */
+  .student-shell .schedule-page .table-wrap {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+  .student-shell .schedule-page .schedule-table,
+  .student-shell .schedule-page .schedule-table tbody { display: block; min-width: 0; }
+  .student-shell .schedule-page .schedule-table thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);
+  }
+  .student-shell .schedule-page .schedule-table caption { display: none; }
+  .student-shell .schedule-page .schedule-table tbody { display: grid; gap: 12px; }
+
+  .student-shell .schedule-page .schedule-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 8px;
+    padding: 16px 18px;
+    border: 0;
+    border-radius: var(--soft-radius-sm);
+    background: #fff;
+    box-shadow: var(--soft-shadow);
+  }
+  .student-shell .schedule-page .schedule-table tr:hover td { background: transparent !important; }
+  .student-shell .schedule-page .schedule-table tr.today-row td { background: transparent !important; }
+  .student-shell .schedule-page .schedule-table tr.today-row td:first-child { box-shadow: none !important; }
+  .student-shell .schedule-page .schedule-table tr.today-row { box-shadow: var(--soft-shadow), inset 3px 0 0 var(--soft-primary); }
+
+  /* Cells carry no padding of their own — the card owns the rhythm */
+  .student-shell .schedule-page .schedule-table td {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    white-space: normal;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Row 2: day pill + time on the left, status pill and edit on the right */
+  .student-shell .schedule-page .schedule-table .time-cell {
+    grid-column: 1; grid-row: 2;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .student-shell .schedule-page .day-abbr { min-width: 30px; padding: 3px 8px; font-size: 10.5px; }
+  .student-shell .schedule-page .time-range {
+    display: inline-block; margin-top: 0;
+    font-size: 12.5px; font-weight: 700; white-space: normal;
+  }
+  .student-shell .schedule-page td[data-label="Status"] {
+    grid-column: 2; grid-row: 2;
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  }
+  .student-shell .schedule-page .schedule-status { font-size: 11px; padding: 5px 10px; }
+  .student-shell .schedule-page .schedule-table .icon-btn { width: 40px !important; height: 40px !important; min-width: 40px; }
+  .student-shell .schedule-page .schedule-table .icon-btn svg { width: 17px; height: 17px; }
+
+  /* Row 1: the class name leads, both columns wide */
+  .student-shell .schedule-page .schedule-table .subject-cell {
+    grid-column: 1 / -1; grid-row: 1;
+    font-size: 15px; font-weight: 800; line-height: 1.4;
+  }
+  .student-shell .schedule-page .schedule-table .location-cell {
+    grid-column: 1 / -1; grid-row: 3;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600; line-height: 1.45;
+  }
+  .student-shell .schedule-page .schedule-table td[data-label="Code"] { grid-column: 1; grid-row: 4; }
+  .student-shell .schedule-page .schedule-table td[data-label="Units"] {
+    grid-column: 2; grid-row: 4; text-align: right; justify-self: end;
+  }
+  .student-shell .schedule-page .units-chip::before { content: "Units "; font-size: 10.5px; font-weight: 700; opacity: .75; }
+
+  /* Free periods and the empty state read as soft tiles, not table rows */
+  .student-shell .schedule-page .schedule-table tr.break-row {
+    display: block; padding: 10px 16px; border: 1px dashed rgba(26, 27, 65, 0.14);
+    box-shadow: none; background: rgba(255, 255, 255, 0.6);
+  }
+  .student-shell .schedule-page .schedule-table tr.break-row td { display: block; text-align: center; }
+  .student-shell .schedule-page .schedule-table tr.schedule-empty-row {
+    display: block; padding: 30px 20px; text-align: center;
+  }
+  .student-shell .schedule-page .schedule-table tr.schedule-empty-row td { display: block; }
+  .student-shell .schedule-page .schedule-state { padding: 0 !important; }
+}
+
 
 /* Home: "Full schedule" access — a link in the Today Schedule and Calendar column
    headers, plus one at the foot of the day modal, so the full week is always one
@@ -2800,4 +2888,82 @@
 @media (max-width: 767px) {
   .student-shell #task-modal .form-row,
   .student-shell #note-modal .form-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ════════════════════════════════════════════════════════
+   NAV TAB STATES — one definition for every page and width.
+   Previously three sheets disagreed: styles.css gave non-active tabs a
+   --blue-soft background, student.css added a 2px blue underline under the
+   active tab (desktop only) and the dock block forced hover to text-only. So
+   the Home page — the one page whose tab is active — looked and felt different
+   from Full Schedule, where no tab matched and every tab showed the hover.
+   Now: active = indigo text, hover = indigo text on a lavender pill, identical
+   on phones and desktops, and the underline is gone.
+   ════════════════════════════════════════════════════════ */
+.student-shell .bottom-nav .nav-item,
+.student-shell .bottom-nav .nav-item.active {
+  box-shadow: none !important;          /* kill student.css's inset underline */
+  transition: background .15s ease, color .15s ease;
+}
+.student-shell .bottom-nav .nav-item:not(.nav-fab):hover,
+.student-shell .bottom-nav .nav-item:not(.nav-fab).active:hover {
+  background: var(--soft-primary-soft) !important;
+  color: #4F46E5 !important;
+}
+.student-shell .bottom-nav .nav-item:not(.nav-fab).active { color: #4F46E5 !important; }
+.student-shell .bottom-nav .nav-item:not(.nav-fab).active svg { stroke-width: 2.1; }
+
+/* The Classroom circle keeps its own language: the pill would paint a rectangle
+   behind it, so the active state is a stronger ring and an indigo label. */
+.student-shell .bottom-nav .nav-item.nav-fab.active .nav-fab-btn {
+  box-shadow: 0 12px 28px -5px rgba(79, 70, 229, 0.7), 0 0 0 4px rgba(79, 70, 229, 0.16) !important;
+}
+.student-shell .bottom-nav .nav-item.nav-fab.active .nav-fab-label { color: #4F46E5 !important; font-weight: 700 !important; }
+.student-shell .bottom-nav .nav-item.nav-fab .nav-fab-btn { transition: transform .15s ease, box-shadow .15s ease; }
+.student-shell .bottom-nav .nav-item.nav-fab:hover .nav-fab-btn { transform: translateY(-2px); }
+
+/* The save error can carry a fix (delete the duplicate that blocks the edit) */
+.student-shell #crud-modal .crud-error-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 9999px;
+  background: #fff;
+  color: #A63A63;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(166, 58, 99, 0.14);
+}
+.student-shell #crud-modal .crud-error-action:hover { background: #FFF0F4; }
+
+/* ════════════════════════════════════════════════════════
+   NARROW-SCREEN CONTAINMENT
+   `.section-stack` is a grid with no explicit columns, so its single implicit
+   track was sized by the widest item's content: on the Google page at 320px the
+   track became 328px inside a 288px content box, pushing cards 24px past the
+   right edge (clipped by body overflow-x). One explicit shrinking track plus
+   min-width:0 on the children fixes that class of overflow everywhere.
+   ════════════════════════════════════════════════════════ */
+.student-shell .page-container.section-stack {
+  grid-template-columns: minmax(0, 1fr);
+}
+.student-shell .page-container.section-stack > * { min-width: 0; max-width: 100%; }
+.student-shell .page-container.section-stack .portal-card,
+.student-shell .page-container.section-stack .home-status-card { overflow-wrap: anywhere; }
+
+/* Session-expired / retry banner: its buttons were 27px tall (below the 40px
+   touch-target floor) on every page. */
+.student-shell .load-notice { flex-wrap: wrap; }
+.student-shell .load-notice .btn,
+.student-shell .load-notice .btn-secondary,
+.student-shell .load-notice button {
+  min-height: 40px;
+  padding: 10px 16px;
+  border-radius: 9999px;
+  font-weight: 700;
 }

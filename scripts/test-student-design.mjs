@@ -40,7 +40,7 @@ let browser;
 const failures = [];
 try {
   browser = await chromium.launch({ headless: true });
-  for (const width of [320, 390, 768, 1440]) {
+  for (const width of [320, 390, 600, 768, 1023, 1024, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: 1000 }, reducedMotion: 'reduce', timezoneId: 'Asia/Manila' });
     await context.route('**/*', route => {
       const url = new URL(route.request().url());
@@ -170,12 +170,74 @@ try {
         await page.locator('#day-modal [data-close-modal]').click();
         await page.evaluate(() => { state.schedule = window.__savedSchedule; renderHome(); });
       }
+      // The shell skeleton used to draw a Sign out pill in the header. The
+      // control moved to Settings, so the placeholder had to go with it.
+      const shellSkeleton = await page.evaluate(() => {
+        const header = document.getElementById('app-header');
+        return {
+          headerButton: document.querySelectorAll('.loading-header-button, [class*="header-button"]').length,
+          headerSkeletonButtons: header ? [...header.querySelectorAll('.loading-bar')].filter(el => /button/i.test(el.className)).length : 0,
+        };
+      });
+      assert.equal(shellSkeleton.headerButton, 0, `${name}: no header button placeholder at ${width}`);
+      assert.equal(shellSkeleton.headerSkeletonButtons, 0, `${name}: header skeleton draws no button at ${width}`);
+
+      // Nav states must be identical on every page: no stray underline on the
+      // active tab, and the active tab hovers like the others.
+      const navStates = await page.evaluate(() => {
+        const all = [...document.querySelectorAll('#bottom-nav .nav-item')];
+        const tabs = all.filter(i => !i.classList.contains('nav-fab'));
+        const cs = el => { const s = getComputedStyle(el); return { color: s.color, shadow: s.boxShadow, bg: s.backgroundColor }; };
+        return {
+          anyActive: all.some(i => i.classList.contains('active')),
+          activeTabs: tabs.filter(i => i.classList.contains('active')).map(cs),
+          fabActive: all.some(i => i.classList.contains('nav-fab') && i.classList.contains('active')),
+        };
+      });
+      assert(navStates.anyActive, `${name}: a nav tab is active at ${width}`);
+      for (const tab of navStates.activeTabs) {
+        assert.equal(tab.shadow, 'none', `${name}: active tab has no underline at ${width} (${tab.shadow})`);
+        assert.equal(tab.color, 'rgb(79, 70, 229)', `${name}: active tab is indigo at ${width}`);
+      }
+
       if (name === 'schedule') {
         assert.equal(await page.locator('#schedule-result').textContent(), '4 classes this week');
         await page.getByRole('button', { name: 'Monday', exact: true }).click();
         assert.equal(await page.locator('#schedule-result').textContent(), '2 classes on Monday');
         assert.equal(await page.locator('#schedule-rows tr[data-entry-id]').count(), 2);
         assert.equal(await page.locator('.break-row').count(), 1);
+
+        // Cards up to 1023px, the real table from 1024 — and nothing clipped at
+        // any width (the mobile stack used to cut the time text off inside its
+        // grid column, and 721-1023 squeezed a six-column table into 98px).
+        const tableLayout = await page.evaluate(() => {
+          const de = document.documentElement;
+          const row = document.querySelector('#schedule-rows tr[data-entry-id]');
+          const normal = row ? getComputedStyle(row) : null;
+          const clipped = [];
+          document.querySelectorAll('#schedule-rows td, #schedule-rows .time-range, #schedule-rows .schedule-status, #schedule-rows .subject-cell, #schedule-rows .location-cell, #schedule-rows .code-cell, #schedule-rows .units-chip').forEach(el => {
+            if (el.scrollWidth - el.clientWidth > 1) clipped.push((el.className || el.tagName) + ':' + el.scrollWidth + '>' + el.clientWidth);
+          });
+          const edit = document.querySelector('#schedule-rows [data-action="edit-entry"]');
+          return {
+            rowDisplay: normal ? normal.display : null,
+            rowRadius: normal ? normal.borderRadius : null,
+            editSize: edit ? Math.round(edit.getBoundingClientRect().width) : null,
+            bodyOverflow: document.body.scrollWidth - de.clientWidth,
+            clipped,
+          };
+        });
+        if (width <= 1023) {
+          assert.equal(tableLayout.rowDisplay, 'grid', `schedule: rows are cards at ${width}`);
+          assert.equal(tableLayout.rowRadius, '22px', `schedule: card radius at ${width} (${tableLayout.rowRadius})`);
+          assert(!tableLayout.clipped.length, `schedule: no clipped cells at ${width}: ${tableLayout.clipped.join(', ')}`);
+          if (tableLayout.editSize !== null) {
+            assert(tableLayout.editSize >= 40, `schedule: edit button is a 40px touch target at ${width} (${tableLayout.editSize})`);
+          }
+        } else {
+          assert.equal(tableLayout.rowDisplay, 'table-row', `schedule: rows are table rows at ${width}`);
+        }
+        assert.equal(tableLayout.bodyOverflow, 0, `schedule: no horizontal overflow at ${width}`);
         await page.getByRole('button', { name: 'Tuesday', exact: true }).click();
         assert.equal(await page.locator('.schedule-state strong').textContent(), 'No classes on Tuesday');
         assert.equal(await page.getByRole('button', { name: 'Tuesday', exact: true }).getAttribute('aria-pressed'), 'true');

@@ -120,6 +120,30 @@ export async function onRequestPost(context) {
       return json({ status: "VALIDATION_FAILED", error: "buildingId is required when roomId is provided" }, 422);
     }
 
+    // ── Check exact duplicate first ────────────────────────────────────
+    // Same reasoning as the update path: an identical row overlaps by definition,
+    // so checking overlap first reported a phantom clash instead of telling the
+    // student they already have this class.
+    const allEntries = ScheduleEntries.getByScheduleId(schedule.scheduleId);
+    const duplicate = allEntries.find(
+      (e) =>
+        e.status === "ACTIVE" &&
+        e.enrollmentSubjectId === enrollmentSubjectId &&
+        normalizeDayOfWeek(e.dayOfWeek) === dayOfWeek &&
+        normalizeTime(e.startTime) === startTime &&
+        normalizeTime(e.endTime) === endTime
+    );
+    if (duplicate) {
+      return json({
+        ok: false,
+        error: {
+          code: "DUPLICATE",
+          message: `You already have this class on ${dayOfWeek} ${startTime}-${endTime}. It looks like a duplicate of one you already saved.`,
+          duplicateEntryId: duplicate.smeId,
+        },
+      }, 409);
+    }
+
     // ── Check conflict ─────────────────────────────────────────────────
     const conflicts = ScheduleEntries.hasConflict(
       schedule.scheduleId,
@@ -129,37 +153,19 @@ export async function onRequestPost(context) {
       null // no excludeId for create
     );
     if (conflicts.length > 0) {
+      const clash = conflicts[0];
       return json({
         ok: false,
         error: {
           code: "SCHEDULE_CONFLICT",
-          message: "This time overlaps with an existing class.",
+          message: `That clashes with another class on ${clash.dayOfWeek} ${clash.startTime}-${clash.endTime}.`,
           conflicts: conflicts.map((c) => ({
             entryId: c.smeId,
+            enrollmentSubjectId: c.enrollmentSubjectId,
             dayOfWeek: c.dayOfWeek,
             startTime: c.startTime,
             endTime: c.endTime,
           })),
-        },
-      }, 409);
-    }
-
-    // ── Check exact duplicate ──────────────────────────────────────────
-    const allEntries = ScheduleEntries.getByScheduleId(schedule.scheduleId);
-    const isDuplicate = allEntries.some(
-      (e) =>
-        e.status === "ACTIVE" &&
-        e.enrollmentSubjectId === enrollmentSubjectId &&
-        normalizeDayOfWeek(e.dayOfWeek) === dayOfWeek &&
-        normalizeTime(e.startTime) === startTime &&
-        normalizeTime(e.endTime) === endTime
-    );
-    if (isDuplicate) {
-      return json({
-        ok: false,
-        error: {
-          code: "DUPLICATE",
-          message: "An identical entry already exists.",
         },
       }, 409);
     }

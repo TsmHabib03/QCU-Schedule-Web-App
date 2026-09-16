@@ -20,7 +20,12 @@ const state = {
 
 const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const page = document.body.dataset.page || "home";
-const navPage = ["tasks", "notes"].includes(page) ? "workspace" : page;
+// Sub-pages belong to a nav tab: the Full Schedule and Buildings pages are
+// reached from Home, so they highlight Home instead of leaving the whole bar
+// with no active tab (which also made their hover states look different from
+// every page that does have one).
+const NAV_PARENT_PAGE = { schedule: "home", buildings: "home", tasks: "workspace", notes: "workspace", google: "FAB" };
+const navPage = NAV_PARENT_PAGE[page] || page;
 let scheduleDay = "all";
 
 /* ── Utils ───────────────────────────────────────────── */
@@ -352,7 +357,7 @@ function renderShell() {
             // Central floating Classroom button: perfect circle, indigo,
             // white chalkboard icon. Breaks out above the bar; the label
             // "Classroom" aligns with the other tab labels.
-            return `<a class="nav-item nav-fab" href="google.html" aria-label="Google Classroom">
+            return `<a class="nav-item nav-fab${navPage === "FAB" ? " active" : ""}" href="google.html" aria-label="Google Classroom"${navPage === "FAB" ? ' aria-current="page"' : ""}>
               <span class="nav-fab-btn">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <rect x="2" y="4" width="20" height="16" rx="2.5" fill="#fff"/>
@@ -2406,13 +2411,17 @@ async function handleCrudSubmit(existingEntry) {
     if (!result?.ok) {
       const code = result?.error?.code;
       let msg = result?.error?.message || result?.error || "Failed to save entry.";
-      if (code === "SCHEDULE_CONFLICT" && Array.isArray(result?.error?.conflicts)) {
+      if (code === "SCHEDULE_CONFLICT" && Array.isArray(result?.error?.conflicts) && !result?.error?.message) {
         const clash = result.error.conflicts[0];
         const clashDay = clash.dayOfWeek ? `${clash.dayOfWeek[0]}${clash.dayOfWeek.slice(1).toLowerCase()}` : "";
         const span = clash.startTime && clash.endTime ? ` ${clash.startTime}–${clash.endTime}` : "";
         if (clashDay || span) msg = `That overlaps another class on ${clashDay}${span}. Pick a different day or time.`;
       }
-      throw new Error(msg);
+      const err = new Error(msg);
+      // The API names the twin row when it rejects an exact duplicate, so the
+      // modal can offer to delete it instead of leaving the student stuck.
+      err.duplicateEntryId = result?.error?.duplicateEntryId || null;
+      throw err;
     }
 
     // Success — close modal, reload schedule
@@ -2428,8 +2437,29 @@ async function handleCrudSubmit(existingEntry) {
       err.field.focus();
     }
     if (errorEl) {
-      errorEl.textContent = err.message || "An error occurred.";
-      errorEl.style.display = "block";
+      const duplicateId = err?.duplicateEntryId;
+      if (duplicateId) {
+        // Offer the fix instead of only the complaint: the row that blocks the
+        // save is an exact copy of this class, so deleting it is safe.
+        errorEl.innerHTML = `${esc(err.message || "An error occurred.")}
+          <button type="button" class="crud-error-action" id="crud-delete-duplicate">Delete the extra copy</button>`;
+        errorEl.style.display = "block";
+        document.getElementById("crud-delete-duplicate")?.addEventListener("click", async (event) => {
+          const btn = event.currentTarget;
+          window.QCULoading.button(btn, true);
+          const res = await deleteScheduleEntryApi(duplicateId);
+          if (res?.ok) {
+            closeCrudModal();
+            await reloadSchedule();
+          } else {
+            window.QCULoading.button(btn, false);
+            errorEl.textContent = res?.error?.message || res?.error || "Could not delete the extra copy.";
+          }
+        });
+      } else {
+        errorEl.textContent = err.message || "An error occurred.";
+        errorEl.style.display = "block";
+      }
     }
   } finally {
     window.QCULoading.button(saveBtn, false);

@@ -9,7 +9,9 @@
     return `<div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards ${kind}" aria-hidden="true">${Array.from({ length: count }, card).join('')}</div></div>`;
   }
   function header() {
-    return `<div class="header-inner loading-header" aria-hidden="true"><div class="header-brand">${bar('loading-avatar')}<div class="brand-text loading-lines">${bar('loading-brand-title')}${bar('loading-brand-sub')}</div></div><div class="header-right"><div class="header-clock loading-lines">${bar()}${bar()}</div>${bar('loading-header-button')}</div></div>`;
+    // No button skeleton here: the header's Sign out control moved to Settings,
+    // so a placeholder pill made the shell promise a control that never arrives.
+    return `<div class="header-inner loading-header" aria-hidden="true"><div class="header-brand">${bar('loading-avatar')}<div class="brand-text loading-lines">${bar('loading-brand-title')}${bar('loading-brand-sub')}</div></div><div class="header-right"><div class="header-clock loading-lines">${bar()}${bar()}</div></div></div>`;
   }
   function nav() {
     return `<div aria-hidden="true">${Array.from({ length: 5 }, () => `<span class="nav-item loading-nav-item">${bar('loading-nav-icon')}${bar('loading-nav-label')}</span>`).join('')}</div>`;

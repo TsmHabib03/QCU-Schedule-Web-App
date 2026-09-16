@@ -257,6 +257,51 @@ const touching = await api(
 
 assert("back-to-back classes are allowed", touching.status === 200 && touching.data?.ok === true, touching);
 
+console.log("\n=== Duplicate handling ===\n");
+
+// An exact copy of an existing class must be reported as a duplicate (with the
+// row to delete), not as an overlap with a different class — that message sent
+// students hunting for a clash with a class they believed was the same one.
+const dupSource = await createEntry({
+  enrollmentSubjectId: subjectId,
+  dayOfWeek: "SUNDAY",
+  startTime: "20:00",
+  endTime: "21:30",
+  modality: "ONSITE",
+});
+
+const dupCopy = await createEntry({
+  enrollmentSubjectId: subjectId,
+  dayOfWeek: "SUNDAY",
+  startTime: "20:00",
+  endTime: "21:30",
+  modality: "ONSITE",
+});
+
+assert("an identical class is rejected", dupCopy.status === 409, dupCopy);
+assert("it is reported as a duplicate, not an overlap", dupCopy.data?.error?.code === "DUPLICATE", dupCopy.data?.error);
+assert("the duplicate names the row to remove", Boolean(dupCopy.data?.error?.duplicateEntryId), dupCopy.data?.error);
+assert(
+  "the message explains the fix",
+  /duplicate/i.test(dupCopy.data?.error?.message || ""),
+  dupCopy.data?.error
+);
+
+const overlapOther = await createEntry({
+  enrollmentSubjectId: subjects[1]?.enrollmentSubjectId,
+  dayOfWeek: "SUNDAY",
+  startTime: "21:00",
+  endTime: "22:00",
+  modality: "ONSITE",
+});
+
+assert("a real clash with another class is still an overlap", overlapOther.data?.error?.code === "SCHEDULE_CONFLICT", overlapOther.data?.error);
+assert(
+  "the overlap message names the day and time",
+  /SUNDAY 20:00-21:30/.test(overlapOther.data?.error?.message || ""),
+  overlapOther.data?.error
+);
+
 console.log("\n=== Ownership ===\n");
 
 const otherCookie = await seal(
