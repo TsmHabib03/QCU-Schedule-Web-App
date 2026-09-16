@@ -70,18 +70,28 @@ try {
         const firstNav = document.querySelector('#bottom-nav a').getBoundingClientRect();
         const navEl = document.getElementById('bottom-nav');
         const navStrip = navEl.firstElementChild;
+        const navRect = navEl.getBoundingClientRect();
+        const firstTab = navEl.querySelector('.nav-item:not(.nav-fab)');
+        const fabBtn = navEl.querySelector('.nav-fab-btn');
+        const fabLabel = navEl.querySelector('.nav-fab-label');
         const mainStyle = getComputedStyle(document.getElementById('main-content'));
-        return { overflow: document.documentElement.scrollWidth > innerWidth, clipped, navTop: nav.top, navBottom: nav.bottom, mainTop: main.top, firstNavLeft: firstNav.left, mainLeft: main.left + parseFloat(mainStyle.paddingLeft), navPos: getComputedStyle(navEl).position, navFlex: getComputedStyle(navStrip).flexDirection, navPadLeft: parseFloat(getComputedStyle(navStrip).paddingLeft), mainPadLeft: parseFloat(mainStyle.paddingLeft), navHeight: navEl.getBoundingClientRect().height };
+        return { overflow: document.documentElement.scrollWidth > innerWidth, clipped, navTop: nav.top, navBottom: nav.bottom, mainTop: main.top, firstNavLeft: firstNav.left, mainLeft: main.left + parseFloat(mainStyle.paddingLeft), navPos: getComputedStyle(navEl).position, navFlex: getComputedStyle(navStrip).flexDirection, navPadLeft: parseFloat(getComputedStyle(navStrip).paddingLeft), mainPadLeft: parseFloat(mainStyle.paddingLeft), navHeight: navRect.height, clientWidth: document.documentElement.clientWidth, navLeft: navRect.left, navRight: navRect.right, navWidth: navRect.width, navRadius: getComputedStyle(navEl).borderRadius, tabDir: getComputedStyle(firstTab).flexDirection, dockTop: navRect.top, circleTop: fabBtn.getBoundingClientRect().top, headerBottom: document.getElementById('app-header').getBoundingClientRect().bottom, fabLabelTop: fabLabel.getBoundingClientRect().top, tabLabelTop: firstTab.querySelector('span').getBoundingClientRect().top };
       });
       if (geometry.overflow || geometry.clipped.length) failures.push(`${name} at ${width}: ${JSON.stringify(geometry)}`);
       assert(width >= 1024 ? geometry.navBottom <= geometry.mainTop : geometry.navTop >= 900, `${name}: navigation placement at ${width}`);
       if (width >= 1024) {
-        // Desktop nav is a top app bar: in flow above <main>, tabs in a row, and
-        // horizontally aligned to the page container's padding.
-        assert.equal(geometry.navPos, 'sticky', `${name}: desktop nav is a top app bar at ${width}`);
-        assert.equal(geometry.navFlex, 'row', `${name}: desktop nav tabs sit in a row at ${width}`);
+        // Desktop wears the mobile nav: a centred floating dock, icon-over-label
+        // tabs, and the Classroom circle lifted above the dock's top edge.
+        assert.equal(geometry.navPos, 'sticky', `${name}: desktop nav is in flow above the content at ${width}`);
+        assert.equal(geometry.navFlex, 'row', `${name}: desktop dock lays its tabs out in a row at ${width}`);
+        assert.equal(geometry.tabDir, 'column', `${name}: desktop tabs keep the mobile icon-over-label layout at ${width}`);
         assert(geometry.navHeight >= 50, `${name}: desktop nav height at ${width} (${geometry.navHeight})`);
-        assert.equal(geometry.navPadLeft, geometry.mainPadLeft, `${name}: desktop nav shares the content padding at ${width}`);
+        assert.equal(geometry.navRadius, '28px', `${name}: dock has all-corner rounding at ${width} (${geometry.navRadius})`);
+        assert(Math.abs((geometry.navLeft + geometry.navRight) / 2 - geometry.clientWidth / 2) < 4, `${name}: dock is centred at ${width}`);
+        assert(geometry.navWidth < geometry.clientWidth - 100, `${name}: dock is not a full-width slab at ${width}`);
+        assert(geometry.dockTop - geometry.circleTop > 8, `${name}: Classroom circle is lifted above the dock at ${width}`);
+        assert(geometry.circleTop >= geometry.headerBottom, `${name}: lifted circle clears the header at ${width}`);
+        assert.equal(geometry.fabLabelTop, geometry.tabLabelTop, `${name}: FAB label shares the tab-label baseline at ${width}`);
       }
       if ([390, 1440].includes(width)) await page.screenshot({ path: resolve(output, `${name}-${width}.png`), fullPage: true });
       if (name === 'index') {

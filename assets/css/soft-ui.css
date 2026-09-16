@@ -2035,63 +2035,75 @@
 }
 
 /* ════════════════════════════════════════════════════════
-   DESKTOP NAV (≥1024px): the mobile bottom bar becomes a top
-   app bar. Placed at the END of the file so it wins both the
-   base `.bottom-nav { position: fixed !important }` and the
-   earlier ≥1024 block (equal specificity, later wins).
+   DESKTOP NAV (≥1024px): the same nav the phone gets, docked.
+   Floating white pill, icon-over-label tabs, indigo active tab,
+   and the Classroom circle lifted out of the dock's top edge.
+   Placed at the END of the file so it wins both the base
+   `.bottom-nav { position: fixed !important }` and the earlier
+   ≥1024 block (equal specificity, later wins).
    ════════════════════════════════════════════════════════ */
 @media (min-width: 1024px) {
   .student-shell .bottom-nav {
-    position: sticky !important;     /* in flow above <main>, pins on scroll */
-    top: 0 !important;
+    position: sticky !important;      /* in flow above <main>, floats on scroll */
+    top: 12px !important;
     bottom: auto !important;
-    left: auto;
-    right: auto;
-    width: 100%;
-    border-radius: 0 0 24px 24px;    /* rounded on the side facing the page */
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06) !important;
-    padding: 10px 0 !important;
+    left: auto !important;
+    right: auto !important;
+    width: auto !important;           /* a dock, not a full-width slab */
+    max-width: 680px !important;
+    margin: 26px auto 0 !important;   /* clearance for the lifted Classroom circle */
+    border-radius: 28px !important;
+    box-shadow: var(--soft-shadow) !important;
+    padding: 10px 10px 8px !important;
     z-index: 40;
   }
   .student-shell .bottom-nav > div {
     width: 100% !important;
-    max-width: none !important;      /* beat student.css's 1200px strip */
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 6px !important;
-    padding: 0 32px !important;      /* matches the page container padding */
+    max-width: none !important;       /* beat student.css's 1200px strip */
+    align-items: flex-end !important; /* every label sits on one baseline */
+    justify-content: space-around !important;
+    gap: 0 !important;
+    padding: 0 !important;
     margin: 0 !important;
   }
+  /* Tabs keep the mobile treatment: icon over label, no pill, no underline. */
   .student-shell .bottom-nav .nav-item {
-    flex-direction: row !important;  /* icon beside label on a wide bar */
-    gap: 8px !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
-    padding: 10px 14px !important;
-    border-radius: 14px !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+    font-size: 11px !important;
+    font-weight: 400 !important;
+    padding: 6px 10px !important;
+    border-radius: 12px !important;
+    background: none !important;
+    min-width: 0 !important;
   }
-  .student-shell .bottom-nav .nav-item svg { width: 20px !important; height: 20px !important; }
-  .student-shell .bottom-nav .nav-item:hover { background: rgba(74, 58, 255, 0.05); }
-  .student-shell .bottom-nav .nav-item.active { color: var(--soft-primary); font-weight: 700 !important; }
-  /* Classroom FAB: an inline 34px circle in the row — it must not break out
-     above the bar the way it does over the mobile bottom bar. */
+  .student-shell .bottom-nav .nav-item svg { width: 23px !important; height: 23px !important; stroke-width: 1.7 !important; }
+  .student-shell .bottom-nav .nav-item:hover { background: none !important; color: #6366F1 !important; }
+  .student-shell .bottom-nav .nav-item.active { color: #4F46E5 !important; font-weight: 500 !important; background: none !important; }
+  .student-shell .bottom-nav .nav-item.active::before,
+  .student-shell .bottom-nav .nav-item.active::after { display: none !important; }
+
+  /* Classroom FAB: the mobile circle (56px, 4px white ring, purple glow),
+     lifted above the dock's top edge so the dock reads exactly like the bar. */
   .student-shell .bottom-nav .nav-item.nav-fab {
-    margin-top: 0 !important;
-    align-self: center !important;
+    margin-top: -30px !important;
+    align-self: flex-start !important;
   }
   .student-shell .bottom-nav .nav-item.nav-fab .nav-fab-btn {
-    width: 34px !important;
-    height: 34px !important;
-    border: 0 !important;
-    box-shadow: none !important;
+    width: 56px !important;
+    height: 56px !important;
+    border: 4px solid #fff !important;
+    background: #4F46E5 !important;
+    box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.55) !important;
   }
-  .student-shell .bottom-nav .nav-item.nav-fab .nav-fab-btn svg { width: 18px !important; height: 18px !important; }
+  .student-shell .bottom-nav .nav-item.nav-fab .nav-fab-btn svg { width: 27px !important; height: 27px !important; }
   .student-shell .bottom-nav .nav-item.nav-fab .nav-fab-label {
-    margin-top: 0 !important;
+    margin-top: 6px !important;
     margin-bottom: 0 !important;
     top: 0 !important;
-    font-size: 13px !important;
-    font-weight: 600 !important;
+    font-size: 11px !important;
+    font-weight: 400 !important;
+    color: #64748B !important;
   }
 }
 
