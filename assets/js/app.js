@@ -128,6 +128,21 @@ function formatTime(v) {
   return `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
+// Stored dates arrive either as "2026-09-14" (date input) or as a full ISO
+// datetime ("2026-09-14T16:00:00.000Z"). Rendering the raw value leaked ISO
+// strings into task cards, so every date goes through here and is shown in
+// campus time. `withTime` defaults to true only when the value carries a clock.
+function formatDateLabel(value, withTime) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (date.getTime() !== date.getTime()) return String(value);
+  const hasClock = /T\d{2}:\d{2}/.test(String(value));
+  const opts = (withTime === undefined ? hasClock : withTime)
+    ? { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }
+    : { month: "short", day: "numeric" };
+  return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: QCU_TIME.zone }).format(date);
+}
+
 function formatDuration(totalSeconds) {
   if (totalSeconds <= 0) return "now";
   const h = Math.floor(totalSeconds / 3600);
@@ -353,9 +368,6 @@ function renderShell() {
             <p id="live-time" class="clock-time">00:00</p>
           </div>
           <img class="qc-logo" src="assets/images/Quezon_City_Government.png" alt="QC Government logo">
-          <button class="signout-btn" onclick="signOut(this)" title="Sign out" aria-label="Sign out">
-            Sign out
-          </button>
         </div>
       </div>`;
   }
@@ -883,7 +895,7 @@ function renderTasksNotesColumn() {
       kind: "task",
       icon: "clipboard-check",
       title: t.title || "Untitled task",
-      meta: [t.subjectCode, t.dueDate ? "Due " + new Date(t.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : null].filter(Boolean).join(" · "),
+      meta: [t.subjectCode, t.dueDate ? "Due " + formatDateLabel(t.dueDate, false) : null].filter(Boolean).join(" · "),
       stamp: t.updatedAt || t.createdAt,
     })),
     ...notes.map(n => ({
@@ -908,9 +920,7 @@ function renderTasksNotesColumn() {
 
   el.innerHTML = items.map((it, i) => {
     const pastels = ["pastel-mint", "pastel-peach", "pastel-lavender"];
-    const stamp = it.stamp
-      ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(it.stamp))
-      : "";
+    const stamp = it.stamp ? formatDateLabel(it.stamp, true) : "";
     return `
       <div class="soft-note ${pastels[i % pastels.length]}">
         <span class="soft-note-icon"><i data-lucide="${it.icon}" aria-hidden="true"></i></span>
@@ -1075,6 +1085,8 @@ function openDayModal(day) {
     ? classes.map(x => {
         const bname = buildingLabel(x);
         const hasTime = parseMinutes(x.start) === parseMinutes(x.start) && parseMinutes(x.end) === parseMinutes(x.end);
+        // Same place formatting as the Today Schedule boxes: never "· · —".
+        const place = [bname, x.room, x.floor && x.floor !== "—" ? x.floor : ""].filter(Boolean).join(" · ");
         return `
           <div class="day-modal-row">
             <div class="day-modal-time">
@@ -1085,7 +1097,7 @@ function openDayModal(day) {
             </div>
             <div class="day-modal-main">
               <span class="day-modal-subject">${x.subject}</span>
-              <span class="day-modal-meta">${bname} · ${x.room} · ${x.floor}</span>
+              ${place ? `<span class="day-modal-meta"><i data-lucide="map-pin" aria-hidden="true"></i>${place}</span>` : ""}
             </div>
             <span class="day-modal-course">${x.course}</span>
           </div>`;
@@ -1394,28 +1406,10 @@ function closeModal() {
 }
 
 /* ── Settings Page ───────────────────────────────────── */
-function renderSettings() {
-  const notifToggle = document.getElementById("notifications-toggle");
-  if (notifToggle) {
-    notifToggle.checked = state.settings.notifications;
-    notifToggle.addEventListener("change", async () => {
-      if (notifToggle.checked && "Notification" in window) {
-        const perm = await Notification.requestPermission();
-        state.settings.notifications = perm === "granted";
-        notifToggle.checked = state.settings.notifications;
-      } else {
-        state.settings.notifications = false;
-      }
-      localStorage.setItem("qcu-notifications", String(state.settings.notifications));
-    });
-  }
-
-  document.getElementById("reset-data")?.addEventListener("click", () => {
-    localStorage.removeItem("qcu-notifications");
-    window.QCUGoogleIntegration?.clearLocalCache();
-    location.reload();
-  });
-}
+// Sign out lives in the Settings list now (settings.html), so this only keeps
+// whatever else the page needs. The notification toggle and reset button were
+// removed with their rows.
+function renderSettings() {}
 
 /* ── Clock ───────────────────────────────────────────── */
 function updateClock() {
@@ -1645,9 +1639,11 @@ async function toggleTask(id) {
 }
 
 const PRIORITY_META = {
-  high:   { label: "High",   color: "#DC2626", bg: "#FEE2E2", border: "#FECACA", icon: "arrow-up" },
-  medium: { label: "Medium", color: "#D97706", bg: "#FEF3C7", border: "#FDE68A", icon: "minus" },
-  low:    { label: "Low",    color: "#059669", bg: "#D1FAE5", border: "#A7F3D0", icon: "arrow-down" }
+  // Pastel chips and accents from the soft-UI palette, so a priority reads like
+  // every other card on the dashboard instead of a traffic-light badge.
+  high:   { label: "High",   color: "#C43D63", bg: "#FFE3EC", border: "#FFD0DE", icon: "arrow-up", accent: "#F08CA6" },
+  medium: { label: "Medium", color: "#A9770F", bg: "#FFF2CE", border: "#FFE7A8", icon: "minus",    accent: "#E9C46A" },
+  low:    { label: "Low",    color: "#0F7F7E", bg: "#E0F7F6", border: "#C7EFEC", icon: "arrow-down", accent: "#7FD8D2" }
 };
 
 function priorityBadge(priority) {
@@ -1697,15 +1693,16 @@ function taskCardTemplate(t) {
   const doneClass = done ? " completed" : "";
   const priorityClass = t.priority ? ` task-card--priority-${t.priority.toLowerCase()}` : "";
   const sc = subjectColor(t.subjectCode || t.subject || "");
-  const deadline = t.dueDate ? `<span class="task-meta"><i data-lucide="calendar"></i>${t.dueDate}</span>` : "";
+  const deadline = t.dueDate ? `<span class="task-meta"><i data-lucide="calendar"></i>${esc(formatDateLabel(t.dueDate, false))}</span>` : "";
   const subject = t.subjectCode
     ? `<span class="subject-chip" style="background:${sc.bg};color:${sc.fg};border-color:${sc.border};">${subjectDisplayName(t.subjectCode)}</span>`
     : "";
   const priority = t.priority ? priorityBadge(t.priority.toLowerCase()) : "";
+  const accent = t.priority ? (PRIORITY_META[t.priority.toLowerCase()]?.accent || "") : "";
   const taskId = t.taskId || t.id;
 
   return `
-    <article class="task-card${doneClass}${priorityClass}" data-task-id="${esc(taskId)}">
+    <article class="task-card${doneClass}${priorityClass}" data-task-id="${esc(taskId)}"${accent ? ` style="--task-accent:${accent}"` : ""}>
       <button class="task-check-btn${done ? " checked" : ""}" data-action="toggle" data-id="${esc(taskId)}" aria-label="Toggle done"></button>
       <div class="task-card-content">
         <div class="task-card-header">

@@ -132,6 +132,30 @@ try {
         const modal = await page.locator('#day-modal-content').innerText();
         assert.match(modal, /Fundamentals of Programming/, `Modal lists the class: ${modal}`);
         assert.match(modal, /HOURS[\s\S]*4\b/, `Hours add up to 4: ${modal}`);
+        // The modal wears the Home dashboard theme: pastel stat tiles, floating
+        // white rows with the line-up's radius, a pastel course pill.
+        const modalStyle = await page.evaluate(() => {
+          const card = document.querySelector('#day-modal-content');
+          const stat = card.querySelector('.day-modal-stat');
+          const row = card.querySelector('.day-modal-row');
+          const pill = card.querySelector('.day-modal-course');
+          return {
+            cardRadius: getComputedStyle(card).borderRadius,
+            statBg: getComputedStyle(stat).backgroundColor,
+            statRadius: getComputedStyle(stat).borderRadius,
+            rowRadius: getComputedStyle(row).borderRadius,
+            rowBg: getComputedStyle(row).backgroundColor,
+            pillRadius: getComputedStyle(pill).borderRadius,
+            metaIcons: card.querySelectorAll('.day-modal-meta svg').length
+          };
+        });
+        assert.equal(modalStyle.cardRadius, '28px', 'Day modal card uses the soft-UI radius');
+        assert.equal(modalStyle.statRadius, '22px', 'Stat tiles are soft cards');
+        assert.equal(modalStyle.statBg, 'rgb(224, 247, 246)', `Stat tile is pastel: ${modalStyle.statBg}`);
+        assert.equal(modalStyle.rowBg, 'rgb(255, 255, 255)', 'Modal rows are white cards');
+        assert.equal(modalStyle.rowRadius, '22px', 'Modal rows use the sub-card radius');
+        assert.equal(modalStyle.pillRadius, '9999px', 'Course code is a pill');
+        assert(modalStyle.metaIcons > 0, 'Modal rows carry the map-pin icon like the line-up');
         await page.locator('#day-modal [data-close-modal]').click();
         await page.evaluate(() => {
           window.__savedSchedule = state.schedule;
@@ -185,7 +209,53 @@ try {
         await page.getByRole('tab', { name: 'Notes', exact: true }).click();
         assert(await page.locator('#workspace-notes-panel').isVisible());
         assert.equal(await page.getByRole('tab', { name: 'Notes', exact: true }).getAttribute('aria-selected'), 'true');
+        await page.getByRole('tab', { name: 'Tasks', exact: true }).click();
+        // Task cards must render a formatted deadline (raw ISO strings used to
+        // leak through) and the pastel chip language of the Home dashboard.
+        const card = await page.evaluate(() => {
+          const list = document.getElementById('task-list');
+          list.innerHTML = taskCardTemplate({ taskId: 'tsk_probe', title: 'test', priority: 'MEDIUM', dueDate: '2026-09-14T16:00:00.000Z', status: 'OPEN', createdAt: '2026-09-14T16:00:00.000Z' });
+          if (window.lucide) window.lucide.createIcons();
+          const el = list.querySelector('.task-card');
+          const badge = el.querySelector('.priority-badge');
+          const cs = getComputedStyle(el);
+          return {
+            text: el.innerText.replace(/\n/g, ' | '),
+            hasIso: /\d{4}-\d{2}-\d{2}T/.test(el.textContent),
+            accent: cs.borderLeftColor,
+            badgeBg: getComputedStyle(badge).backgroundColor,
+            badgeRadius: getComputedStyle(badge).borderRadius,
+            radius: cs.borderRadius
+          };
+        });
+        assert.equal(card.hasIso, false, `Task card must not show a raw ISO date: ${card.text}`);
+        assert.match(card.text, /Sep 1[45]/, `Task card shows a formatted deadline: ${card.text}`);
+        assert.equal(card.badgeRadius, '9999px', 'Priority is a pastel pill');
+        assert.notEqual(card.accent, 'rgb(0, 0, 0)', `Priority accent colour: ${card.accent}`);
+        assert.equal(card.radius, '22px', 'Task card uses the soft-UI sub-card radius');
+        await page.evaluate(() => { document.getElementById('task-list').innerHTML = ''; });
       }
+      if (name === 'settings') {
+        const settings = await page.evaluate(() => {
+          const rows = [...document.querySelectorAll('.settings-item')];
+          const so = document.getElementById('settings-signout');
+          return {
+            labels: rows.map(r => (r.querySelector('.settings-label-title') || {}).textContent),
+            signoutBg: so ? getComputedStyle(so).backgroundColor : null,
+            signoutIcon: so ? getComputedStyle(so.querySelector('svg, i')).color : null,
+            signoutClickable: typeof so?.onclick === 'function',
+            removed: ['Class Notifications', 'Offline Mode', 'App Version', 'Reset All Preferences']
+              .filter(t => document.body.innerText.includes(t))
+          };
+        });
+        assert(settings.labels.includes('Sign out'), `Settings offers Sign out: ${JSON.stringify(settings.labels)}`);
+        assert.equal(settings.signoutBg, 'rgb(255, 255, 255)', 'Sign out is the white closing card');
+        assert.equal(settings.signoutIcon, 'rgb(222, 95, 140)', 'Sign out icon is blush');
+        assert(settings.signoutClickable, 'Sign out is wired to signOut()');
+        assert.deepEqual(settings.removed, [], `Removed preferences stay removed: ${JSON.stringify(settings.removed)}`);
+      }
+      // The header never carries a Sign out button any more (it lives in Settings).
+      assert.equal(await page.locator('#app-header .signout-btn, #app-header [onclick*="signOut"]').count(), 0, `${name}: header has no Sign out button`);
     }
     assert.deepEqual(errors, [], `Runtime errors at ${width}`);
     await context.close();
