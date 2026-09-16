@@ -19,6 +19,9 @@ import { loadAppsScript } from "./_apps-script-emulator.mjs";
 import { repoRoot } from "./_sheets-client.mjs";
 import { Repo, Users, Enrollments, Schedules, ScheduleEntries, EnrollmentSubjects } from "../functions/api/repo/index.js";
 import { resolveUser } from "../functions/api/auth/_lib.js";
+import { onRequestGet as bootstrapGet } from "../functions/api/v1/bootstrap.js";
+import { onRequestGet as dashboardGet } from "../functions/api/v1/dashboard.js";
+import { onRequestGet as onboardingStatusGet } from "../functions/api/v1/onboarding/status.js";
 
 const SECRET = "account-gate-test-secret";
 const SESSION_SECRET = "account-gate-session-secret";
@@ -61,6 +64,11 @@ async function sealSession(identity) {
   return `${b64(iv)}.${b64(cipher)}`;
 }
 
+async function callEndpoint(handler, env, cookie, path) {
+  const response = await handler(contextFor(env, cookie, path));
+  return { status: response.status, body: await response.json().catch(() => null) };
+}
+
 function contextFor(env, cookie, path = "/api/v1/dashboard") {
   const request = new Request(`https://portal.test${path}`, { headers: cookie ? { Cookie: `qcu_platform_session=${cookie}` } : {} });
   return { request, env, data: {} };
@@ -77,8 +85,30 @@ try {
   Repo.reset();
   await Repo.hydrate(env, STUDENT);
   const user = Users.upsert(STUDENT.googleSub, { email: STUDENT.email, name: "Gate Student" });
+  // Legacy shape: the account is ACTIVE (this is exactly what the old flow left
+  // behind) but it owns no schedule, so the dashboard has nothing to show.
+  user.state = "ACTIVE";
+  Users.upsert(STUDENT.googleSub, { email: STUDENT.email, name: "Gate Student" });
   const enrollment = Enrollments.create({ userId: user.userId, status: "ACTIVE" });
   const ens = EnrollmentSubjects.create({ enrollmentId: enrollment.enrollmentId, userId: user.userId, subjectCode: "CS101", subjectName: "Intro", units: 3, status: "ACTIVE" });
+  // Persist the account before anything is checked: the endpoints under test read
+  // it back through hydrate, exactly as production does.
+  await Repo.flush(env, STUDENT);
+
+  section("Active account with no classes is sent back to onboarding");
+  const cookieEarly = await sealSession({ googleSub: STUDENT.googleSub, email: STUDENT.email, emailVerified: true, issuedAt: Date.now(), sessionExpiresAt: Date.now() + 3_600_000 });
+  Repo.reset();
+  await Repo.hydrate(env, STUDENT);
+
+  const routingBefore = await callEndpoint(bootstrapGet, env, cookieEarly, "/api/v1/bootstrap");
+  check("bootstrap routes to onboarding", routingBefore.body?.routing === "onboarding", JSON.stringify(routingBefore.body?.routing));
+
+  const dashBefore = await callEndpoint(dashboardGet, env, cookieEarly, "/api/v1/dashboard");
+  check("dashboard refuses to render an empty week", dashBefore.status === 409 && dashBefore.body?.status === "ONBOARDING_REQUIRED", `${dashBefore.status} ${JSON.stringify(dashBefore.body)}`);
+  check("the refusal tells the client where to go", dashBefore.body?.routing === "onboarding");
+
+  const statusBefore = await callEndpoint(onboardingStatusGet, env, cookieEarly, "/api/v1/onboarding/status");
+  check("onboarding reports the import step, not COMPLETE", statusBefore.body?.stage === "UPLOAD", JSON.stringify(statusBefore.body?.stage));
 
   // Two active schedules: the legacy shape left behind by earlier imports.
   const older = Schedules.create({ scheduleId: "sch_older", enrollmentId: enrollment.enrollmentId, userId: user.userId, revisionNumber: 1, isActive: true, status: "ACTIVE" });
@@ -100,6 +130,15 @@ try {
   check("archiving the others leaves exactly one active", Schedules.getActiveAllByUserId(user.userId).length === 1);
   check("and it is still the newest", Schedules.getActiveByUserId(user.userId)?.scheduleId === "sch_newer");
   await Repo.flush(env, STUDENT);
+
+  section("With classes on the schedule the dashboard is available again");
+  const cookieReady = await sealSession({ googleSub: STUDENT.googleSub, email: STUDENT.email, emailVerified: true, issuedAt: Date.now(), sessionExpiresAt: Date.now() + 3_600_000 });
+  Repo.reset();
+  await Repo.hydrate(env, STUDENT);
+  const routingAfter = await callEndpoint(bootstrapGet, env, cookieReady, "/api/v1/bootstrap");
+  check("bootstrap routes to the dashboard", routingAfter.body?.routing === "dashboard", JSON.stringify(routingAfter.body?.routing));
+  const statusAfter = await callEndpoint(onboardingStatusGet, env, cookieReady, "/api/v1/onboarding/status");
+  check("onboarding reports COMPLETE", statusAfter.body?.stage === "COMPLETE", JSON.stringify(statusAfter.body?.stage));
 
   section("Session resolves for an active account");
   const cookie = await sealSession({ googleSub: STUDENT.googleSub, email: STUDENT.email, emailVerified: true, issuedAt: Date.now(), sessionExpiresAt: Date.now() + 3_600_000 });

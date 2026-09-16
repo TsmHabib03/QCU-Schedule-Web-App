@@ -22,6 +22,7 @@ import {
   EnrollmentSubjects,
   Tasks,
   Notes,
+  isScheduleReady,
 } from "../repo/index.js";
 
 export async function onRequestGet(context) {
@@ -44,6 +45,18 @@ export async function onRequestGet(context) {
         userState: user.state,
         routing: user.state === "ONBOARDING" ? "onboarding" : "login",
       });
+    }
+
+    // An ACTIVE account with no active enrollment or no classes must not be shown
+    // an empty dashboard: send it back to the COR import instead.
+    if (!isScheduleReady(user.userId)) {
+      return json({
+        status: "ONBOARDING_REQUIRED",
+        authenticated: true,
+        userState: user.state,
+        routing: "onboarding",
+        error: "Import your COR to build your schedule.",
+      }, 409);
     }
 
     // ── Try in-memory Maps first (works locally), fall back to session snapshot (CF Pages) ──

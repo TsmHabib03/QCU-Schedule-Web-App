@@ -9,7 +9,7 @@ import {
   resolveUser,
   json,
 } from "../auth/_lib.js";
-import { CatalogSeed, Terms, Enrollments, Profiles } from "../repo/index.js";
+import { CatalogSeed, Terms, Enrollments, Profiles, isScheduleReady } from "../repo/index.js";
 
 export async function onRequestGet(context) {
   try {
@@ -36,7 +36,10 @@ export async function onRequestGet(context) {
         routing = "onboarding";
         break;
       case "ACTIVE":
-        routing = "dashboard";
+        // ACTIVE is not the same as ready: a legacy account (or a COR confirm
+        // that produced no meetings) is active with nothing to show, and used to
+        // be sent straight to a dashboard with an empty week.
+        routing = isScheduleReady(user.userId) ? "dashboard" : "onboarding";
         break;
       case "DEACTIVATED":
         routing = "login";

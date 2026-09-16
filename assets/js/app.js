@@ -1459,7 +1459,16 @@ async function readWithFeedback(url, key, retry, hasContent = false) {
   try {
     const response = await fetch(url, {credentials:'include', cache:'no-store', signal:AbortSignal.timeout(35000)});
     if (!response.ok) {
-      const error = new Error(response.status === 401 ? 'Your session expired. Sign in again.' : response.status === 429 ? `Too many requests. Retry after ${response.headers.get('Retry-After') || 'a few'} seconds.` : 'The service is unavailable. Please try again.');
+      // Routing signals arrive with a 4xx on purpose (409 for "your account is
+      // active but has nothing to show"). They are instructions, not failures,
+      // so hand the body to the caller's routing branches.
+      const body = await response.clone().json().catch(() => null);
+      if (response.status === 409 && body && ['ONBOARDING_REQUIRED', 'INCOMPLETE'].includes(body.status)) {
+        loadErrors.delete(key);
+        loadNotice(key, '');
+        return body;
+      }
+      const error = new Error(response.status === 401 ? 'Your session expired. Sign in again.' : response.status === 429 ? `Too many requests. Retry after ${response.headers.get('Retry-After') || 'a few'} seconds.` : body?.error || 'The service is unavailable. Please try again.');
       error.status = response.status;
       throw error;
     }
@@ -2562,6 +2571,13 @@ async function init() {
       state.loading = false;
       renderShell();
       tick();
+      return;
+    }
+
+    // Active account with nothing to show (a legacy row, or a COR that produced
+    // no classes): send it to the COR import instead of rendering an empty week.
+    if (data.status === "ONBOARDING_REQUIRED") {
+      window.location.replace('/onboarding.html');
       return;
     }
 

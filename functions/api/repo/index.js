@@ -351,6 +351,27 @@ export const Users = {
 };
 
 // ---------------------------------------------------------------------------
+// Onboarding completeness
+// ---------------------------------------------------------------------------
+
+/**
+ * True when an account has everything the dashboard needs: an active enrollment
+ * and at least one class in its current schedule.
+ *
+ * Being ACTIVE is not enough. Accounts created under the old flow (and any COR
+ * whose confirm produced no meetings) sit at ACTIVE with nothing to show, so
+ * the app used to route them straight to the dashboard and render an empty week
+ * with no way to fix it. Those accounts belong back on the COR import step.
+ */
+export function isScheduleReady(userId) {
+  if (!userId) return false;
+  const enrollment = Enrollments.getByUserId(userId).find((e) => e.status === "ACTIVE");
+  if (!enrollment) return false;
+  const schedule = Schedules.getActiveByUserId(userId);
+  if (!schedule) return false;
+  return ScheduleEntries.getByScheduleId(schedule.scheduleId).some((e) => e.status === "ACTIVE");
+}
+// ---------------------------------------------------------------------------
 // COR Records repository
 // ---------------------------------------------------------------------------
 

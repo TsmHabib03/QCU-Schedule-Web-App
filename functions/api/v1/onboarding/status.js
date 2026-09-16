@@ -5,7 +5,7 @@ import {
   resolveUser,
   json,
 } from "../../auth/_lib.js";
-import { CorRecords } from "../../repo/index.js";
+import { CorRecords, isScheduleReady } from "../../repo/index.js";
 import { jobError } from '../cor/_jobs.js';
 
 export async function onRequestGet(context) {
@@ -25,9 +25,14 @@ export async function onRequestGet(context) {
     let corRecordId = user.corRecordId || null;
     let corStatus = null;
 
-    if (user.state === "ACTIVE" && !pending) {
+    // ACTIVE alone is not "complete": an account with no active schedule has
+    // nothing to show on the dashboard, so it goes back to the import step.
+    if (user.state === "ACTIVE" && !pending && isScheduleReady(user.userId)) {
       stage = "COMPLETE";
       nextAction = null;
+    } else if (user.state === "ACTIVE" && !pending) {
+      stage = "UPLOAD";
+      nextAction = "upload";
     } else if (user.corRecordId) {
       // Try in-memory Map first (works locally)
       const record = CorRecords.getById(user.corRecordId);
