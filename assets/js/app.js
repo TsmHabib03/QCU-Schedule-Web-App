@@ -143,16 +143,6 @@ function formatDateLabel(value, withTime) {
   return new Intl.DateTimeFormat("en-US", { ...opts, timeZone: QCU_TIME.zone }).format(date);
 }
 
-function formatDuration(totalSeconds) {
-  if (totalSeconds <= 0) return "now";
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = Math.floor(totalSeconds % 60);
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
-
 function getStatus(item, now = new Date()) {
   if (item.noClasses) return item.day === QCU_TIME.weekday() ? "today-off" : "inactive";
   const today = QCU_TIME.weekday(now);
@@ -177,28 +167,9 @@ function getCurrentAndNext(now = new Date()) {
   return { current, next };
 }
 
-function countdownFor(item, now = new Date()) {
-  if (!item) return "No class scheduled";
-  const s = parseMinutes(item.start), e = parseMinutes(item.end);
-  if (s !== s || e !== e) return "Time not set";
-  const startDate = new Date(now);
-  const endDate   = new Date(now);
-  startDate.setHours(Math.floor(s / 60), s % 60, 0, 0);
-  endDate.setHours(Math.floor(e / 60), e % 60, 0, 0);
-  const status = getStatus(item, now);
-  if (status === "current")  return `Ends in ${formatDuration((endDate - now) / 1000)}`;
-  if (status === "finished") return "Finished";
-  return `Starts in ${formatDuration((startDate - now) / 1000)}`;
-}
-
 function statusLabel(s) {
   return { current: "Current", next: "Next", finished: "Finished",
            upcoming: "Upcoming", inactive: "Inactive", "today-off": "No Classes" }[s] || "Upcoming";
-}
-
-function statusClass(s) {
-  return { current: "status-current", next: "status-next",
-           finished: "status-finished", "today-off": "status-off" }[s] || "";
 }
 
 function setText(id, val) {
@@ -414,50 +385,6 @@ function provenanceBadge(originType) {
     return `<span class="provenance-badge provenance-cor" title="Imported from COR">📋 COR</span>`;
   }
   return "";
-}
-
-/* ── Class Card Template ─────────────────────────────── */
-function cardTemplate(item) {
-  if (item.noClasses) return emptyTemplate("No Classes Scheduled");
-  const now    = new Date();
-  const status = getStatus(item, now);
-  const cd     = countdownFor(item, now);
-  const bname  = buildingLabel(item);
-  const prov   = provenanceBadge(item.originType);
-
-  return `
-    <article class="portal-card class-card ${status}-card" ${item.entryId ? `data-entry-id="${esc(item.entryId)}"` : ""}>
-      <div class="class-card-top">
-        <span class="status-pill ${statusClass(status)}">${statusLabel(status)}</span>
-        ${prov}
-        <span class="class-card-time">${formatTime(item.start)} – ${formatTime(item.end)}</span>
-      </div>
-      <div>
-        <h3 class="class-card-subject">${item.subject}</h3>
-        <p style="margin-top:4px; font-size:13px; font-weight:600; color:var(--muted);">${item.course} · ${bname}</p>
-        <div style="display:flex; gap:16px; margin-top:12px; padding-top:12px; border-top:1px solid var(--divider);">
-          <div><p style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Room</p><p style="font-size:13px; font-weight:700;">${item.room}</p></div>
-          <div><p style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Floor</p><p style="font-size:13px; font-weight:700;">${item.floor}</p></div>
-          <div><p style="font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase;">Units</p><p style="font-size:13px; font-weight:700;">${item.units > 0 ? item.units : "Lab"}</p></div>
-        </div>
-        <p style="margin-top:12px; font-size:13px; font-weight:700; color:var(--blue);"><i data-lucide="timer" style="display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:4px;stroke-width:2.2;"></i>${cd}</p>
-      </div>
-      ${item.entryId ? `
-      <div class="class-card-actions">
-        <button class="icon-btn icon-btn--sm" data-action="edit-entry" data-entry-id="${esc(item.entryId)}" aria-label="Edit class" title="Edit class">
-          <i data-lucide="pencil"></i>
-        </button>
-      </div>` : ""}
-    </article>`;
-}
-
-/* ── Empty State ─────────────────────────────────────── */
-function emptyTemplate(msg) {
-  return `
-    <div class="empty-state">
-      <i data-lucide="calendar-x-2" class="empty-icon"></i>
-      <p class="empty-text">${msg}</p>
-    </div>`;
 }
 
 function weekOverview(now = new Date()) {
@@ -1134,6 +1061,11 @@ function openDayModal(day) {
 
       <div class="day-modal-rows">${rows}</div>
       ${noTimesNote}
+
+      <a class="day-modal-full" href="schedule.html">
+        Full schedule
+        <i data-lucide="arrow-right" aria-hidden="true"></i>
+      </a>
     </div>`;
 
   modal.classList.add("open");
@@ -1283,23 +1215,6 @@ function formatTimeShort(v) {
   const [h, m] = v.split(":").map(Number);
   const hour = h % 12 || 12;
   return `${hour}:${String(m).padStart(2, "0")}`;
-}
-
-/* ── Today Page ──────────────────────────────────────── */
-function renderToday() {
-  const list = document.getElementById("today-cards");
-  if (!list) return;
-  const today = QCU_TIME.weekday();
-  setText("today-date", QCU_TIME.dateLabel(new Date(), { weekday: "long", month: "long", day: "numeric" }));
-  if (state.error && !state.dashboard) {
-    setInnerHTML(list, emptyTemplate("Today's classes could not be loaded. Try again above."));
-    return;
-  }
-  const todaysClasses = classesForDay(today);
-  setInnerHTML(list, todaysClasses.length
-    ? todaysClasses.map(cardTemplate).join("")
-    : emptyTemplate("No classes scheduled today"));
-  if (window.lucide) window.lucide.createIcons({ root: list });
 }
 
 /* ── Buildings Page ──────────────────────────────────── */
@@ -2072,7 +1987,6 @@ function tick() {
   updateClock();
   if (page === "home")     renderHome();
   if (page === "schedule") renderSchedule();
-  if (page === "today")    renderToday();
   if (page === "tasks")    renderTasks();
   if (page === "notes")    renderNotes();
   if (page === "workspace") { renderTasks(); renderNotes(); }
@@ -2568,7 +2482,6 @@ async function reloadSchedule() {
   // Re-render all schedule views
   if (page === "home") renderHome();
   if (page === "schedule") renderSchedule();
-  if (page === "today") renderToday();
   iconify();
 }
 
@@ -2700,6 +2613,17 @@ async function init() {
       day.setAttribute("aria-pressed", String(day === button));
     });
     renderSchedule();
+  });
+
+  // "Today" jumps the table to the current day — the full schedule is the only
+  // place the week lives now, so it needs to be able to centre today.
+  document.getElementById("schedule-today-btn")?.addEventListener("click", () => {
+    const today = QCU_TIME.weekday();
+    const target = [...document.querySelectorAll("[data-schedule-day]")]
+      .find(day => normalizeDayName(day.dataset.scheduleDay) === normalizeDayName(today));
+    if (!target) return;
+    target.click();
+    target.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
   });
   document.getElementById("crud-modal")?.addEventListener("keydown", e => {
     if (e.key !== "Tab") return;

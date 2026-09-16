@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
   <link rel="stylesheet" href="assets/css/styles.css?v=55">
   <link rel="stylesheet" href="assets/css/student.css?v=2">
-  <link rel="stylesheet" href="assets/css/soft-ui.css?v=29">
+  <link rel="stylesheet" href="assets/css/soft-ui.css?v=31">
   <link rel="stylesheet" href="assets/css/loading.css?v=4">
   <script src="assets/js/loading.js?v=1"></script>
 </head>
@@ -24,12 +24,12 @@
     <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div><span class="skeleton-pulse loading-bar loading-header-button"></span></div></div></header>
     <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
 
-    <main id="main-content" tabindex="-1" class="page-container section-stack">
+    <main id="main-content" tabindex="-1" class="page-container section-stack schedule-page">
 
       <section class="student-heading">
         <div><h1 class="page-title">Full Schedule</h1><p>Your week at a glance. Choose a day to focus on.</p></div>
         <div class="student-actions">
-          <a class="student-button" href="today.html"><i data-lucide="clock-3" aria-hidden="true"></i> Today's classes</a>
+          <button class="student-button" id="schedule-today-btn" type="button"><i data-lucide="calendar-days" aria-hidden="true"></i> Today</button>
           <button class="student-button student-button--primary" id="schedule-add-btn" type="button"><i data-lucide="plus" aria-hidden="true"></i> Add class</button>
         </div>
       </section>
@@ -81,6 +81,6 @@
 
   <script src="assets/js/lucide.min.js?v=1"></script>
   <script src="assets/js/academic.js?v=41"></script>
-  <script src="assets/js/app.js?v=69"></script>
+  <script src="assets/js/app.js?v=71"></script>
 </body>
 </html>

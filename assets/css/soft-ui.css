@@ -2035,27 +2035,31 @@
 }
 
 /* ════════════════════════════════════════════════════════
-   DESKTOP NAV (≥1024px): the same nav the phone gets, docked.
-   Floating white pill, icon-over-label tabs, indigo active tab,
-   and the Classroom circle lifted out of the dock's top edge.
+   DESKTOP NAV (≥1024px): the phone's bottom bar, floating.
+   Same tabs, same icon-over-label treatment, same indigo active
+   state and the same Classroom circle lifted out of the bar's top
+   edge — only difference is that on a wide screen the bar is a
+   centred dock floating above the bottom edge instead of a slab
+   stretched to the viewport width.
    Placed at the END of the file so it wins both the base
    `.bottom-nav { position: fixed !important }` and the earlier
    ≥1024 block (equal specificity, later wins).
    ════════════════════════════════════════════════════════ */
 @media (min-width: 1024px) {
   .student-shell .bottom-nav {
-    position: sticky !important;      /* in flow above <main>, floats on scroll */
-    top: 12px !important;
-    bottom: auto !important;
-    left: auto !important;
+    position: fixed !important;
+    bottom: 18px !important;
+    top: auto !important;
+    left: 50% !important;
     right: auto !important;
-    width: auto !important;           /* a dock, not a full-width slab */
+    transform: translateX(-50%);
+    width: min(680px, calc(100vw - 40px)) !important;
     max-width: 680px !important;
-    margin: 26px auto 0 !important;   /* clearance for the lifted Classroom circle */
+    margin: 0 !important;
     border-radius: 28px !important;
-    box-shadow: var(--soft-shadow) !important;
+    box-shadow: 0 18px 40px -12px rgba(26, 27, 65, 0.22) !important;
     padding: 10px 10px 8px !important;
-    z-index: 40;
+    z-index: 60;
   }
   .student-shell .bottom-nav > div {
     width: 100% !important;
@@ -2105,6 +2109,10 @@
     font-weight: 400 !important;
     color: #64748B !important;
   }
+
+  /* A bottom-docked bar overlays content, so every student page reserves room
+     for it (the lifted circle needs ~40px more than the bar itself). */
+  .student-shell .page-container { padding-bottom: 170px !important; }
 }
 
 /* Day modal (weekly table): classes whose time never made it into the database
@@ -2334,3 +2342,462 @@
 .student-shell .settings-page section > .settings-item.settings-item--signout .settings-label-title { color: #1A1B41 !important; }
 .student-shell .settings-page section > .settings-item.settings-item--signout > i,
 .student-shell .settings-page section > .settings-item.settings-item--signout > svg { color: #DE5F8C !important; }
+
+/* ════════════════════════════════════════════════════════
+   FULL SCHEDULE (schedule.html) — page header, week table and
+   the class editor modal, all in the Home dashboard's language:
+   white floating cards, pastel pills, purple actions.
+   ════════════════════════════════════════════════════════ */
+
+.student-shell .schedule-page { gap: 18px; padding-bottom: 150px; }
+
+/* Page heading + actions */
+.student-shell .schedule-page .student-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #fff;
+  border: 0;
+  border-radius: var(--soft-radius);
+  box-shadow: var(--soft-shadow);
+  padding: 18px 20px;
+  margin-bottom: 0;
+}
+.student-shell .schedule-page .student-heading .page-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--soft-navy);
+  margin: 0;
+}
+.student-shell .schedule-page .student-heading p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--soft-grey);
+}
+.student-shell .schedule-page .student-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Week table: floating card, soft header, comfortable rows */
+.student-shell .schedule-page .table-wrap {
+  border-radius: var(--soft-radius) !important;
+  box-shadow: var(--soft-shadow) !important;
+  border: 0 !important;
+  background: #fff !important;
+}
+.student-shell .schedule-page .schedule-table { border-collapse: separate; border-spacing: 0; }
+.student-shell .schedule-page .schedule-table caption {
+  text-align: left;
+  padding: 18px 20px 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--soft-grey);
+}
+.student-shell .schedule-page .schedule-table th {
+  padding: 10px 16px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--soft-grey);
+  background: transparent;
+  border-bottom: 1px solid rgba(26, 27, 65, 0.07) !important;
+}
+.student-shell .schedule-page .schedule-table td {
+  padding: 16px;
+  vertical-align: middle;
+  font-size: 14px;
+  color: var(--soft-navy);
+  border-bottom: 1px solid rgba(26, 27, 65, 0.05) !important;
+}
+.student-shell .schedule-page .schedule-table tr:last-child td { border-bottom: 0 !important; }
+.student-shell .schedule-page .schedule-table tr { transition: background .15s ease; }
+.student-shell .schedule-page .schedule-table tbody tr:hover td { background: #F8F9FE !important; }
+
+/* Today's row reads as the active one without shouting */
+.student-shell .schedule-page .schedule-table tr.today-row td { background: #FBFAFF; }
+.student-shell .schedule-page .schedule-table tr.today-row td:first-child { box-shadow: inset 3px 0 0 var(--soft-primary); }
+
+/* Time cell: purple day pill over the time range */
+.student-shell .schedule-page .day-abbr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background: var(--soft-lavender);
+  color: #6A58E8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.student-shell .schedule-page .time-range {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--soft-navy);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Subject / code / location */
+.student-shell .schedule-page .subject-cell { font-weight: 700; color: var(--soft-navy); }
+.student-shell .schedule-page .code-cell {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: var(--soft-bg);
+  color: #4A3AFF;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.student-shell .schedule-page .location-cell { color: #5C608A; font-weight: 600; font-size: 13px; }
+.student-shell .schedule-page .units-chip {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: var(--soft-sky);
+  color: #2F6BC4;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+/* Status pill instead of a dot + loose label */
+.student-shell .schedule-page .schedule-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 9999px;
+  background: var(--soft-bg);
+  color: var(--soft-grey);
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.student-shell .schedule-page .schedule-status .status-dot { width: 7px; height: 7px; }
+.student-shell .schedule-page tr.current-row .schedule-status { background: var(--soft-mint); color: #1F9C9C; }
+.student-shell .schedule-page tr.upcoming-row .schedule-status { background: var(--soft-lavender); color: #6A58E8; }
+.student-shell .schedule-page tr.finished-row .schedule-status { background: var(--soft-bg); color: var(--soft-grey); }
+.student-shell .schedule-page tr.finished-row .subject-cell,
+.student-shell .schedule-page tr.finished-row .time-range { color: #9A9DB8; }
+
+/* Edit affordance: soft circular icon button */
+.student-shell .schedule-page .icon-btn {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px;
+  border-radius: 9999px !important;
+  border: 0 !important;
+  background: var(--soft-bg) !important;
+  color: #6C7095 !important;
+  display: inline-grid;
+  place-items: center;
+  transition: background .15s ease, color .15s ease, transform .15s ease;
+}
+.student-shell .schedule-page .icon-btn:hover {
+  background: var(--soft-primary-soft) !important;
+  color: var(--soft-primary) !important;
+  transform: translateY(-1px);
+}
+.student-shell .schedule-page .icon-btn svg { width: 16px; height: 16px; }
+
+/* Break rows as a soft divider tile */
+.student-shell .schedule-page .break-row td { padding: 10px 16px; border-bottom: 0 !important; }
+.student-shell .schedule-page .break-free-label {
+  display: inline-flex;
+  padding: 3px 10px;
+  margin-right: 6px;
+  border-radius: 9999px;
+  background: var(--soft-mint);
+  color: #1F9C9C;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+.student-shell .schedule-page .break-duration { color: var(--soft-grey); font-weight: 700; font-size: 12px; }
+
+/* Empty / error state */
+.student-shell .schedule-page .schedule-state { text-align: center; padding: 38px 20px !important; }
+.student-shell .schedule-page .schedule-state strong {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--soft-navy);
+}
+.student-shell .schedule-page .schedule-state p { margin: 6px 0 0; color: var(--soft-grey); font-weight: 600; font-size: 13px; }
+.student-shell .schedule-page .schedule-result { color: var(--soft-grey); font-weight: 700; font-size: 12.5px; }
+
+/* ── Class editor modal (#crud-modal) ── */
+.student-shell #crud-modal .modal-drag-handle { background: rgba(26, 27, 65, 0.12); }
+.student-shell #crud-modal .modal-inner { padding: 18px 20px 24px; }
+.student-shell #crud-modal .modal-title {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--soft-navy);
+}
+.student-shell #crud-modal .chip-blue {
+  background: var(--soft-primary-soft);
+  color: var(--soft-primary);
+  border: 0;
+  border-radius: 9999px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.student-shell #crud-modal .modal-close-btn {
+  background: var(--soft-bg);
+  border: 0;
+  border-radius: 9999px;
+  color: var(--soft-navy);
+}
+.student-shell #crud-modal .modal-close-btn:hover { background: var(--soft-primary-soft); color: var(--soft-primary); }
+
+.student-shell #crud-modal .crud-form { display: grid; gap: 14px; margin-top: 16px; }
+.student-shell #crud-modal .crud-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.student-shell #crud-modal .crud-field { display: grid; gap: 6px; min-width: 0; }
+.student-shell #crud-modal .crud-field label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--soft-grey);
+}
+.student-shell #crud-modal .crud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(26, 27, 65, 0.06);
+}
+.student-shell #crud-modal .crud-actions-right { display: flex; gap: 8px; margin-left: auto; }
+.student-shell #crud-modal .crud-error {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--soft-blush);
+  color: #A63A63;
+  font-size: 13px;
+  font-weight: 700;
+}
+.student-shell #crud-modal [aria-invalid="true"] {
+  border-color: #E8879F !important;
+  box-shadow: 0 0 0 4px rgba(222, 95, 140, 0.16) !important;
+}
+.student-shell #crud-modal .btn-danger {
+  background: #fff !important;
+  color: #C2416B !important;
+  border: 1px solid rgba(222, 95, 140, 0.35) !important;
+  border-radius: 9999px !important;
+  padding: 10px 16px !important;
+  font-weight: 700;
+}
+.student-shell #crud-modal .btn-danger:hover { background: var(--soft-blush) !important; }
+
+/* Phones: single column, actions stack full width */
+@media (max-width: 767px) {
+  .student-shell #crud-modal .crud-row { grid-template-columns: minmax(0, 1fr); }
+  .student-shell #crud-modal .crud-actions { flex-direction: column-reverse; align-items: stretch; }
+  .student-shell #crud-modal .crud-actions-right { margin-left: 0; }
+  .student-shell #crud-modal .crud-actions .btn { width: 100%; justify-content: center; }
+  .student-shell .schedule-page .student-heading { padding: 16px; }
+  .student-shell .schedule-page .student-heading .page-title { font-size: 20px; }
+  .student-shell .schedule-page .student-actions { width: 100%; }
+  .student-shell .schedule-page .student-actions .student-button { flex: 1 1 auto; justify-content: center; }
+  .student-shell .schedule-page .schedule-table td { padding: 14px; }
+  .student-shell .schedule-page .table-wrap { border-radius: 24px !important; }
+}
+
+/* Home: "Full schedule" access — a link in the Today Schedule and Calendar column
+   headers, plus one at the foot of the day modal, so the full week is always one
+   tap away from the dashboard. */
+.student-shell .soft-col-head-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.student-shell .soft-col-link {
+  align-self: center;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background: var(--soft-primary-soft);
+  color: var(--soft-primary) !important;
+  font-size: 11.5px;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .15s ease, transform .15s ease;
+}
+.student-shell .soft-col-link:hover { background: #E0DCFF; transform: translateY(-1px); }
+
+.student-shell #day-modal .day-modal-full {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 13px 18px;
+  border-radius: 18px;
+  background: var(--soft-primary);
+  color: #fff !important;
+  font-size: 13.5px;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: var(--soft-shadow-primary);
+}
+.student-shell #day-modal .day-modal-full svg { width: 16px; height: 16px; }
+
+/* ════════════════════════════════════════════════════════
+   TASK & NOTE MODALS + CARDS (workspace.html)
+   Same shell as the day modal and the class editor: navy title,
+   uppercase field labels, soft rounded inputs and one full-width
+   purple action. The cards keep the dashboard's chip language.
+   ════════════════════════════════════════════════════════ */
+.student-shell #task-modal .modal-drag-handle,
+.student-shell #note-modal .modal-drag-handle { background: rgba(26, 27, 65, 0.12); }
+.student-shell #task-modal .modal-inner,
+.student-shell #note-modal .modal-inner { padding: 18px 20px 24px; }
+.student-shell #task-modal .modal-title,
+.student-shell #note-modal .modal-title {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--soft-navy);
+}
+.student-shell #task-modal .chip-blue,
+.student-shell #note-modal .chip-blue {
+  background: var(--soft-primary-soft);
+  color: var(--soft-primary);
+  border: 0;
+  border-radius: 9999px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.student-shell #task-modal .modal-close-btn,
+.student-shell #note-modal .modal-close-btn {
+  background: var(--soft-bg);
+  border: 0;
+  border-radius: 9999px;
+  color: var(--soft-navy);
+}
+.student-shell #task-modal .modal-close-btn:hover,
+.student-shell #note-modal .modal-close-btn:hover { background: var(--soft-primary-soft); color: var(--soft-primary); }
+
+/* Field rhythm: title, description, then a two-up row that stacks on phones */
+.student-shell #task-modal .task-form,
+.student-shell #note-modal .task-form { display: grid; gap: 14px; margin-top: 16px; }
+.student-shell #task-modal .form-field,
+.student-shell #note-modal .form-field { display: grid; gap: 6px; min-width: 0; }
+.student-shell #task-modal .form-row,
+.student-shell #note-modal .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.student-shell #task-modal .form-field--half,
+.student-shell #note-modal .form-field--half { width: auto; }
+.student-shell #task-modal .form-label,
+.student-shell #note-modal .form-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--soft-grey);
+}
+.student-shell #task-modal .task-form textarea,
+.student-shell #note-modal .task-form textarea { resize: vertical; min-height: 84px; line-height: 1.6; }
+
+/* One full-width purple action, matching the day modal's CTA */
+.student-shell #task-modal .action-button,
+.student-shell #note-modal .action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 13px 18px !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: var(--soft-primary) !important;
+  color: #fff !important;
+  font-size: 13.5px;
+  font-weight: 800;
+  box-shadow: var(--soft-shadow-primary);
+}
+.student-shell #task-modal .action-button:hover,
+.student-shell #note-modal .action-button:hover { background: #3D2EE0 !important; }
+.student-shell #task-modal .action-button svg,
+.student-shell #note-modal .action-button svg { width: 16px; height: 16px; }
+
+/* Cards: one radius, one padding rhythm, chips on a single baseline */
+.student-shell .workspace-list .task-card,
+.student-shell .workspace-list .note-card {
+  border-radius: var(--soft-radius-sm) !important;
+  box-shadow: var(--soft-shadow);
+}
+.student-shell .workspace-list .task-card { padding: 16px 18px !important; }
+.student-shell .workspace-list .note-card .note-card-inner { padding: 16px 18px !important; }
+.student-shell .task-card-title,
+.student-shell .note-card-title {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+.student-shell .task-card-desc,
+.student-shell .note-card-body {
+  margin-top: 6px !important;
+  font-size: 13px !important;
+  font-weight: 600;
+  line-height: 1.55;
+  color: #5C608A !important;
+}
+.student-shell .task-card-footer,
+.student-shell .note-card-footer {
+  margin-top: 12px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+.student-shell .workspace-list .task-card .task-card-actions .icon-btn,
+.student-shell .workspace-list .note-card .task-card-actions .icon-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px;
+  border-radius: 9999px !important;
+  background: rgba(26, 27, 65, 0.04) !important;
+  border: 0 !important;
+  color: #6C7095 !important;
+}
+.student-shell .workspace-list .task-card .task-card-actions .icon-btn:hover,
+.student-shell .workspace-list .note-card .task-card-actions .icon-btn:hover {
+  background: var(--soft-primary-soft) !important;
+  color: var(--soft-primary) !important;
+}
+.student-shell .workspace-list .task-card .task-card-actions .icon-btn--danger:hover {
+  background: var(--soft-blush) !important;
+  color: #C2416B !important;
+}
+.student-shell .workspace-list .task-card .task-card-actions .icon-btn svg,
+.student-shell .workspace-list .note-card .task-card-actions .icon-btn svg { width: 15px; height: 15px; }
+
+@media (max-width: 767px) {
+  .student-shell #task-modal .form-row,
+  .student-shell #note-modal .form-row { grid-template-columns: minmax(0, 1fr); }
+}

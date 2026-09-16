@@ -21,7 +21,7 @@ const server = createServer(async (request, response) => {
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
 let browser;
-const pages = ['index', 'today', 'schedule', 'workspace', 'buildings', 'settings', 'google', 'campus-eta', 'onboarding', 'admin'];
+const pages = ['index', 'schedule', 'workspace', 'buildings', 'settings', 'google', 'campus-eta', 'onboarding', 'admin'];
 const dashboard = { status: 'OK', profile: { name: 'Test Student' }, entries: [], buildings: [], tasks: [], notes: [] };
 const adminUser = { userId: 'test-student', displayName: 'Test Student', accountStatus: 'ACTIVE', onboardingState: 'ACTIVE' };
 const admin = { users: [adminUser], total: 1, pageSize: 20, filters: { campuses: [], programs: [], sections: [] }, counts: { total: 1, today: 0, week: 0, active: 1, suspended: 0 }, audit: [], refreshedAt: new Date().toISOString() };
@@ -132,7 +132,7 @@ try {
       assert.deepEqual(errors, [], `${name} at ${width}: runtime errors`);
       await context.close();
     }
-    console.log(`PASS all 10 loading pages at ${width}px: animated, contained, and cleared after response`);
+    console.log(`PASS all ${pages.length} loading pages at ${width}px: animated, contained, and cleared after response`);
   }
   const context = await browser.newContext({ viewport: { width: 320, height: 740 }, reducedMotion: 'reduce' });
   let release;
@@ -144,7 +144,7 @@ try {
     return route.continue();
   });
   const page = await context.newPage();
-  await page.goto(`${origin}/today.html`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/schedule.html`, { waitUntil: 'domcontentloaded' });
   assert.equal(await page.locator('.loading-brand-title').evaluate(el => getComputedStyle(el,'::after').animationName), 'none');
   release();
   await page.waitForFunction(() => !document.querySelector('[data-loading-region], [data-loading-cover]'));

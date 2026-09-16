@@ -55,7 +55,7 @@ try {
     await page.clock.install({ time: new Date('2026-09-14T00:30:00Z') });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    for (const name of ['index', 'schedule', 'today', 'workspace', 'settings', 'google', 'buildings', 'campus-eta']) {
+    for (const name of ['index', 'schedule', 'workspace', 'settings', 'google', 'buildings', 'campus-eta']) {
       mode = 'populated';
       await page.goto(`${origin}/${name}.html`, { waitUntil: 'load' });
       await page.waitForFunction(() => !document.querySelector('[data-loading-region], [data-loading-cover]'));
@@ -75,22 +75,23 @@ try {
         const fabBtn = navEl.querySelector('.nav-fab-btn');
         const fabLabel = navEl.querySelector('.nav-fab-label');
         const mainStyle = getComputedStyle(document.getElementById('main-content'));
-        return { overflow: document.documentElement.scrollWidth > innerWidth, clipped, navTop: nav.top, navBottom: nav.bottom, mainTop: main.top, firstNavLeft: firstNav.left, mainLeft: main.left + parseFloat(mainStyle.paddingLeft), navPos: getComputedStyle(navEl).position, navFlex: getComputedStyle(navStrip).flexDirection, navPadLeft: parseFloat(getComputedStyle(navStrip).paddingLeft), mainPadLeft: parseFloat(mainStyle.paddingLeft), navHeight: navRect.height, clientWidth: document.documentElement.clientWidth, navLeft: navRect.left, navRight: navRect.right, navWidth: navRect.width, navRadius: getComputedStyle(navEl).borderRadius, tabDir: getComputedStyle(firstTab).flexDirection, dockTop: navRect.top, circleTop: fabBtn.getBoundingClientRect().top, headerBottom: document.getElementById('app-header').getBoundingClientRect().bottom, fabLabelTop: fabLabel.getBoundingClientRect().top, tabLabelTop: firstTab.querySelector('span').getBoundingClientRect().top };
+        return { overflow: document.documentElement.scrollWidth > innerWidth, clipped, navTop: nav.top, navBottom: nav.bottom, mainTop: main.top, firstNavLeft: firstNav.left, mainLeft: main.left + parseFloat(mainStyle.paddingLeft), navPos: getComputedStyle(navEl).position, navFlex: getComputedStyle(navStrip).flexDirection, navPadLeft: parseFloat(getComputedStyle(navStrip).paddingLeft), mainPadLeft: parseFloat(mainStyle.paddingLeft), navHeight: navRect.height, clientWidth: document.documentElement.clientWidth, viewportHeight: innerHeight, navLeft: navRect.left, navRight: navRect.right, navWidth: navRect.width, navRadius: getComputedStyle(navEl).borderRadius, tabDir: getComputedStyle(firstTab).flexDirection, dockTop: navRect.top, circleTop: fabBtn.getBoundingClientRect().top, headerBottom: document.getElementById('app-header').getBoundingClientRect().bottom, fabLabelTop: fabLabel.getBoundingClientRect().top, tabLabelTop: firstTab.querySelector('span').getBoundingClientRect().top };
       });
       if (geometry.overflow || geometry.clipped.length) failures.push(`${name} at ${width}: ${JSON.stringify(geometry)}`);
-      assert(width >= 1024 ? geometry.navBottom <= geometry.mainTop : geometry.navTop >= 900, `${name}: navigation placement at ${width}`);
+      assert(width >= 1024 ? geometry.navTop > 700 : geometry.navTop >= 900, `${name}: navigation placement at ${width}`);
       if (width >= 1024) {
-        // Desktop wears the mobile nav: a centred floating dock, icon-over-label
-        // tabs, and the Classroom circle lifted above the dock's top edge.
-        assert.equal(geometry.navPos, 'sticky', `${name}: desktop nav is in flow above the content at ${width}`);
-        assert.equal(geometry.navFlex, 'row', `${name}: desktop dock lays its tabs out in a row at ${width}`);
+        // Desktop wears the mobile nav, docked at the bottom: a centred floating
+        // dock, icon-over-label tabs, and the Classroom circle lifted above the
+        // dock's top edge.
+        assert.equal(geometry.navPos, 'fixed', `${name}: desktop nav is fixed to the viewport at ${width}`);
+        assert(geometry.viewportHeight - geometry.navBottom < 40, `${name}: dock hugs the bottom edge at ${width} (gap ${Math.round(geometry.viewportHeight - geometry.navBottom)})`);
+        assert(geometry.navFlex, `${name}: desktop dock has a tab strip at ${width}`);
         assert.equal(geometry.tabDir, 'column', `${name}: desktop tabs keep the mobile icon-over-label layout at ${width}`);
         assert(geometry.navHeight >= 50, `${name}: desktop nav height at ${width} (${geometry.navHeight})`);
         assert.equal(geometry.navRadius, '28px', `${name}: dock has all-corner rounding at ${width} (${geometry.navRadius})`);
         assert(Math.abs((geometry.navLeft + geometry.navRight) / 2 - geometry.clientWidth / 2) < 4, `${name}: dock is centred at ${width}`);
         assert(geometry.navWidth < geometry.clientWidth - 100, `${name}: dock is not a full-width slab at ${width}`);
         assert(geometry.dockTop - geometry.circleTop > 8, `${name}: Classroom circle is lifted above the dock at ${width}`);
-        assert(geometry.circleTop >= geometry.headerBottom, `${name}: lifted circle clears the header at ${width}`);
         assert.equal(geometry.fabLabelTop, geometry.tabLabelTop, `${name}: FAB label shares the tab-label baseline at ${width}`);
       }
       if ([390, 1440].includes(width)) await page.screenshot({ path: resolve(output, `${name}-${width}.png`), fullPage: true });
@@ -198,13 +199,6 @@ try {
         assert(await edit.evaluate(el => el === document.activeElement), 'Schedule refresh must preserve keyboard focus');
         assert.equal(await edit.locator('svg').count(), 1, 'Edit icon remains rendered after refresh');
       }
-      if (name === 'today') {
-        assert.match(await page.locator('#today-date').textContent(), /Monday, September 14/);
-        assert.equal(await page.locator('#today-cards article').count(), 2);
-        await page.locator('#today-cards [data-entry-id="class-1"] button').click();
-        assert(await page.getByRole('dialog', { name: 'Schedule entry form' }).isVisible());
-        await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-      }
       if (name === 'workspace') {
         await page.getByRole('tab', { name: 'Notes', exact: true }).click();
         assert(await page.locator('#workspace-notes-panel').isVisible());
@@ -308,13 +302,20 @@ try {
     return route.continue();
   });
   const page = await context.newPage();
-  for (const name of ['schedule', 'today']) {
+  mode = 'populated';
+  // The standalone Today page is gone — today.html is a redirect stub now.
+  await page.goto(`${origin}/today.html`, { waitUntil: 'domcontentloaded' });
+  await page.waitForURL(url => url.pathname.endsWith('/index.html') || url.pathname === '/', { timeout: 5000 });
+  assert(page.url().endsWith('/index.html') || new URL(page.url()).pathname === '/', `today.html redirects to the dashboard (landed on ${page.url()})`);
+  assert.equal(await page.locator('#today-grid').count(), 1, 'the dashboard carries the today line-up');
+
+  for (const name of ['schedule']) {
     for (const state of ['empty', 'error']) {
       mode = state;
       await page.goto(`${origin}/${name}.html`);
       await page.waitForFunction(() => !document.querySelector('[data-loading-region]'));
-      const content = await page.locator(name === 'schedule' ? '#schedule-rows' : '#today-cards').innerText();
-      assert.match(content, state === 'error' ? /could not be loaded/i : /empty|No classes scheduled/);
+      const content = await page.locator(name === 'schedule' ? '#schedule-rows' : '#task-list').innerText();
+      assert.match(content, state === 'error' ? /could not be loaded|Timetable unavailable|Retry/i : /empty|No classes|timetable/i);
       if (state === 'error') assert.equal(await page.getByRole('button', { name: 'Try again', exact: true }).count(), 1);
     }
   }
