@@ -29,26 +29,40 @@ import {
   CatalogSeed,
   Departments,
 } from "../../repo/index.js";
-import { normalizeDayOfWeek } from "../../_lib/day-time.js";
+import { normalizeDayOfWeek, normalizeTime, minutesOfDay } from "../../_lib/day-time.js";
 import { jobError } from './_jobs.js';
 
 // In-memory stores for confirmed data — NOW DELEGATED TO REPO
 // (Profiles, Enrollments, EnrollmentSubjects, Schedules, ScheduleEntries
 //  are imported from the repo module above)
 
-const DAY_MAP = {
-  "Monday": 1, "Tuesday": 2, "Wednesday": 3,
-  "Thursday": 4, "Friday": 5, "Saturday": 6, "Sunday": 0,
-};
-
 // ---------------------------------------------------------------------------
 // Helpers — extract value from either full ({ value, sourceText, confidence })
-// or compact (plain value) draft formats.
+// or compact (plain value) draft format.
 // ---------------------------------------------------------------------------
 function val(v) {
   if (v === null || v === undefined) return v;
   if (typeof v === "object" && !Array.isArray(v) && "value" in v) return v.value;
   return v;
+}
+
+/**
+ * A text field from a draft, or null.
+ *
+ * The reviewed draft carries `room` as a free-form bag: a { value, confidence }
+ * wrapper when the OCR read one, a plain string when the student typed it, and
+ * `{}` when there was no room at all. val() hands back that empty object
+ * unchanged, and anything downstream that treats the result as text throws
+ * ("e.locationText.match is not a function") — which surfaced to the student as
+ * the generic "could not finish setting up your schedule". Only primitives and
+ * an explicit .value wrapper are text; everything else is nothing.
+ */
+function text(v) {
+  const raw = val(v);
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === "object") return null;
+  const s = String(raw).trim();
+  return s && s !== "[object Object]" ? s : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,20 +96,24 @@ function validateDraft(draft, catalog) {
       if (!val(s.subjectCode)) issues.push({ field: `subjects[${i}].subjectCode`, message: "Subject code is required." });
       if (!val(s.subjectName)) issues.push({ field: `subjects[${i}].subjectName`, message: "Subject name is required." });
 
-      // Validate schedule days
+      // Validate every meeting's day and clock time. Days arrive in every shape
+      // the app has ever written — the importer's canonical "MONDAY", a
+      // title-case "Monday" left in an older draft, and the OCR fallback's
+      // Monday-first 1-7 index — and all three mean the same day. Checking them
+      // against a private title-case table rejected every canonical day
+      // ("Invalid day: MONDAY") and failed the whole confirm once the newest
+      // importer started writing canonical names. One shared reader, both ways.
       const schedule = s.schedule || s.meetings;
       if (schedule) {
         for (let j = 0; j < schedule.length; j++) {
           const m = schedule[j];
-          const dayVal = val(m.day) || val(m.dayOfWeek);
-          if (dayVal && !(dayVal in DAY_MAP)) {
-            issues.push({ field: `subjects[${i}].schedule[${j}].day`, message: `Invalid day: ${dayVal}` });
+          const dayVal = val(m.day) ?? val(m.dayOfWeek);
+          if (String(dayVal ?? "").trim() && !normalizeDayOfWeek(dayVal)) {
+            issues.push({ field: `subjects[${i}].schedule[${j}].day`, message: `Unknown day: ${dayVal}` });
           }
-          const start = val(m.time?.start) || val(m.startTime);
-          const end = val(m.time?.end) || val(m.endTime);
-          if (start && end) {
-            if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) {
-              issues.push({ field: `subjects[${i}].schedule[${j}].time`, message: "Invalid time format." });
+          for (const [label, raw] of [["start", val(m.time?.start) ?? val(m.startTime)], ["end", val(m.time?.end) ?? val(m.endTime)]]) {
+            if (String(raw ?? "").trim() && !normalizeTime(raw)) {
+              issues.push({ field: `subjects[${i}].schedule[${j}].time`, message: `Unknown ${label} time: ${raw}` });
             }
           }
         }
@@ -116,20 +134,21 @@ function validateDraft(draft, catalog) {
         if (!sched2) continue;
         for (const m1 of sched1) {
           for (const m2 of sched2) {
-            const d1 = val(m1.day) || val(m1.dayOfWeek);
-            const d2 = val(m2.day) || val(m2.dayOfWeek);
-            if (d1 !== d2) continue;
-            const s1t = val(m1.time?.start) || val(m1.startTime);
-            const e1 = val(m1.time?.end) || val(m1.endTime);
-            const s2t = val(m2.time?.start) || val(m2.startTime);
-            const e2 = val(m2.time?.end) || val(m2.endTime);
-            if (s1t && e1 && s2t && e2) {
-              if (s1t < e2 && s2t < e1) {
-                issues.push({
-                  field: "schedule",
-                  message: `Schedule conflict: ${val(s1.subjectCode)} and ${val(s2.subjectCode)} on ${d1} (${s1t}-${e1} vs ${s2t}-${e2})`,
-                });
-              }
+            // Compare what the days and times MEAN, not how they are spelled: a
+            // raw !== between "MONDAY" and "Monday" silently disables this check.
+            const d1 = normalizeDayOfWeek(val(m1.day) ?? val(m1.dayOfWeek));
+            const d2 = normalizeDayOfWeek(val(m2.day) ?? val(m2.dayOfWeek));
+            if (!d1 || d1 !== d2) continue;
+            const s1t = minutesOfDay(val(m1.time?.start) ?? val(m1.startTime));
+            const e1 = minutesOfDay(val(m1.time?.end) ?? val(m1.endTime));
+            const s2t = minutesOfDay(val(m2.time?.start) ?? val(m2.startTime));
+            const e2 = minutesOfDay(val(m2.time?.end) ?? val(m2.endTime));
+            if ([s1t, e1, s2t, e2].some((v) => v === null)) continue;
+            if (s1t < e2 && s2t < e1) {
+              issues.push({
+                field: "schedule",
+                message: `Schedule conflict: ${val(s1.subjectCode)} and ${val(s2.subjectCode)} on ${d1} (${clock(s1t)}-${clock(e1)} vs ${clock(s2t)}-${clock(e2)})`,
+              });
             }
           }
         }
@@ -214,7 +233,7 @@ function commitRecords(user, draft, _catalog) {
       matchedSubjectId: subject.matchedSubjectId || null,
       matchedRoomId: subject.room?.matchedRoomId || null,
       matchedBuildingId: subject.room?.matchedBuildingId || null,
-      roomSnapshot: val(subject.room) || null,
+      roomSnapshot: text(subject.room),
       sourceType: "COR_IMPORT",
     });
 
@@ -226,6 +245,7 @@ function commitRecords(user, draft, _catalog) {
         const dayVal = val(meeting.day) || val(meeting.dayOfWeek);
         const startVal = val(meeting.time?.start) || val(meeting.startTime);
         const endVal = val(meeting.time?.end) || val(meeting.endTime);
+        const dayCanonical = normalizeDayOfWeek(dayVal);
         ScheduleEntries.create({
           smeId: `sme_${user.corRecordId}_${entryIndex}`,
           scheduleId: schedule.scheduleId,
@@ -233,14 +253,19 @@ function commitRecords(user, draft, _catalog) {
           userId: user.userId,
           enrollmentSubjectId: enrollmentSubject.ensId,
           // Canonical day name, matching the class editor. The numeric form
-          // (DAY_MAP) is what older rows hold and what the sheet adapter still
-          // normalises on read, but new rows are written in one shape so
-          // conflict checks and the day picker never have to guess.
-          dayOfWeek: normalizeDayOfWeek(dayVal) || null,
-          dayLabel: dayVal || null,
-          startTime: startVal || null,
-          endTime: endVal || null,
-          locationText: val(subject.room) || null,
+          // (Monday-first 1-7 from the OCR fallback) and a title-case "Monday"
+          // both normalise to the same "MONDAY" here, so conflict checks and the
+          // day picker never have to guess.
+          dayOfWeek: dayCanonical || null,
+          // dayLabel is the DISPLAY form every client compares: the week table,
+          // the day filter and dayNames.indexOf all use title-case ("Monday").
+          // Writing the canonical name here left the schedule unreadable to them.
+          dayLabel: dayCanonical ? dayCanonical[0] + dayCanonical.slice(1).toLowerCase() : null,
+          // Normalised clock times: "8:00 AM", "08:00:00" and a Sheets time cell
+          // all become the one "HH:mm" the rest of the app parses.
+          startTime: normalizeTime(startVal) || null,
+          endTime: normalizeTime(endVal) || null,
+          locationText: text(subject.room),
           buildingId: subject.room?.matchedBuildingId || null,
           roomId: subject.room?.matchedRoomId || null,
           sortOrder: entryIndex,
@@ -300,6 +325,11 @@ function timeToMinutes(timeStr) {
   return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
 }
 
+/** Minutes since midnight back to "HH:mm", for messages about a specific slot. */
+function clock(minutes) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
 // ---------------------------------------------------------------------------
 // Handler
 // ---------------------------------------------------------------------------
@@ -316,8 +346,13 @@ export async function onRequestPost(context) {
     if (requested && requested.ownerUserId === user.userId && requested.status === 'COMPLETE') {
       return json({status:'COMPLETE',corRecordId:requested.id,scheduleId:`sch_${requested.id}`,message:'This COR is already confirmed.'});
     }
+    // Confirm the import the student actually reviewed when it is still their own
+    // pending one; otherwise fall back to their newest pending import (never the
+    // OLDEST, which is what a stale earlier upload looks like in sheet order).
+    const asked = requested && requested.ownerUserId === user.userId && requested.status === "REVIEW_REQUIRED" ? requested : null;
     const pending = CorRecords.getActiveByUserId(user.userId);
-    if (pending) user.corRecordId = pending.id;
+    if (asked) user.corRecordId = asked.id;
+    else if (pending) user.corRecordId = pending.id;
 
     if (!["ONBOARDING","ACTIVE"].includes(user.state) || !user.corRecordId) {
       return json(
@@ -336,8 +371,11 @@ export async function onRequestPost(context) {
     }
 
     // --- Get extraction draft (Maps or session fallback) ---
+    // The client named a record that is not the one we are about to confirm:
+    // it belongs to another account, or it was cancelled/replaced. Say so, and
+    // point at the reload that picks up the newest import.
     if (body.corRecordId && body.corRecordId !== user.corRecordId) {
-      return json({ status: "ERROR", error: "This COR import is no longer active." }, 409);
+      return json({ status: "ERROR", error: "That COR import was replaced by a newer one. Check again to load your latest import." }, 409);
     }
     let draft = record ? CorDrafts.get(record.id) : null;
     if (!draft && user.corDraft) {
@@ -392,8 +430,6 @@ export async function onRequestPost(context) {
       ? ScheduleEntries.getByScheduleId(schedule.scheduleId)
       : [];
 
-    const DAY_NUM = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-
     const entries = rawEntries.map((e) => {
       const ens = e.enrollmentSubjectId
         ? EnrollmentSubjects.getById(e.enrollmentSubjectId)
@@ -411,12 +447,13 @@ export async function onRequestPost(context) {
       }
       const startMinutes = timeToMinutes(e.startTime);
       const endMinutes = timeToMinutes(e.endTime);
-      let normalizedDay = e.dayLabel || "";
-      if (!normalizedDay && typeof e.dayOfWeek === "number") {
-        normalizedDay = DAY_NUM[e.dayOfWeek] || "";
-      } else if (!normalizedDay && typeof e.dayOfWeek === "string") {
-        normalizedDay = e.dayOfWeek.charAt(0).toUpperCase() + e.dayOfWeek.slice(1).toLowerCase();
-      }
+      // `day`/`dayLabel` are the DISPLAY form (title-case) every view in the
+      // client compares against — dayNames ordering, the day filter buttons and
+      // the day modal. Derive it from the canonical day rather than echoing
+      // whatever the sheet row happened to hold: a canonical "MONDAY" pasted in
+      // as-is renders no class at all on the week table.
+      const canonicalDay = normalizeDayOfWeek(e.dayOfWeek) || normalizeDayOfWeek(e.dayLabel);
+      const normalizedDay = canonicalDay ? canonicalDay[0] + canonicalDay.slice(1).toLowerCase() : "";
       return {
         entryId: e.smeId,
         scheduleId: e.scheduleId,

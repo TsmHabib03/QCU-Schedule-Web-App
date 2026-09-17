@@ -417,15 +417,24 @@ export const CorRecords = {
 
   /**
    * Find the active (non-terminal) COR record for a user.
-   * Returns the record or null.
+   *
+   * The NEWEST pending row wins. Map order is sheet order, so returning the first
+   * match answered with the oldest one: after any earlier abandoned upload (still
+   * sitting at REVIEW_REQUIRED) a student's fresh import was shadowed, and
+   * confirming the import in front of them answered 409 "This COR import is no
+   * longer active." — the same shape as the stale-schedule bug that made an old
+   * active schedule win. Every caller (status, review, result, onboarding, confirm)
+   * means "the import the student is working on now".
    */
   getActiveByUserId(userId) {
-    for (const record of _corRecords.values()) {
-      if (record.ownerUserId === userId && !["CANCELLED", "DELETED", "COMPLETE"].includes(record.status)) {
-        return record;
-      }
-    }
-    return null;
+    return this.getActiveAllByUserId(userId)[0] || null;
+  },
+
+  /** Every pending COR record for a user, newest first. */
+  getActiveAllByUserId(userId) {
+    return Array.from(_corRecords.values())
+      .filter((record) => record.ownerUserId === userId && !["CANCELLED", "DELETED", "COMPLETE"].includes(record.status))
+      .sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
   },
 
   /** Update a COR record in-place. */

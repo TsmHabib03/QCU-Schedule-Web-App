@@ -9,7 +9,9 @@ import { onRequestPost as processCor } from '../functions/api/v1/cor/process.js'
 import { parseDays, geminiResultToDraft } from '../functions/api/v1/cor/_gemini.js';
 import { parseDayTokens, parseDayIndexes } from '../functions/api/_lib/day-time.js';
 import { onRequestPost as review } from '../functions/api/v1/cor/review.js';
+import { onRequestPost as confirmPost } from '../functions/api/v1/cor/confirm.js';
 import { onRequestGet as statusGet } from '../functions/api/v1/cor/status.js';
+import { Schedules, ScheduleEntries } from '../functions/api/repo/index.js';
 
 const source = readFileSync(new URL('../assets/js/onboarding.js', import.meta.url), 'utf8');
 const draft = { studentInfo: { firstName: { value: 'Test' }, lastName: { value: 'Student' }, studentNumber: { value: '123' } }, enrollmentInfo: { program: 'BSCS', yearLevel: 1, term: 'First' }, subjects: [{ subjectCode: 'CS101', subjectName: 'Computing', units: 3, schedule: [] }] };
@@ -282,4 +284,102 @@ assert.deepEqual(parseDayIndexes('MW'), [1, 3], 'OCR path keeps a compact MW');
 assert.deepEqual(parseDayIndexes('2:30 PM'), [], 'OCR path does not read a time as a day');
 assert.deepEqual(parseDayIndexes('TBA'), [], 'OCR path does not read TBA as Tuesday');
 console.log('PASS both extraction paths share one day parser (names and 1-7 indexes)');
+
+// ---------------------------------------------------------------------------
+// Confirm — the last click of onboarding must accept every day shape it can be
+// handed, and must never answer with copy the student cannot act on.
+// ---------------------------------------------------------------------------
+// Regression: the confirm validator checked days against its own title-case
+// table while the importer had just started writing canonical names, so EVERY
+// confirm answered 400 "Invalid day: MONDAY". The onboarding page has no copy for
+// a validation error and fell back to "We could not finish setting up your
+// schedule. Your information is kept — try again." — the final click of
+// onboarding dead-ended with nothing to retry against. Two more paths reached the
+// same message: an empty `room` bag in the reviewed draft crashed the snapshot
+// builder (500), and a stale earlier upload shadowed the newest pending record
+// (409 "This COR import is no longer active.").
+const confirmUser = Users.adopt({ userId: 'confirm-user', googleSub: 'confirm-sub', state: 'ONBOARDING', name: 'Confirm Student' });
+const confirmRequest = async (path, body) => {
+  const cookie = (await platformSessionHeader({ env, request: new Request('http://127.0.0.1') }, { ...confirmUser, ts: Date.now() })).split(';')[0];
+  return { env, request: new Request('http://127.0.0.1' + path, { method: 'POST', headers: { Cookie: cookie }, body: JSON.stringify(body || {}) }) };
+};
+// Shaped like the reviewed draft: values wrapped by the review step, and the
+// empty `room` object it sends when the COR printed no room.
+const reviewedDraft = (day, code = 'IT 301') => ({
+  studentInfo: { studentNumber: { value: '2026-0001' }, firstName: { value: 'Confirm' }, lastName: { value: 'Student' } },
+  enrollmentInfo: { program: { value: 'BSIT' }, yearLevel: { value: '3' }, term: { value: 'First Semester 2026-2027' } },
+  subjects: [{
+    subjectCode: { value: code, confidence: 'high' },
+    subjectName: { value: 'Systems Integration', confidence: 'high' },
+    units: { value: '3' },
+    schedule: [{ day: { value: day, confidence: 'high' }, time: { start: '08:00', end: '09:30' } }],
+    room: {},
+  }],
+});
+for (const [shape, day] of [['canonical name', 'MONDAY'], ['title-case name', 'Monday'], ['OCR Monday-first index', 1]]) {
+  const record = CorRecords.create({ ownerUserId: confirmUser.userId, status: 'REVIEW_REQUIRED', filename: 'cor.jpg' });
+  Users.update(confirmUser, { corRecordId: record.id });
+  const draftForShape = reviewedDraft(day);
+  CorDrafts.set(record.id, draftForShape);
+  const response = await confirmPost(await confirmRequest('/api/v1/cor/confirm', { corRecordId: record.id, draft: draftForShape }));
+  const body = await response.json();
+  assert.equal(response.status, 200, `${shape} confirms — got ${response.status} ${JSON.stringify(body).slice(0, 200)}`);
+  assert.equal(body.status, 'COMPLETE', `${shape} completes onboarding`);
+  assert.equal(body.entryCount, 1, `${shape} writes one class`);
+  assert.equal(Schedules.getById(body.scheduleId).isActive, true, `${shape} leaves one active schedule`);
+  const entry = ScheduleEntries.getByScheduleId(body.scheduleId)[0];
+  assert.equal(entry.dayOfWeek, 'MONDAY', `${shape} is stored canonically`);
+  assert.equal(entry.dayLabel, 'Monday', `${shape} is stored in the display form every view compares`);
+  assert.equal(entry.startTime, '08:00', `${shape} keeps a parseable clock time`);
+  assert.equal(entry.locationText, null, 'an empty room bag is never stored as text');
+  assert.equal(body.dashboardSnapshot.entries[0].day, 'Monday', `${shape} renders on the week table`);
+  assert.equal(body.dashboardSnapshot.entries[0].notes, '', 'entry notes stay a string');
+  assert.equal(confirmUser.state, 'ACTIVE', `${shape} activates the account`);
+}
+console.log('PASS confirm accepts canonical, title-case and numeric days and writes one readable week');
+
+// A stale earlier upload must never shadow the import the student is looking at:
+// sheet order is not chronology, and answering with the OLDEST pending record
+// rejected the newest one as "no longer active".
+const stale = CorRecords.create({ ownerUserId: confirmUser.userId, status: 'REVIEW_REQUIRED', filename: 'stale.jpg' });
+CorRecords.update(stale, { createdAt: '2026-01-01T00:00:00.000Z' });
+const fresh = CorRecords.create({ ownerUserId: confirmUser.userId, status: 'REVIEW_REQUIRED', filename: 'fresh.jpg' });
+assert.equal(CorRecords.getActiveByUserId(confirmUser.userId).id, fresh.id, 'the newest pending import wins');
+const freshDraft = reviewedDraft('TUESDAY', 'IT 302');
+CorDrafts.set(fresh.id, freshDraft);
+const resumed = await confirmPost(await confirmRequest('/api/v1/cor/confirm', { corRecordId: fresh.id, draft: freshDraft }));
+assert.equal(resumed.status, 200, `an abandoned earlier import does not block the current one — got ${resumed.status}`);
+assert.equal((await resumed.json()).status, 'COMPLETE');
+console.log('PASS the newest pending import is the one confirmed');
+
+// Days spelled differently are the same day: the conflict check must still fire.
+const conflict = CorRecords.create({ ownerUserId: confirmUser.userId, status: 'REVIEW_REQUIRED', filename: 'clash.jpg' });
+Users.update(confirmUser, { corRecordId: conflict.id });
+const clashDraft = reviewedDraft('TUESDAY');
+clashDraft.subjects.push({
+  subjectCode: { value: 'IT 303' }, subjectName: { value: 'Networking' }, units: { value: '3' },
+  schedule: [{ day: { value: 'Tuesday' }, time: { start: '09:00', end: '10:30' } }], room: {},
+});
+CorDrafts.set(conflict.id, clashDraft);
+const rejectedClash = await confirmPost(await confirmRequest('/api/v1/cor/confirm', { corRecordId: conflict.id, draft: clashDraft }));
+const clashBody = await rejectedClash.json();
+assert.equal(rejectedClash.status, 400);
+assert.equal(clashBody.status, 'VALIDATION_ERROR');
+assert.ok(clashBody.issues.some(i => /Schedule conflict/.test(i.message)), `clash reported: ${JSON.stringify(clashBody.issues)}`);
+// A day nobody can read is still reported rather than silently invented.
+clashDraft.subjects[1].schedule[0].day = { value: 'Funday' };
+const unknownDay = await confirmPost(await confirmRequest('/api/v1/cor/confirm', { corRecordId: conflict.id, draft: clashDraft }));
+assert.ok((await unknownDay.json()).issues.some(i => /Unknown day: Funday/.test(i.message)), 'an unreadable day is named');
+console.log('PASS overlaps are caught across day spellings and unreadable days are named');
+
+// And the student must be shown that reason instead of the generic copy.
+const rejectedDraft = await harness({ status: 'EXTRACTED', corRecordId: 'cor-test', result: draft }, 'WELCOME', {
+  '/api/v1/cor/confirm': { status: 'VALIDATION_ERROR', error: 'Please fix the following issues before confirming.', issues: [{ field: 'subjects[0].schedule[0].day', message: 'Unknown day: MONDAY' }] },
+});
+await rejectedDraft.c.uploadCor();
+await rejectedDraft.c.saveAndConfirm();
+await rejectedDraft.c.confirmAndActivate();
+assert(rejectedDraft.get('step-confirm').classList.contains('active'), 'a rejected confirm keeps the student on the last step');
+assert.match(rejectedDraft.get('confirm-error').textContent, /Unknown day: MONDAY/, `shown: ${rejectedDraft.get('confirm-error').textContent}`);
+console.log('PASS a rejected confirm names the reason instead of generic copy');
 

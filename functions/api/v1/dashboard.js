@@ -24,6 +24,7 @@ import {
   Notes,
   isScheduleReady,
 } from "../repo/index.js";
+import { normalizeDayOfWeek } from "../_lib/day-time.js";
 
 export async function onRequestGet(context) {
   try {
@@ -176,15 +177,12 @@ export async function onRequestGet(context) {
       const startMinutes = timeToMinutes(e.startTime);
       const endMinutes = timeToMinutes(e.endTime);
 
-      // Normalize day to title case ("Monday", "Tuesday", ...) to match QCU_TIME.weekday()
-      const dayNumToName = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      let normalizedDay = e.dayLabel || "";
-      if (!normalizedDay && typeof e.dayOfWeek === "number") {
-        normalizedDay = dayNumToName[e.dayOfWeek] || "";
-      } else if (!normalizedDay && typeof e.dayOfWeek === "string") {
-        // Handle "MONDAY" -> "Monday"
-        normalizedDay = e.dayOfWeek.charAt(0).toUpperCase() + e.dayOfWeek.slice(1).toLowerCase();
-      }
+      // Normalize day to title case ("Monday", "Tuesday", ...) to match QCU_TIME.weekday().
+      // Derive it from the canonical day rather than echoing dayLabel: a legacy row
+      // whose dayLabel holds a numeric index (or a canonical "MONDAY") renders no
+      // class at all, because every view compares title-case names.
+      const canonicalDay = normalizeDayOfWeek(e.dayOfWeek) || normalizeDayOfWeek(e.dayLabel);
+      const normalizedDay = canonicalDay ? canonicalDay[0] + canonicalDay.slice(1).toLowerCase() : "";
 
       return {
         entryId: e.smeId,

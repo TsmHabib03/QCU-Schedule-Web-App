@@ -56,8 +56,15 @@
     if (messages[data.status]) return messages[data.status];
     if (status === 429 || data.status === 'RATE_LIMITED') return 'Please wait a moment before trying again.';
     if (status === 404) return messages.NOT_FOUND;
+    // A rejected draft names the fields it rejected. Showing the generic "we could
+    // not finish setting up" instead hid the real reason ("Unknown day: MONDAY")
+    // behind copy that gave the student nothing to act on.
+    if (data.status === 'VALIDATION_ERROR' && Array.isArray(data.issues) && data.issues.length) {
+      const [first, ...rest] = data.issues.map(issue => issue && issue.message).filter(Boolean);
+      if (first) return rest.length ? first + ' (+' + rest.length + ' more)' : first;
+    }
     // Display validation copy only; infrastructure/provider details stay out of the UI.
-    if ([400, 422].includes(status) && data.error && /required|must have|Please correct/.test(data.error)) return data.error;
+    if ([400, 409, 422].includes(status) && typeof data.error === 'string' && data.error && !/failed to |INTERNAL|state:|backend|driver/i.test(data.error)) return data.error;
     return fallback;
   }
   function recoveryError(error, fallback) {
