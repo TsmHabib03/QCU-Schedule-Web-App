@@ -169,6 +169,17 @@ check("printed time text is split on the separator only", () => {
   assert.deepEqual(splitTimeRangeText(""), [null, null]);
 });
 
+check("the first two clock times are the window, whatever else the cell holds", () => {
+  // A COR cell carries the days, a second window, or a stray note; splitting on "-"
+  // alone read "M/W 09:00" as a time and gave up on the rest of the line.
+  assert.deepEqual(splitTimeRangeText("M/W 09:00-10:30"), ["09:00", "10:30"]);
+  assert.deepEqual(splitTimeRangeText("7:30-9:00AM / 10:00-11:30AM"), ["7:30", "9:00AM"]);
+  assert.deepEqual(splitTimeRangeText("8.00 AM - 9.30 AM"), ["8.00 AM", "9.30 AM"]);
+  // A year or a room number is not a clock time.
+  assert.deepEqual(splitTimeRangeText("1899-12-30T08:30:00.000Z - 1899-12-30T09:30:00.000Z"), ["08:30", "09:30"]);
+  assert.equal(readTimeRange(...splitTimeRangeText("room 502")).unresolved, true, "a room number is not a window");
+});
+
 check("a printed time knows whether it settled AM/PM", () => {
   assert.equal(parsePrintedTime("1:00").unambiguous, false);
   assert.equal(parsePrintedTime("1:00 PM").unambiguous, true);

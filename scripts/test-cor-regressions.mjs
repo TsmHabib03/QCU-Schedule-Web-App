@@ -338,6 +338,19 @@ assert.equal(guessed.subjects[0].schedule[0].time.sourceText, '1:00 - 2:30', 'th
 assert.equal(guessed.validationIssues.filter((i) => /AM\/PM marker could not be read/.test(i.message)).length, 1, 'the student is told which class needs a time');
 console.log('PASS a printed class window is read from the COR, and an unreadable one asks instead of guessing');
 
+// A draft saved BEFORE the window was read as a range still has to come out right:
+// its stored start/end carry the old arithmetic ("01:00" for a 1 PM class) while
+// sourceText still holds what the COR printed. The draft is repaired on read, so an
+// already-uploaded import does not need a second scan.
+const staleDraftTime = (time) => { CorDrafts.set('cor_stale', { subjects: [{ subjectCode: { value: 'IT 301' }, schedule: [{ day: { value: 'MONDAY' }, time }] }] }); return CorDrafts.get('cor_stale').subjects[0].schedule[0].time; };
+const repaired = staleDraftTime({ start: '01:00', end: '14:30', sourceText: '1:00 - 2:30 PM' });
+assert.equal(`${repaired.start}-${repaired.end}`, '13:00-14:30', 'an afternoon class stored as 01:00-14:30 is repaired from the printed text');
+assert.equal(staleDraftTime({ start: '01:00', end: '02:30', sourceText: '1:00 - 2:30' }).start, null, 'a window nothing can settle is left unset for the review step, not kept at 01:00');
+assert.equal(staleDraftTime({ start: '07:30', end: '09:00', sourceText: '7:30AM-9:00AM' }).start, '07:30', 'a readable window is left alone');
+assert.equal(staleDraftTime({ start: '17:00', end: '19:00', sourceText: '5:00-7:00 PM' }).start, '17:00', 'an evening class is untouched');
+assert.equal(staleDraftTime({ start: '13:00', end: '14:30', sourceText: '1:00-2:30 PM' }).start, '13:00', 'a window the student chose is not second-guessed');
+console.log('PASS a draft saved with the old arithmetic is repaired on read');
+
 // ---------------------------------------------------------------------------
 // Confirm — the last click of onboarding must accept every day shape it can be
 // handed, and must never answer with copy the student cannot act on.

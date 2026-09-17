@@ -291,13 +291,21 @@ export function readTimeRange(startRaw, endRaw) {
 
 /**
  * A printed time window still in text form ("1:00-2:30 PM") -> its two parts.
- * Splitting the text is only about the SEPARATOR: which value is the start and
- * which is the end is all this decides.
+ *
+ * Reads the first two CLOCK times in the text rather than splitting on the
+ * separator alone: a COR cell can hold the days ("M/W 09:00-10:30"), a second
+ * window ("7:30-9:00AM / 10:00-11:30AM") or a stray note, and the first two times
+ * ARE the class's window. Splitting on "-" alone read "M/W 09:00" as a time and
+ * gave up on the rest.
  */
+const PRINTED_TIME_TOKEN = /(\d{1,2}\s*:\s*\d{2}\s*(?:[ap]\s*\.?\s*m)?|\d{1,2}\s*[ap]\s*\.?\s*m|\d{1,2}\.\d{2}\s*[ap]\s*\.?\s*m|(?:[01]\d|2[0-3])[0-5]\d\s*(?:[ap]\s*\.?\s*m)?)/gi;
+
 export function splitTimeRangeText(text) {
   const raw = String(text || "").trim();
   if (!raw) return [null, null];
+  const tokens = (raw.match(PRINTED_TIME_TOKEN) || []).map((token) => token.trim());
+  if (tokens.length >= 2) return [tokens[0], tokens[1]];
+  if (tokens.length === 1) return [tokens[0], null];
   const parts = raw.split(/\s*(?:-|–|—|\bto\b)\s*/i).map((part) => part.trim()).filter(Boolean);
-  if (parts.length >= 2) return [parts[0], parts[1]];
-  return [parts[0] || null, null];
+  return [parts[0] || null, parts[1] || null];
 }

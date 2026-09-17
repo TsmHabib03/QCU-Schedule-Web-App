@@ -76,7 +76,7 @@ import {
   readSnapshot,
   writeBatch,
 } from "./sheets-adapter.js";
-import { normalizeDayOfWeek, minutesOfDay } from "../_lib/day-time.js";
+import { normalizeDayOfWeek, minutesOfDay, readTimeRange, splitTimeRangeText } from "../_lib/day-time.js";
 
 const MAX_CACHED_USERS = 200;
 
@@ -501,9 +501,19 @@ export const CorDrafts = {
     return draft;
   },
 
-  /** Get the extraction draft. Returns null if not found. */
+  /**
+   * Get the extraction draft. Returns null if not found.
+   *
+   * The draft is repaired on the way out: a class window is read from the COR's
+   * own printed text when the stored start/end cannot settle AM/PM. Drafts saved
+   * before the window was read as a RANGE carry `time: {start: "01:00", end:
+   * "14:30"}` (the afternoon class at 1 AM) or `{start: "01:00", end: "02:30"}`
+   * while their sourceText still holds the printed "1:00 - 2:30 PM" — the review
+   * step and the confirm path both consume this getter, so repairing here fixes
+   * an already-uploaded import without asking the student to scan again.
+   */
   get(corRecordId) {
-    return _corDrafts.get(corRecordId) || null;
+    return withReadableMeetingTimes(_corDrafts.get(corRecordId) || null);
   },
 
   /** Delete a draft (e.g., on COR cancellation). */
@@ -512,6 +522,60 @@ export const CorDrafts = {
     _corDrafts.delete(corRecordId);
   },
 };
+
+/**
+ * Fill in each meeting's window from whatever the draft still holds — the printed
+ * time text the COR showed, or the stored start/end — and leave a window it cannot
+ * read alone (the review step asks rather than inventing an hour). Mutates the
+ * draft in place; the caller's copy IS the stored one.
+ *
+ * A window that already runs forward is kept, EXCEPT when it is too long to be a
+ * class: the arithmetic that lost the AM/PM marker left an afternoon class as
+ * 01:00-14:30, which runs forward and is plainly wrong. Re-reading such a window
+ * from the printed text is what repairs an import uploaded before the fix, and it
+ * cannot touch a window the student chose in the review step (those are short).
+ */
+const LONGEST_PLAUSIBLE_CLASS_MINUTES = 6 * 60;
+/** No QCU class starts in the small hours; that is the AM-guess signature. */
+const EARLIEST_PLAUSIBLE_CLASS_MINUTES = 5 * 60;
+
+function withReadableMeetingTimes(draft) {
+  if (!draft || !Array.isArray(draft.subjects)) return draft;
+  for (const subject of draft.subjects) {
+    const meetings = subject?.schedule || subject?.meetings;
+    if (!Array.isArray(meetings)) continue;
+    for (const meeting of meetings) {
+      if (!meeting || typeof meeting !== "object") continue;
+      const time = meeting.time || {};
+      const start = minutesOfDay(time.start);
+      const end = minutesOfDay(time.end);
+      if (!needsRepair(start, end)) continue;
+      const printed = String(time.sourceText || "").trim();
+      const fromText = printed ? readTimeRange(...splitTimeRangeText(printed)) : null;
+      const fromFields = readTimeRange(time.start, time.end);
+      const window = fromText && !fromText.unresolved ? fromText : (fromFields && !fromFields.unresolved ? fromFields : null);
+      meeting.time = window
+        ? { ...time, start: window.start, end: window.end, sourceText: printed || window.sourceText || "", confidence: time.confidence || 0.85 }
+        // Nothing in the draft can settle it: hand the class to the review step
+        // with no time rather than a value the old arithmetic made up.
+        : { ...time, start: null, end: null, sourceText: printed, unresolved: true, confidence: 0 };
+    }
+  }
+  return draft;
+}
+
+/**
+ * True for a stored window that must be re-read: one that cannot be read at all,
+ * one starting in the small hours (the signature of the AM guess — no QCU class
+ * starts before 5 AM), or one longer than any class. A window that runs BACKWARDS
+ * is deliberately left alone: that is the student's or an API caller's input, and
+ * the confirm step names it instead of silently dropping it.
+ */
+function needsRepair(start, end) {
+  if (start === null || end === null) return true;
+  if (start < EARLIEST_PLAUSIBLE_CLASS_MINUTES) return true;
+  return end - start > LONGEST_PLAUSIBLE_CLASS_MINUTES;
+}
 
 // ---------------------------------------------------------------------------
 // Student Profiles repository

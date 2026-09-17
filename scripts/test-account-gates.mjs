@@ -140,6 +140,27 @@ try {
   const statusAfter = await callEndpoint(onboardingStatusGet, env, cookieReady, "/api/v1/onboarding/status");
   check("onboarding reports COMPLETE", statusAfter.body?.stage === "COMPLETE", JSON.stringify(statusAfter.body?.stage));
 
+  // ---------------------------------------------------------------------------
+  // COLD ISOLATE: each endpoint loads its OWN rows, nothing is pre-hydrated.
+  // ---------------------------------------------------------------------------
+  // The checks above hydrate everything first, which is exactly what hid the bug
+  // that trapped every student who finished onboarding: bootstrap asked
+  // isScheduleReady() about a schedule it never loaded, so the answer was always
+  // "no" and a fully onboarded account was sent BACK to the COR step — "You are
+  // all set!" then straight to the import screen, forever. Nothing is hydrated by
+  // hand below; a missing kind must show up as a wrong route.
+  section("Cold isolate: no pre-hydrated rows");
+  Repo.reset();
+  const coldRouting = await callEndpoint(bootstrapGet, env, cookieReady, "/api/v1/bootstrap");
+  check("bootstrap routes a fully onboarded student to the dashboard", coldRouting.body?.routing === "dashboard", `${coldRouting.body?.routing} (its own hydration must load the schedule)`);
+  Repo.reset();
+  const coldStatus = await callEndpoint(onboardingStatusGet, env, cookieReady, "/api/v1/onboarding/status");
+  check("onboarding reports COMPLETE without a warm map", coldStatus.body?.stage === "COMPLETE", JSON.stringify(coldStatus.body?.stage));
+  Repo.reset();
+  const coldDashboard = await callEndpoint(dashboardGet, env, cookieReady, "/api/v1/dashboard");
+  check("the dashboard serves the week", coldDashboard.status === 200 && (coldDashboard.body?.entries || []).length > 0, `${coldDashboard.status} entries=${(coldDashboard.body?.entries || []).length}`);
+  check("and the class times are the COR's own", coldDashboard.body?.entries?.[0]?.start === "08:00" && coldDashboard.body?.entries?.[0]?.end === "09:30", JSON.stringify(coldDashboard.body?.entries?.[0] || null));
+
   section("Session resolves for an active account");
   const cookie = await sealSession({ googleSub: STUDENT.googleSub, email: STUDENT.email, emailVerified: true, issuedAt: Date.now(), sessionExpiresAt: Date.now() + 3_600_000 });
   Repo.reset();

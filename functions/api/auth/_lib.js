@@ -473,11 +473,16 @@ async function hydrateRepo(context, session) {
   }
   const path = requestUrl.pathname;
   let kinds;
+  // Each entry is the set of rows the endpoint READS. A missing kind does not
+  // fail loudly — the map is just empty, so a check like isScheduleReady() answers
+  // "no" and the student is routed somewhere else. The two routing endpoints below
+  // need the schedule to answer the question they ask, exactly as the dashboard
+  // does (it hydrates everything).
   if (path.startsWith('/api/auth/google/')) kinds = ['users'];
   else if (path === '/api/v1/me') kinds = ['users','profiles'];
-  else if (path === '/api/v1/bootstrap') kinds = ['users','profiles','enrollments'];
+  else if (path === '/api/v1/bootstrap') kinds = ['users','profiles','enrollments','schedules','scheduleEntries'];
   else if (path.startsWith('/api/v1/cor/') && !path.endsWith('/confirm')) kinds = ['users','corRecords','corDrafts'];
-  else if (path === '/api/v1/onboarding/status') kinds = ['users','corRecords'];
+  else if (path === '/api/v1/onboarding/status') kinds = ['users','corRecords','enrollments','schedules','scheduleEntries'];
   else if (path.startsWith('/api/v1/tasks')) kinds = ['users','tasks','enrollmentSubjects','scheduleEntries'];
   else if (path.startsWith('/api/v1/notes')) kinds = ['users','notes','enrollmentSubjects','scheduleEntries'];
   const started = Date.now();
