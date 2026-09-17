@@ -607,19 +607,24 @@ function countdownTemplate(item, label) {
 
   const now = new Date();
   const status = getStatus(item, now);
+  // Both sides of the arithmetic are campus minutes: the class window comes from
+  // parseMinutes (which reads every stored shape) and "now" from the campus clock.
+  // Splitting the raw string on ":" produced NaN the moment a row held anything
+  // but "HH:mm" — an ISO time cell, or a hand-edited "1:00 PM" — and mixed the
+  // device's zone into the countdown.
+  const nowMin = minutesNow(now);
+  const startMin = parseMinutes(item.start);
+  const endMin = parseMinutes(item.end);
 
   if (status === "current") {
-    const end = new Date(now);
-    const [eh, em] = item.end.split(":").map(Number);
-    end.setHours(eh, em, 0, 0);
-    const remaining = Math.max(0, Math.floor((end - now) / 1000));
+    if (endMin !== endMin) return `<div class="home-countdown-empty">${label}</div>`;
+    const remaining = Math.max(0, Math.floor((endMin - nowMin) * 60));
     const hh = String(Math.floor(remaining / 3600)).padStart(2, "0");
     const mm = String(Math.floor((remaining % 3600) / 60)).padStart(2, "0");
     const ss = String(remaining % 60).padStart(2, "0");
 
-    const [sh, sm] = item.start.split(":").map(Number);
-    const totalMin = Math.max(1, (eh * 60 + em) - (sh * 60 + sm));
-    const elapsedMin = Math.max(0, minutesNow(now) - (sh * 60 + sm));
+    const totalMin = Math.max(1, endMin - (startMin === startMin ? startMin : endMin));
+    const elapsedMin = Math.max(0, nowMin - (startMin === startMin ? startMin : nowMin));
     const pct = Math.min(100, (elapsedMin / totalMin) * 100);
 
     return `
@@ -632,10 +637,8 @@ function countdownTemplate(item, label) {
     return `<div class="home-countdown-empty">Class finished</div>`;
   }
 
-  const start = new Date(now);
-  const [sh, sm] = item.start.split(":").map(Number);
-  start.setHours(sh, sm, 0, 0);
-  const remaining = Math.max(0, Math.floor((start - now) / 1000));
+  if (startMin !== startMin) return `<div class="home-countdown-empty">${label}</div>`;
+  const remaining = Math.max(0, Math.floor((startMin - nowMin) * 60));
   const hh = String(Math.floor(remaining / 3600)).padStart(2, "0");
   const mm = String(Math.floor((remaining % 3600) / 60)).padStart(2, "0");
   const ss = String(remaining % 60).padStart(2, "0");
@@ -659,9 +662,14 @@ async function renderHomeBusCard() {
     const resp = await fetch("data/qcity-bus.json", { cache: "no-cache" });
     if (!resp.ok) throw new Error("HTTP " + resp.status);
     const data = await resp.json();
-    const dayKey = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][new Date().getDay()];
+    const dayKey = QCU_TIME.weekday().toLowerCase();
     const serviceDay = dayKey === "sunday" ? "sunday" : dayKey === "saturday" ? "saturday" : "weekdays";
     const svc = data?.service?.[serviceDay];
+    // The JSON stores published times as 24-hour strings ("05:00", "21:00") and this
+    // card printed them raw, so the dashboard read "05:00 – 21:00" while the route
+    // page read "5:00 AM – 9:00 PM" — the same data in two notations, which reads as
+    // a wrong bus time. One clock format for the whole app.
+    const clock = (v) => (parseMinutes(v) === parseMinutes(v) ? formatTime(v) : String(v ?? ""));
     let text;
     if (svc && svc.operates !== false && Array.isArray(svc.directions) && svc.directions.length) {
       const dirs = svc.directions;
@@ -671,7 +679,7 @@ async function renderHomeBusCard() {
         ? `every ${dirs[0].headwayPeakMins}–${dirs[0].headwayOffPeakMins} min`
         : Number.isFinite(dirs[0]?.headwayMins) ? `every ${dirs[0].headwayMins} min` : null;
       text = first && last
-        ? `Today: ${first} – ${last}${headway ? " · " + headway : ""}`
+        ? `Today: ${clock(first)} – ${clock(last)}${headway ? " · " + headway : ""}`
         : "Schedule unavailable";
     } else {
       text = "No scheduled service today";

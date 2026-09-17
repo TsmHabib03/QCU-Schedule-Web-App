@@ -153,5 +153,21 @@ for (const kind of SNAPSHOT_KINDS) {
   }
 }
 
+// The live sheet hands time-of-day cells back as ISO instants on the 1899 epoch.
+// Verified against production with a throwaway row: writing startTime "13:00"
+// reads back "1899-12-30T05:00:00.000Z". The adapter must return the CAMPUS clock
+// for that instant (13:00), not the string's own UTC clock (05:00) — keeping the
+// clock part is what showed students a 1:00 PM class as 5:00 AM.
+const coerced = fromRow("scheduleEntries", {
+  scheduleEntryId: "sme_coerced", scheduleId: "sch_1", ownerUserId: USER_ID,
+  dayOfWeek: "MONDAY", startTime: "1899-12-30T05:00:00.000Z", endTime: "1899-12-30T06:30:00.000Z",
+  status: "ACTIVE", createdAt: ts, updatedAt: ts,
+});
+if (coerced.startTime !== "13:00" || coerced.endTime !== "14:30") {
+  fail(`a Sheets time cell was not read as the campus clock (${coerced.startTime}–${coerced.endTime})`);
+} else {
+  console.log("  ok   a coerced time cell reads back as the campus clock (13:00–14:30)");
+}
+
 console.log(failures ? `\n${failures} mapping problem(s) found.` : "\nAll entity mappings round-trip cleanly.");
 process.exit(failures ? 1 : 0);

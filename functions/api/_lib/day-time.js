@@ -105,13 +105,44 @@ export function normalizeTime(value) {
     return `${pad(hour)}:${pad(minute)}`;
   }
 
-  // ISO datetime: keep the clock part. Time-of-day columns are repaired to
-  // "HH:mm" in Apps Script (formatTimeCell) before they reach us, so this is
-  // the last-resort path for legacy rows.
-  const iso = raw.match(/T(\d{2}):(\d{2})(?::\d{2})?/);
-  if (iso) return `${iso[1]}:${iso[2]}`;
+  // ISO datetime: an INSTANT, not a clock. Google Sheets holds a time-of-day cell
+  // on the 1899 epoch in the SPREADSHEET's timezone, and the Apps Script
+  // serialises it with toISOString() (UTC) — so the clock part of the string is
+  // the campus wall time MINUS the offset. A 1:00 PM class arrives as
+  // "1899-12-30T05:00:00.000Z": keeping the clock part read it back as 5:00 AM,
+  // which is what the student sees as "the time is AM and not what my COR says".
+  // Convert the instant to campus time instead. (The Apps Script half repairs
+  // these cells to "HH:mm" text; this path is for every row written before that
+  // reached the sheet, and it must agree with the campus clock the client shows.)
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw)) {
+    return campusClockFromIso(raw);
+  }
 
   return null;
+}
+
+const CAMPUS_ZONE = "Asia/Manila";
+let campusClockFormat = null;
+
+/**
+ * The wall-clock time of an ISO instant at the campus, as "HH:mm".
+ * Falls back to the string's own clock part if the runtime has no Intl parts
+ * (better a possibly-shifted time than none at all for a legacy row).
+ */
+function campusClockFromIso(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  try {
+    campusClockFormat ||= new Intl.DateTimeFormat("en-GB", { timeZone: CAMPUS_ZONE, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    const parts = Object.fromEntries(campusClockFormat.formatToParts(date).map((x) => [x.type, x.value]));
+    const hour = Number(parts.hour);
+    const minute = Number(parts.minute);
+    if (hour <= 23 && minute <= 59) return `${pad(hour)}:${pad(minute)}`;
+  } catch (_) {
+    // fall through to the literal clock part
+  }
+  const literal = String(value).match(/T(\d{2}):(\d{2})/);
+  return literal ? `${literal[1]}:${literal[2]}` : null;
 }
 
 /** True when a string is already a canonical "HH:mm". */

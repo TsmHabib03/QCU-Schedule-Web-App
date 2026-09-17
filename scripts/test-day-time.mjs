@@ -80,9 +80,18 @@ check("12-hour input converts", () => {
   assert.equal(normalizeTime("12:30 AM"), "00:30");
   assert.equal(normalizeTime("12:00 PM"), "12:00");
 });
-check("Sheets time-of-day datetimes keep their clock part", () => {
-  assert.equal(normalizeTime("1899-12-30T00:00:00.000Z"), "00:00");
-  assert.equal(normalizeTime("1899-12-30T08:30:00.000Z"), "08:30");
+check("Sheets time-of-day datetimes are read as the CAMPUS clock", () => {
+  // A time-of-day cell is an instant on the 1899 epoch in the spreadsheet's
+  // timezone and the Apps Script serialises it with toISOString(), so the string's
+  // clock part is campus wall time MINUS the offset. Keeping that clock part (the
+  // old behaviour) turned a 1:00 PM class into "05:00" and the student saw 5:00 AM
+  // — the exact shape of "the class time is AM, not what my COR says". Verified
+  // against the live sheet: writing "13:00" reads back "1899-12-30T05:00:00.000Z".
+  assert.equal(normalizeTime("1899-12-30T05:00:00.000Z"), "13:00");
+  assert.equal(normalizeTime("1899-12-30T06:30:00.000Z"), "14:30");
+  assert.equal(normalizeTime("1899-12-29T23:30:00.000Z"), "07:30");
+  assert.equal(normalizeTime("1899-12-30T00:00:00.000Z"), "08:00");
+  assert.equal(minutesOfDay("1899-12-30T05:00:00.000Z"), 13 * 60);
 });
 check("Sheets day fractions convert", () => {
   assert.equal(normalizeTime(0.3541666666666667), "08:30");
