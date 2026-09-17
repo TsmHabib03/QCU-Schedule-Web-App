@@ -218,6 +218,18 @@
 .subject-room { margin-top: 8px; }
 .subject-schedule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 5px; }
 .subject-day { display: inline-block; padding: 3px 7px; border-radius: 4px; background: #eaf2fa; color: #005bac; font-size: 11px; font-weight: 600; min-width: 40px; text-align: center; }
+/* Editable class rows in the review step: the COR's printed text sits next to the
+   day and window the app read from it, so a mismatch is visible, and a class whose
+   AM/PM could not be read arrives empty and marked instead of guessed. */
+.meeting-day, .meeting-time { font-family: inherit; font-size: 13px; color: var(--entry-ink); background: #fff; border: 1px solid #bdcbd9; border-radius: 7px; min-height: 36px; padding: 6px 8px; min-width: 0; }
+.meeting-day { flex: 0 0 auto; cursor: pointer; max-width: 130px; }
+.meeting-time { flex: 0 0 auto; width: 116px; }
+.meeting-day:focus, .meeting-time:focus { border-color: #005bac; outline: none; box-shadow: 0 0 0 3px #005bac1f; }
+.meeting-dash { color: var(--entry-muted); }
+.meeting-source { flex-basis: 100%; font-size: 11px; color: var(--entry-muted); }
+.meeting-room { margin-left: auto; font-size: 11px; color: var(--entry-muted); }
+.meeting-note { flex-basis: 100%; font-size: 11px; font-weight: 600; color: #755600; }
+.subject-schedule-row--unset .meeting-time { border-color: #e6c98a; background: #fffdf5; }
 .confirm-icon, .success-check { display: flex; align-items: center; justify-content: center; width: 62px; height: 62px; margin: 15px auto 22px; background: #edf4fb; color: #005bac; border-radius: 16px; }
 .confirm-icon .lucide, .success-check .lucide { width: 30px; height: 30px; }
 .success-check { background: #eaf6ef; color: #1d7044; }

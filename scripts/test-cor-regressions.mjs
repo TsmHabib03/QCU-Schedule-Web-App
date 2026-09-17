@@ -25,7 +25,7 @@ function element() {
     getAttribute(name) { return attributes.get(name) ?? null; }, setAttribute(name,value) { attributes.set(name,value); }, removeAttribute(name) { attributes.delete(name); }, hasAttribute(name) { return attributes.has(name); },
     appendChild(child) { this.children.push(child); }, replaceChildren() { this.children = []; } };
 }
-async function harness(uploadResult, stage = 'WELCOME', overrides = {}) {
+async function harness(uploadResult, stage = 'WELCOME', overrides = {}, editors = []) {
   const nodes = new Map();
   const get = id => { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); };
   const steps = ['welcome', 'upload', 'processing', 'review', 'confirm', 'success'].map(x => get('step-' + x));
@@ -33,7 +33,7 @@ async function harness(uploadResult, stage = 'WELCOME', overrides = {}) {
   const timers = new Map();
   let timerId = 0;
   const c = { console, crypto: globalThis.crypto, FormData: class { append() {} }, sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
-    document: { getElementById: get, querySelectorAll: selector => selector.includes('data-loading-') ? [] : steps, createElement: element },
+    document: { getElementById: get, querySelectorAll: selector => selector.includes('data-meeting') ? editors : (selector.includes('data-loading-') ? [] : steps), createElement: element },
     addEventListener() {},
     location: {}, scrollTo() {}, setTimeout() {}, clearInterval: id => timers.delete(id), setInterval: fn => { timers.set(++timerId, fn); return timerId; },
     fetch: async (url, options) => {
@@ -286,6 +286,59 @@ assert.deepEqual(parseDayIndexes('TBA'), [], 'OCR path does not read TBA as Tues
 console.log('PASS both extraction paths share one day parser (names and 1-7 indexes)');
 
 // ---------------------------------------------------------------------------
+// The class TIME must be the COR's own, not the app's invention.
+// ---------------------------------------------------------------------------
+// Regression: the window was resolved one value at a time, so a cell printing the
+// marker once for the range ("1:00-2:30 PM") kept the start at its 12-hour face
+// value — the class was stored as 01:00-14:30, a 13.5-hour window that also broke
+// the overlap check, the "live now" state and the day's hour total. A bare
+// "1:00-2:30" was silently assumed to be morning.
+const printed = (overrides) => geminiResultToDraft({ subjects: [{ code: 'IT 301', name: 'Systems Integration', units: 3, days: 'MW', ...overrides }] }).subjects[0].schedule;
+const everyMeeting = (schedule) => schedule.map((m) => `${m.time.start}-${m.time.end}`);
+
+assert.deepEqual(
+  everyMeeting(printed({ timeText: '1:00-2:30 PM', startTime: '1:00', endTime: '2:30 PM' })),
+  ['13:00-14:30', '13:00-14:30'],
+  'a marker printed once for the window resolves both ends'
+);
+assert.deepEqual(
+  everyMeeting(printed({ timeText: '7:30AM-9:00AM', startTime: '7:30AM', endTime: '9:00AM' })),
+  ['07:30-09:00', '07:30-09:00'],
+  'a marker on both ends is trusted as printed'
+);
+assert.deepEqual(
+  everyMeeting(printed({ startTime: '2:00', endTime: '3:30 PM' })),
+  ['14:00-15:30', '14:00-15:30'],
+  'the fields alone still share the marker when the text was not transcribed'
+);
+assert.deepEqual(
+  everyMeeting(printed({ timeText: '11:00-1:00 PM', startTime: '11:00', endTime: '1:00 PM' })),
+  ['11:00-13:00', '11:00-13:00'],
+  'a shared marker never pushes the morning side past noon'
+);
+assert.deepEqual(
+  everyMeeting(printed({ timeText: '0900-1030', startTime: null, endTime: null })),
+  ['09:00-10:30', '09:00-10:30'],
+  'the documented 4-digit shape reads as printed'
+);
+// The model transcribes; the parser decides. A model that "helpfully" resolves the
+// marker itself must not be able to move the class: the printed text wins.
+assert.deepEqual(
+  everyMeeting(printed({ timeText: '1:00-2:30 PM', startTime: '01:00', endTime: '02:30' })),
+  ['13:00-14:30', '13:00-14:30'],
+  'the printed time outranks the model resolving the marker for us'
+);
+
+// No marker anywhere: the day is kept, the time is left UNSET and the student is
+// asked — never 01:00 because classes are usually in the morning.
+const guessed = geminiResultToDraft({ subjects: [{ code: 'IT 302', name: 'Networking', units: 3, days: 'TTh', startTime: '1:00', endTime: '2:30' }] });
+assert.equal(guessed.subjects[0].schedule.length, 2, 'both days are kept');
+assert.ok(guessed.subjects[0].schedule.every((m) => m.time.start === null && m.time.end === null), 'no time is invented');
+assert.equal(guessed.subjects[0].schedule[0].time.sourceText, '1:00 - 2:30', 'the printed text is carried for the review step');
+assert.equal(guessed.validationIssues.filter((i) => /AM\/PM marker could not be read/.test(i.message)).length, 1, 'the student is told which class needs a time');
+console.log('PASS a printed class window is read from the COR, and an unreadable one asks instead of guessing');
+
+// ---------------------------------------------------------------------------
 // Confirm — the last click of onboarding must accept every day shape it can be
 // handed, and must never answer with copy the student cannot act on.
 // ---------------------------------------------------------------------------
@@ -337,6 +390,31 @@ for (const [shape, day] of [['canonical name', 'MONDAY'], ['title-case name', 'M
   assert.equal(confirmUser.state, 'ACTIVE', `${shape} activates the account`);
 }
 console.log('PASS confirm accepts canonical, title-case and numeric days and writes one readable week');
+
+// The committed class keeps the COR's own window: an afternoon class must arrive
+// as 13:00, not as 01:00, and a window that cannot run forward is refused.
+const afternoon = CorRecords.create({ ownerUserId: confirmUser.userId, status: 'REVIEW_REQUIRED', filename: 'afternoon.jpg' });
+Users.update(confirmUser, { corRecordId: afternoon.id });
+const afternoonDraft = reviewedDraft('THURSDAY', 'IT 310');
+afternoonDraft.subjects[0].schedule[0].time = { start: '13:00', end: '14:30' };
+CorDrafts.set(afternoon.id, afternoonDraft);
+const committed = await confirmPost(await confirmRequest('/api/v1/cor/confirm', { corRecordId: afternoon.id, draft: afternoonDraft }));
+const committedBody = await committed.json();
+assert.equal(committed.status, 200, `an afternoon class confirms — got ${committed.status} ${JSON.stringify(committedBody).slice(0, 160)}`);
+const afternoonEntry = ScheduleEntries.getByScheduleId(committedBody.scheduleId)[0];
+assert.equal(afternoonEntry.startTime, '13:00', 'the COR start time is what is stored');
+assert.equal(afternoonEntry.endTime, '14:30', 'the COR end time is what is stored');
+
+const backwards = CorRecords.create({ ownerUserId: confirmUser.userId, status: 'REVIEW_REQUIRED', filename: 'backwards.jpg' });
+Users.update(confirmUser, { corRecordId: backwards.id });
+const backwardsDraft = reviewedDraft('FRIDAY', 'IT 311');
+backwardsDraft.subjects[0].schedule[0].time = { start: '14:30', end: '13:00' };
+CorDrafts.set(backwards.id, backwardsDraft);
+const refused = await confirmPost(await confirmRequest('/api/v1/cor/confirm', { corRecordId: backwards.id, draft: backwardsDraft }));
+const refusedBody = await refused.json();
+assert.equal(refused.status, 400, 'a window that does not run forward is refused');
+assert.ok(refusedBody.issues.some((i) => /not after the start time/.test(i.message)), `the reason names the window: ${JSON.stringify(refusedBody.issues)}`);
+console.log('PASS the confirmed class keeps the COR window and a backwards window is refused');
 
 // A stale earlier upload must never shadow the import the student is looking at:
 // sheet order is not chronology, and answering with the OLDEST pending record
@@ -399,4 +477,65 @@ await rejectedDraft.c.confirmAndActivate();
 assert(rejectedDraft.get('step-confirm').classList.contains('active'), 'a rejected confirm keeps the student on the last step');
 assert.match(rejectedDraft.get('confirm-error').textContent, /Unknown day: MONDAY/, `shown: ${rejectedDraft.get('confirm-error').textContent}`);
 console.log('PASS a rejected confirm names the reason instead of generic copy');
+
+// ---------------------------------------------------------------------------
+// Review: the student can correct a day or a time, and what they save is what
+// the schedule gets.
+// ---------------------------------------------------------------------------
+// The review step used to print the detected day and time and nothing else, so a
+// class the extractor misread could only be fixed later in the Schedule page. A
+// meeting whose AM/PM could not be read arrives with no time at all, and editing
+// it here is what turns "the app invented a time" into a checkable value.
+const reviewDraft = (schedule) => ({
+  studentInfo: { firstName: { value: 'Test' }, lastName: { value: 'Student' }, studentNumber: { value: '123' } },
+  enrollmentInfo: { program: { value: 'BSCS' }, yearLevel: { value: 1 }, term: { value: 'First' } },
+  subjects: [{ subjectCode: { value: 'CS101' }, subjectName: { value: 'Computing' }, units: { value: 3 }, schedule, room: {} }],
+});
+const editor = (key, part, value) => {
+  const el = element();
+  el.value = value;
+  el.classList.add(part === 'day' ? 'meeting-day' : 'meeting-time');
+  el.setAttribute('data-meeting', key);
+  if (part !== 'day') el.setAttribute('data-part', part);
+  return el;
+};
+const withResult = (result) => ({ '/api/v1/cor/result': { status: 'OK', hasResult: true, result } });
+
+const unresolved = reviewDraft([{ day: { value: 'TUESDAY' }, time: { start: null, end: null, sourceText: '1:00-2:30' } }]);
+const corrected = await harness({ status: 'EXTRACTED', corRecordId: 'cor-test', result: unresolved }, 'WELCOME', withResult(unresolved), [
+  editor('0-0', 'day', 'WEDNESDAY'), editor('0-0', 'start', '13:00'), editor('0-0', 'end', '14:30'),
+]);
+await corrected.c.uploadCor();
+await corrected.c.saveAndConfirm();
+assert(corrected.get('step-confirm').classList.contains('active'), 'a corrected class saves and reaches the confirm step');
+const savedSubjects = JSON.parse(corrected.calls.find(x => x.url.endsWith('/review')).options.body).subjects;
+assert.equal(savedSubjects[0].schedule[0].day.value, 'WEDNESDAY', 'the corrected day is saved');
+assert.equal(savedSubjects[0].schedule[0].time.start, '13:00', 'the corrected start time is saved');
+assert.equal(savedSubjects[0].schedule[0].time.end, '14:30', 'the corrected end time is saved');
+console.log('PASS a class corrected in the review step is what gets saved');
+
+// A class the extractor could not read is finished on this step, not sent on: the
+// message names it instead of saving a blank day or a backwards window.
+const noDay = reviewDraft([{ day: { value: null }, time: { start: '08:00', end: '09:30' } }]);
+const blockedDay = await harness({ status: 'EXTRACTED', corRecordId: 'cor-test', result: noDay }, 'WELCOME', withResult(noDay));
+await blockedDay.c.uploadCor();
+await blockedDay.c.saveAndConfirm();
+assert(blockedDay.get('step-review').classList.contains('active'), 'the student stays on the review step');
+assert(!blockedDay.calls.some(x => x.url.endsWith('/review')), 'nothing is saved without a day');
+assert.match(blockedDay.get('review-error').textContent, /choose the day/, `shown: ${blockedDay.get('review-error').textContent}`);
+
+const backwardsReview = reviewDraft([{ day: { value: 'MONDAY' }, time: { start: '14:30', end: '13:00' } }]);
+const blockedWindow = await harness({ status: 'EXTRACTED', corRecordId: 'cor-test', result: backwardsReview }, 'WELCOME', withResult(backwardsReview));
+await blockedWindow.c.uploadCor();
+await blockedWindow.c.saveAndConfirm();
+assert(!blockedWindow.calls.some(x => x.url.endsWith('/review')), 'a window that runs backwards is not saved');
+assert.match(blockedWindow.get('review-error').textContent, /end time must be after the start time/, `shown: ${blockedWindow.get('review-error').textContent}`);
+
+const halfWindow = reviewDraft([{ day: { value: 'MONDAY' }, time: { start: '13:00', end: null } }]);
+const blockedHalf = await harness({ status: 'EXTRACTED', corRecordId: 'cor-test', result: halfWindow }, 'WELCOME', withResult(halfWindow));
+await blockedHalf.c.uploadCor();
+await blockedHalf.c.saveAndConfirm();
+assert(!blockedHalf.calls.some(x => x.url.endsWith('/review')), 'half a window is not saved');
+assert.match(blockedHalf.get('review-error').textContent, /set the end time as well/, `shown: ${blockedHalf.get('review-error').textContent}`);
+console.log('PASS an unreadable day, a backwards window and half a window are finished on the review step, not saved');
 

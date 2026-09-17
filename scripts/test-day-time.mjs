@@ -12,6 +12,9 @@ import {
   normalizeTime,
   isClockTime,
   minutesOfDay,
+  parsePrintedTime,
+  readTimeRange,
+  splitTimeRangeText,
 } from "../functions/api/_lib/day-time.js";
 
 let passed = 0, failed = 0;
@@ -98,6 +101,87 @@ check("minutesOfDay supports overlap maths", () => {
   assert.equal(minutesOfDay("08:30"), 510);
   assert.equal(minutesOfDay("1:00 PM"), 780);
   assert.equal(minutesOfDay("nope"), null);
+});
+
+console.log("\n=== Printed class times (the COR's own notation) ===\n");
+// A COR prints a window like "1:00-2:30 PM": the marker belongs to the RANGE, not
+// to the second time. Reading each value on its own stored afternoon classes as
+// 01:00-14:30 — a 13.5-hour class that also tripped every overlap check — and a
+// bare "1:00-2:30" was silently assumed to be morning. Neither is allowed: the
+// pipeline spec forbids inferring AM/PM, so a window with no marker anywhere is
+// reported instead.
+
+check("a marker on both times is trusted", () => {
+  assert.deepEqual(readTimeRange("7:30AM", "9:00AM"), { start: "07:30", end: "09:00", sourceText: "7:30AM - 9:00AM", unresolved: false });
+  assert.deepEqual(readTimeRange("1:00 PM", "2:30 PM").start, "13:00");
+});
+
+check("a marker printed once for the window applies to both times", () => {
+  assert.deepEqual(readTimeRange("1:00", "2:30 PM"), { start: "13:00", end: "14:30", sourceText: "1:00 - 2:30 PM", unresolved: false });
+  assert.deepEqual(readTimeRange("2:00", "3:30 PM").start, "14:00");
+  assert.deepEqual(readTimeRange("9:00", "10:30 AM").start, "09:00");
+  assert.deepEqual(readTimeRange("7:30", "9:00AM").end, "09:00");
+});
+
+check("a shared marker never pushes a window backwards", () => {
+  assert.equal(readTimeRange("11:00", "1:00 PM").start, "11:00"); // not 23:00
+  assert.equal(readTimeRange("11:00", "1:00 PM").end, "13:00");
+  assert.equal(readTimeRange("11:45", "12:30 PM").start, "11:45");
+});
+
+check("the noon boundary reads correctly", () => {
+  assert.deepEqual(readTimeRange("12:00", "1:30 PM"), { start: "12:00", end: "13:30", sourceText: "12:00 - 1:30 PM", unresolved: false });
+  assert.equal(readTimeRange("12:30", "2:00 PM").start, "12:30");
+});
+
+check("24-hour and 4-digit printed times carry their own period", () => {
+  assert.equal(readTimeRange("13:00", "14:30").start, "13:00");
+  assert.deepEqual(readTimeRange("0900", "1030"), { start: "09:00", end: "10:30", sourceText: "0900 - 1030", unresolved: false });
+  assert.equal(readTimeRange("13:00", "2:30").end, "14:30"); // the 24-hour side lends its period
+});
+
+check("a window with no marker anywhere is reported, never guessed", () => {
+  for (const [from, to] of [["1:00", "2:30"], ["8:00", "10:00"], ["12:30", "2:00"]]) {
+    const read = readTimeRange(from, to);
+    assert.equal(read.unresolved, true, `${from}-${to} must not resolve`);
+    assert.equal(read.start, null, `${from}-${to} must not invent a start`);
+    assert.equal(read.end, null, `${from}-${to} must not invent an end`);
+  }
+});
+
+check("a window that cannot run forward is reported", () => {
+  assert.equal(readTimeRange("2:30 PM", "1:00 PM").unresolved, true);
+  assert.equal(readTimeRange("10:00 AM", "10:00 AM").unresolved, true);
+});
+
+check("unreadable text stays unreadable", () => {
+  assert.equal(readTimeRange("nonsense", "more nonsense").unresolved, true);
+  assert.equal(readTimeRange(null, null).start, null);
+  assert.equal(parsePrintedTime("nope"), null);
+});
+
+check("printed time text is split on the separator only", () => {
+  assert.deepEqual(splitTimeRangeText("1:00-2:30 PM"), ["1:00", "2:30 PM"]);
+  assert.deepEqual(splitTimeRangeText("7:30AM-9:00AM"), ["7:30AM", "9:00AM"]);
+  assert.deepEqual(splitTimeRangeText("1:00 PM - 2:30 PM"), ["1:00 PM", "2:30 PM"]);
+  assert.deepEqual(splitTimeRangeText("1:00 PM to 2:30 PM"), ["1:00 PM", "2:30 PM"]);
+  assert.deepEqual(splitTimeRangeText("0900-1030"), ["0900", "1030"]);
+  assert.deepEqual(splitTimeRangeText(""), [null, null]);
+});
+
+check("a printed time knows whether it settled AM/PM", () => {
+  assert.equal(parsePrintedTime("1:00").unambiguous, false);
+  assert.equal(parsePrintedTime("1:00 PM").unambiguous, true);
+  assert.equal(parsePrintedTime("13:00").unambiguous, true);
+  assert.equal(parsePrintedTime("0900").unambiguous, true);
+  assert.equal(parsePrintedTime("1:00").printedHour, 1);
+  assert.equal(parsePrintedTime(0.3541666666666667).unambiguous, true); // a Sheets time cell
+});
+
+check("4-digit blocks are readable clock times", () => {
+  assert.equal(normalizeTime("0900"), "09:00");
+  assert.equal(normalizeTime("1330"), "13:30");
+  assert.equal(normalizeTime("2460"), null);
 });
 
 console.log("\n=== Overlap maths (what hasConflict now uses) ===\n");

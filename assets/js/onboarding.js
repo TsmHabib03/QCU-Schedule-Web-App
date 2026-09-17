@@ -188,6 +188,10 @@
       draftResult[group] = { ...draftResult[group] };
       for (const name of names) draftResult[group][name] = { value: document.getElementById('review-' + name).value, confidence: 'high' };
     }
+    // The class rows are editable too: keep whatever the student changed so a
+    // reload (or the confirm step) sees the corrected day and time, not the
+    // extractor's reading.
+    draftResult.subjects = subjectsWithEdits();
     cacheDraft();
     document.getElementById('review-draft-status').textContent = draftStored
       ? 'Edits kept in this tab. Select Save and continue to save them to your account.'
@@ -759,6 +763,82 @@
     el.value = (typeof fieldObj === "object" && fieldObj !== null && "value" in fieldObj) ? (fieldObj.value ?? "") : (fieldObj ?? "");
   }
 
+  // ── Meeting editors ───────────────────────────────────────────────────
+  // The review step used to PRINT the detected day and time and nothing else, so a
+  // class the extractor misread could only be corrected later, in the Schedule
+  // page — which is what makes a wrong time feel like the app invented one. The
+  // COR's own printed text is shown next to an editable day and window, and a
+  // meeting whose AM/PM could not be read arrives UNSET and marked, never guessed.
+  const DAY_CHOICES = [
+    ["MONDAY", "Monday"], ["TUESDAY", "Tuesday"], ["WEDNESDAY", "Wednesday"],
+    ["THURSDAY", "Thursday"], ["FRIDAY", "Friday"], ["SATURDAY", "Saturday"], ["SUNDAY", "Sunday"],
+  ];
+  const DAY_ALIASES = {
+    MON: "MONDAY", MONDAY: "MONDAY", TUE: "TUESDAY", TUES: "TUESDAY", TUESDAY: "TUESDAY",
+    WED: "WEDNESDAY", WEDS: "WEDNESDAY", WEDNESDAY: "WEDNESDAY",
+    THU: "THURSDAY", THUR: "THURSDAY", THURS: "THURSDAY", THURSDAY: "THURSDAY",
+    FRI: "FRIDAY", FRIDAY: "FRIDAY", SAT: "SATURDAY", SATURDAY: "SATURDAY", SUN: "SUNDAY", SUNDAY: "SUNDAY",
+  };
+  function dayChoice(value) {
+    const raw = String(value ?? "").trim().toUpperCase();
+    if (!raw) return "";
+    if (/^\d+$/.test(raw)) {
+      const n = Number(raw);
+      if (n === 7) return "SUNDAY";
+      return n >= 0 && n <= 6 ? DAY_CHOICES[(n + 6) % 7][0] : "";
+    }
+    const head = raw.replace(/[^A-Z]/g, " ").trim().split(/\s+/)[0] || "";
+    return DAY_ALIASES[head] || "";
+  }
+  function clockValue(value) {
+    const m = String(value ?? "").trim().match(/^(\d{1,2}):(\d{2})/);
+    if (!m) return "";
+    const hour = Number(m[1]);
+    if (hour > 23 || Number(m[2]) > 59) return "";
+    return `${String(hour).padStart(2, "0")}:${m[2]}`;
+  }
+  const fieldValue = (v) => (v && typeof v === "object" && "value" in v) ? v.value : (v || "");
+
+  /** Every meeting editor on the page, keyed "<subjectIndex>-<meetingIndex>". */
+  function readMeetingEditors() {
+    const edits = new Map();
+    for (const el of document.querySelectorAll("[data-meeting]")) {
+      const key = el.getAttribute("data-meeting") || "";
+      const entry = edits.get(key) || { day: "", start: "", end: "" };
+      if (el.classList.contains("meeting-day")) entry.day = el.value;
+      else if (el.getAttribute("data-part") === "start") entry.start = el.value;
+      else if (el.getAttribute("data-part") === "end") entry.end = el.value;
+      edits.set(key, entry);
+    }
+    return edits;
+  }
+
+  /** The draft's subjects with whatever the student changed in the review step. */
+  function subjectsWithEdits() {
+    const edits = readMeetingEditors();
+    return (draftResult?.subjects || []).map((s, sIdx) => ({
+      ...s,
+      schedule: (s.schedule || s.meetings || []).map((m, mIdx) => {
+        const edit = edits.get(`${sIdx}-${mIdx}`);
+        const sourceText = String(fieldValue(m.time?.sourceText) || m.time?.sourceText || "").trim();
+        return {
+          ...m,
+          day: { value: (edit && edit.day) || dayChoice(fieldValue(m.day) || fieldValue(m.dayOfWeek)), confidence: "high" },
+          time: {
+            start: (edit ? edit.start : clockValue(fieldValue(m.time?.start) || fieldValue(m.startTime))) || null,
+            end: (edit ? edit.end : clockValue(fieldValue(m.time?.end) || fieldValue(m.endTime))) || null,
+            sourceText,
+            confidence: "high",
+          },
+          // Stale field-level times must not be able to come back on save: the
+          // confirmed entry reads the reviewed window, nothing else.
+          startTime: null,
+          endTime: null,
+        };
+      }),
+    }));
+  }
+
   function renderSubjectList(subjects) {
     const container = document.getElementById("subject-list");
     const countEl = document.getElementById("subject-count");
@@ -778,15 +858,25 @@
       const card = document.createElement("div");
       card.className = "subject-card";
 
-      const scheduleHtml = (s.schedule || s.meetings || []).map((m) => {
-        const day = fv(m.day);
-        const start = fv(m.time?.start) || m.startTime || "";
-        const end = fv(m.time?.end) || m.endTime || "";
+      const scheduleHtml = (s.schedule || s.meetings || []).map((m, mIdx) => {
+        const day = dayChoice(fv(m.day) || fv(m.dayOfWeek));
+        const start = clockValue(fv(m.time?.start) || fv(m.startTime));
+        const end = clockValue(fv(m.time?.end) || fv(m.endTime));
+        const source = String(fv(m.time?.sourceText) || m.time?.sourceText || "").trim();
         const room = fv(s.room);
-        return `<div class="subject-schedule-row">
-          <span class="subject-day">${esc(day)}</span>
-          <span>${esc(start)}${end ? " \u2013 " + esc(end) : ""}</span>
-          ${room ? `<span style="margin-left:auto;color:var(--muted,#5F6368)">${esc(room)}</span>` : ""}
+        const unset = !start || !end;
+        const key = `${idx}-${mIdx}`;
+        const options = [`<option value=""${day ? "" : " selected"}>Choose a day</option>`]
+          .concat(DAY_CHOICES.map(([value, label]) => `<option value="${value}"${value === day ? " selected" : ""}>${label}</option>`))
+          .join("");
+        return `<div class="subject-schedule-row${unset ? " subject-schedule-row--unset" : ""}">
+          <select class="meeting-day" data-meeting="${key}" aria-label="Day of this class">${options}</select>
+          <input class="meeting-time" type="time" step="60" data-meeting="${key}" data-part="start" value="${start}" aria-label="Class start time${source ? " (COR: " + esc(source) + ")" : ""}">
+          <span class="meeting-dash">&ndash;</span>
+          <input class="meeting-time" type="time" step="60" data-meeting="${key}" data-part="end" value="${end}" aria-label="Class end time">
+          ${source ? `<span class="meeting-source">COR: ${esc(source)}</span>` : ""}
+          ${unset && source ? `<span class="meeting-note">Time not set &mdash; the AM/PM marker could not be read. Set it here.</span>` : ""}
+          ${room ? `<span class="meeting-room">${esc(room)}</span>` : ""}
         </div>`;
       }).join("");
 
@@ -852,24 +942,46 @@
       return;
     }
 
-    // Subjects from draft (user can't edit individual subjects in this simplified version,
-    // but we preserve the draft subjects so they can confirm them)
+    // The reviewed classes: subject details from the draft, day and window from
+    // the editable rows (so a corrected day or time is what gets saved).
     // Handle both full ({value, ...}) and compact (plain value) draft formats
     const fv = (v) => (v && typeof v === "object" && "value" in v) ? v.value : (v || "");
     const fc = (v) => (v && typeof v === "object" && "value" in v) ? (v.confidence || "high") : "high";
-    const subjects = (draftResult?.subjects || []).map((s) => ({
+    const reviewedSubjects = subjectsWithEdits();
+    const subjects = reviewedSubjects.map((s) => ({
       subjectCode: { value: fv(s.subjectCode), confidence: fc(s.subjectCode) },
       subjectName: { value: fv(s.subjectName), confidence: fc(s.subjectName) },
       units: { value: fv(s.units), confidence: fc(s.units) },
-      schedule: (s.schedule || s.meetings || []).map((m) => ({
-        day: { value: fv(m.day) || fv(m.dayOfWeek), confidence: fc(m.day) },
-        time: m.time || { start: m.startTime, end: m.endTime },
+      schedule: (s.schedule || []).map((m) => ({
+        day: { value: fv(m.day), confidence: fc(m.day) },
+        time: { start: fv(m.time?.start) || null, end: fv(m.time?.end) || null, sourceText: fv(m.time?.sourceText) || "" },
       })),
       room: s.room || {},
       matchedSubjectId: s.matchedSubjectId || null,
     }));
     if (!subjects.length) {
       reviewError.textContent = 'No subjects were detected. Choose a clearer COR to continue.';
+      reviewError.classList.add('visible');
+      return;
+    }
+
+    // A class the extractor could not fully read is the student's to finish here,
+    // with a message that names it. Sending it on would put an unreadable day or a
+    // backwards window into the schedule.
+    const meetingProblem = (() => {
+      for (const s of subjects) {
+        const label = s.subjectCode.value || s.subjectName.value || 'A class';
+        for (const m of s.schedule) {
+          if (!m.day.value) return `${label}: choose the day it meets.`;
+          if (m.time.start && !m.time.end) return `${label} on ${m.day.value}: set the end time as well.`;
+          if (!m.time.start && m.time.end) return `${label} on ${m.day.value}: set the start time as well.`;
+          if (m.time.start && m.time.end && m.time.start >= m.time.end) return `${label} on ${m.day.value}: the end time must be after the start time (${m.time.start}\u2013${m.time.end}).`;
+        }
+      }
+      return null;
+    })();
+    if (meetingProblem) {
+      reviewError.textContent = meetingProblem;
       reviewError.classList.add('visible');
       return;
     }

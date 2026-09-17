@@ -432,9 +432,14 @@ export const CorRecords = {
 
   /** Every pending COR record for a user, newest first. */
   getActiveAllByUserId(userId) {
+    // Newest first, and a tie on createdAt (two uploads inside the same
+    // millisecond) still resolves to the later row — insertion order is sheet
+    // order, which is chronological.
     return Array.from(_corRecords.values())
-      .filter((record) => record.ownerUserId === userId && !["CANCELLED", "DELETED", "COMPLETE"].includes(record.status))
-      .sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
+      .map((record, index) => ({ record, index }))
+      .filter(({ record }) => record.ownerUserId === userId && !["CANCELLED", "DELETED", "COMPLETE"].includes(record.status))
+      .sort((a, b) => (Date.parse(b.record.createdAt) || 0) - (Date.parse(a.record.createdAt) || 0) || b.index - a.index)
+      .map(({ record }) => record);
   },
 
   /** Update a COR record in-place. */

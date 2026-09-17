@@ -96,6 +96,15 @@ export function normalizeTime(value) {
     return `${pad(hour)}:${pad(minute)}`;
   }
 
+  // 4-digit block on the 24-hour clock: "0900" … "1330"
+  const compact = raw.match(/^(\d{2})(\d{2})$/);
+  if (compact) {
+    const hour = Number(compact[1]);
+    const minute = Number(compact[2]);
+    if (hour > 23 || minute > 59) return null;
+    return `${pad(hour)}:${pad(minute)}`;
+  }
+
   // ISO datetime: keep the clock part. Time-of-day columns are repaired to
   // "HH:mm" in Apps Script (formatTimeCell) before they reach us, so this is
   // the last-resort path for legacy rows.
@@ -184,4 +193,111 @@ export function parseDayTokens(input) {
  */
 export function parseDayIndexes(input) {
   return parseDayTokens(input).map((day) => DAY_ORDER.indexOf(day) + 1);
+}
+
+// ---------------------------------------------------------------------------
+// Class times — a printed time is not a clock time until AM/PM is known
+// ---------------------------------------------------------------------------
+// Why this exists: every COR of a QCU class prints its times in 12-hour form,
+// and a cell very often carries the AM/PM marker ONCE for the whole window
+// ("1:00-2:30 PM" — the marker belongs to the range, not to the second time).
+// Resolving each value on its own left the bare side at its 12-hour face value:
+// an afternoon class was stored as 01:00-14:30, a 13.5-hour window that also
+// dragged phantom conflicts through every overlap check, marked the class live
+// at 1 AM and inflated the day's hour total. The pipeline spec is explicit —
+// "require explicit or reliably shared meridiem context for 12-hour values" and
+// "do not infer AM/PM solely because a time appears typical for classes" — so a
+// window with no marker anywhere is reported, never guessed.
+
+const MERIDIEM = /([ap])\s*\.?\s*m/i;
+
+/**
+ * Read one printed time WITHOUT deciding AM or PM.
+ *
+ * Returns { text, time, printedHour, meridiem, unambiguous } or null.
+ * `printedHour` is the hour exactly as printed (1-12 for 12-hour clocks), which
+ * is what makes "1:00" and "13:00" different inputs even though both normalise
+ * to a clock time. `unambiguous` is true only when the text itself settles the
+ * question: an explicit marker, a 24-hour hour (13 and up), a 4-digit 24-hour
+ * block, seconds, or a value that arrived as a number (a Sheets time cell).
+ */
+export function parsePrintedTime(value) {
+  const time = normalizeTime(value);
+  if (!time) return null;
+  if (typeof value === "number") {
+    return { text: String(value), time, printedHour: Number(time.slice(0, 2)), meridiem: null, unambiguous: true };
+  }
+  const raw = String(value).trim();
+  const marker = raw.match(MERIDIEM);
+  const meridiem = marker ? `${marker[1].toLowerCase()}m` : null;
+  const printed = raw.match(/(\d{1,2})(?:[:.](\d{2}))?/);
+  const printedHour = printed ? Number(printed[1]) : Number(time.slice(0, 2));
+  const unambiguous = Boolean(meridiem)
+    || printedHour > 12
+    || /^\d{4}$/.test(raw)
+    || /\d{1,2}:\d{2}:\d{2}/.test(raw);
+  return { text: raw, time, printedHour, meridiem, unambiguous };
+}
+
+/**
+ * Read a class window from the two printed times a COR shows.
+ *
+ * Resolves the meridiem the way the page prints it — a marker written once for
+ * the window applies to both times — and falls back to the other half of the day
+ * only when that is the only reading that runs forward ("11:00-1:00 PM" is
+ * 11:00-13:00, not 23:00-13:00). A window that cannot be read from the printed
+ * text comes back with `unresolved: true` and NO times, so the caller can ask
+ * instead of inventing an hour.
+ *
+ * Returns { start: "HH:mm"|null, end: "HH:mm"|null, sourceText, unresolved }.
+ */
+export function readTimeRange(startRaw, endRaw) {
+  const start = parsePrintedTime(startRaw);
+  const end = parsePrintedTime(endRaw);
+  const printed = [startRaw, endRaw]
+    .filter((v) => v !== null && v !== undefined && String(v).trim())
+    .map((v) => String(v).trim());
+  const sourceText = printed.join(" - ");
+  if (!start || !end) return { start: null, end: null, sourceText, unresolved: Boolean(sourceText) };
+
+  // The period a value already carries: an explicit marker, or the 24-hour
+  // notation the COR itself chose (09:00 is morning, 13:00 is afternoon).
+  const periodOf = (p) => p.meridiem || (p.unambiguous ? (Number(p.time.slice(0, 2)) < 12 ? "am" : "pm") : null);
+  const withPeriod = (p, period) => {
+    if (p.meridiem) return p.time;
+    const hour = (p.printedHour % 12) + (period === "pm" ? 12 : 0);
+    return `${pad(hour)}:${p.time.slice(3, 5)}`;
+  };
+
+  const startPeriod = periodOf(start);
+  const endPeriod = periodOf(end);
+  // No marker and no 24-hour shaping anywhere: the printed text cannot say
+  // whether "1:00-2:30" is morning or afternoon.
+  if (!startPeriod && !endPeriod) return { start: null, end: null, sourceText, unresolved: true };
+
+  let startTime = startPeriod ? start.time : withPeriod(start, endPeriod);
+  let endTime = endPeriod ? end.time : withPeriod(end, startPeriod);
+  if (minutesOfDay(startTime) >= minutesOfDay(endTime)) {
+    // A shared marker can push the bare side past the marked side; the other half
+    // of the day is then the only reading that runs forward.
+    if (!startPeriod && endPeriod) startTime = withPeriod(start, endPeriod === "pm" ? "am" : "pm");
+    else if (startPeriod && !endPeriod) endTime = withPeriod(end, startPeriod === "pm" ? "am" : "pm");
+  }
+  const from = minutesOfDay(startTime);
+  const to = minutesOfDay(endTime);
+  if (from === null || to === null || from >= to) return { start: null, end: null, sourceText, unresolved: true };
+  return { start: startTime, end: endTime, sourceText, unresolved: false };
+}
+
+/**
+ * A printed time window still in text form ("1:00-2:30 PM") -> its two parts.
+ * Splitting the text is only about the SEPARATOR: which value is the start and
+ * which is the end is all this decides.
+ */
+export function splitTimeRangeText(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return [null, null];
+  const parts = raw.split(/\s*(?:-|–|—|\bto\b)\s*/i).map((part) => part.trim()).filter(Boolean);
+  if (parts.length >= 2) return [parts[0], parts[1]];
+  return [parts[0] || null, null];
 }

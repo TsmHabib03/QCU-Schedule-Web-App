@@ -116,6 +116,17 @@ function validateDraft(draft, catalog) {
               issues.push({ field: `subjects[${i}].schedule[${j}].time`, message: `Unknown ${label} time: ${raw}` });
             }
           }
+          // The pipeline spec's own rule: a class window runs forward. A window
+          // that does not is unreadable data, and importing it silently is how a
+          // misread 12-hour time becomes a 13-hour class on the week table.
+          const from = minutesOfDay(val(m.time?.start) ?? val(m.startTime));
+          const to = minutesOfDay(val(m.time?.end) ?? val(m.endTime));
+          if (from !== null && to !== null && from >= to) {
+            issues.push({
+              field: `subjects[${i}].schedule[${j}].time`,
+              message: `${val(s.subjectCode) || "A class"}: the end time (${clock(to)}) is not after the start time (${clock(from)}). Fix the time before confirming.`,
+            });
+          }
         }
       }
     }

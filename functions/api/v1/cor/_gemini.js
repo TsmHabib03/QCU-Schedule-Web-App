@@ -56,8 +56,9 @@ Return this JSON structure:
       "floor": number or null,
       "roomNumber": "room number like 02A",
       "days": "day codes like M, W, TH, F",
-      "startTime": "time like 8:00AM",
-      "endTime": "time like 10:00AM",
+      "timeText": "the class time EXACTLY as printed, e.g. 1:00-2:30 PM or 7:30AM-9:00AM",
+      "startTime": "24-hour start time HH:mm, e.g. 13:00; null if the COR does not show AM or PM",
+      "endTime": "24-hour end time HH:mm, e.g. 14:30; null if the COR does not show AM or PM",
       "section": "class section"
     }
   ],
@@ -69,7 +70,8 @@ Rules:
 - Extract EXACTLY what you see in the image
 - For room codes, parse the building code and look up the building name from the list above
 - For days use single letters: M=Monday, T=Tuesday, W=Wednesday, TH=Thursday, F=Friday, S=Saturday
-- For times keep original format like 8:00AM
+- For timeText copy the time string exactly as printed, keeping the AM/PM marker the COR shows. A COR very often prints the marker ONCE for the whole window ("1:00-2:30 PM") — copy it exactly like that, do not add or move markers
+- For startTime/endTime convert to 24-hour HH:mm. When the COR prints AM/PM once for the window, apply it to BOTH times ("1:00-2:30 PM" is 13:00 and 14:30). If the class shows no AM/PM anywhere, set startTime and endTime to null — never guess
 - If a field is not readable, use null
 - If same subject has multiple rows (lecture + lab), include BOTH
 - Return ONLY the JSON, no markdown`;
@@ -135,62 +137,61 @@ Rules:
   throw new Error(`All Gemini models failed. Last error: ${lastError}`);
 }
 
-import { parseDayTokens } from "../../_lib/day-time.js";
+import { parseDayTokens, readTimeRange, splitTimeRangeText } from "../../_lib/day-time.js";
 export { parseDayTokens as parseDays };
 
 export function geminiResultToDraft(result) {
-
-  // OCR of a COR prints times in many shapes ("8:00AM", "8.00 AM", "0730").
-  // Anything unreadable must not silently disappear: it is reported as a
-  // validation issue so the review step can ask for a fix instead of the app
-  // quietly creating classes with no time.
-  function to24h(t) {
-    if (!t) return null;
-    const s = String(t).trim().toUpperCase().replace(/\./g, ":");
-    let m = s.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/);
-    if (!m) m = s.match(/(\d{1,2})(\d{2})\s*(AM|PM)?/);   // "0730", "830"
-    if (!m) m = s.match(/(\d{1,2})\s*(AM|PM)/);           // "8 AM"
-    if (!m) return null;
-    let h = parseInt(m[1], 10);
-    const min = m[2] ? m[2] : "00";
-    const mer = (m[3] || "").toLowerCase();
-    if (parseInt(min, 10) > 59 || h > 23) return null;
-    if (mer === "pm" && h < 12) h += 12;
-    if (mer === "am" && h === 12) h = 0;
-    return String(h).padStart(2, "0") + ":" + min;
-  }
 
   const issues = [];
   const rawSubjects = Array.isArray(result.subjects) ? result.subjects : [];
 
   const subjects = rawSubjects.map((s, index) => {
     const schedule = [];
-    const start24 = to24h(s.startTime);
-    const end24 = to24h(s.endTime);
-    if (s.days && start24 && end24) {
-      for (const dayName of parseDayTokens(s.days)) {
+    const label = s.code || s.name || `Subject ${index + 1}`;
+    const days = parseDayTokens(s.days);
+
+    // The class window is read from the text the COR prints — the model
+    // transcribes, this parser decides what the times mean. A model that
+    // "helpfully" resolves a shared marker on its own is not trusted with the
+    // one thing a wrong answer ruins (the class lands at 1 AM); its 24-hour
+    // fields are the fallback for when it did not transcribe the text.
+    const printedTime = String(s.timeText || [s.startTime, s.endTime].filter(Boolean).join(" - ")).trim();
+    const fromText = s.timeText ? readTimeRange(...splitTimeRangeText(s.timeText)) : null;
+    const fromFields = readTimeRange(s.startTime, s.endTime);
+    const window = fromText && !fromText.unresolved ? fromText : fromFields;
+    const readable = Boolean(window && !window.unresolved && window.start && window.end);
+
+    if (days.length) {
+      for (const dayName of days) {
         schedule.push({
           day: { value: dayName, sourceText: s.days, confidence: 0.90 },
-          time: {
-            start: start24,
-            end: end24,
-            sourceText: s.startTime + " - " + s.endTime,
-            confidence: 0.85,
-          },
+          // No readable window: the meeting is kept WITHOUT a time and the
+          // review step asks. An hour nobody can read off the page must never be
+          // invented — "1:00-2:30" is not 1:00 AM just because classes are often
+          // in the morning. See the Times rules in COR_AI_PIPELINE.md.
+          time: readable
+            ? { start: window.start, end: window.end, sourceText: window.sourceText || printedTime, confidence: 0.85 }
+            : { start: null, end: null, sourceText: printedTime, unresolved: true, confidence: 0 },
         });
       }
     }
 
-    if (!schedule.length) {
-      const label = s.code || s.name || `Subject ${index + 1}`;
-      const what = !s.days
-        ? "the day and the time could not be read"
-        : (!start24 || !end24)
-          ? `the time could not be read (saw "${[s.startTime, s.endTime].filter(Boolean).join(" - ") || "nothing"}")`
-          : "no valid day was found";
+    // Anything unreadable must not silently disappear: it is reported as a
+    // validation issue so the review step can ask for a fix instead of the app
+    // quietly creating classes with no time or on the wrong day.
+    if (!days.length) {
+      const what = !s.days ? "the day and the time could not be read" : "no valid day was found";
       issues.push({
         field: `subjects[${index}].schedule`,
         message: `${label}: ${what}. Set it in Schedule after importing, or upload a clearer photo of the COR.`,
+      });
+    } else if (!readable) {
+      const what = printedTime
+        ? `the AM/PM marker could not be read (saw "${printedTime}"), so the time was left unset`
+        : "the time could not be read, so it was left unset";
+      issues.push({
+        field: `subjects[${index}].schedule`,
+        message: `${label}: ${what}. Choose the time here or in Schedule after importing.`,
       });
     }
 
