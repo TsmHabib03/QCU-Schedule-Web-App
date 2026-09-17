@@ -743,31 +743,56 @@ function renderHomeCalendar() {
 /* Google Classroom updates → middle column goals list. Uses the existing
    /api/google/updates endpoint (announcements, materials, assignments).
    Falls back to a connect prompt when Google isn't linked. */
+// The home page re-renders on a one-second tick, so EVERY outcome has to be
+// remembered before anything is painted: a 401 from this endpoint is the normal
+// "Google is not connected yet" answer, and the cache was only written AFTER the
+// paint, so any throw in the paint (or an unusable body) left the cache empty and
+// the next tick fetched again — an endless 401 storm in the console. A
+// "not connected" verdict also cannot change without a page reload, so it is kept
+// for the session instead of expiring.
+const CLASSROOM_DATA_TTL_MS = 5 * 60 * 1000;
+const CLASSROOM_VERDICT_TTL_MS = 60 * 60 * 1000;
 let classroomCache = { at: 0, data: null };
+
+function rememberClassroom(data, ttlMs) {
+  classroomCache = { at: Date.now(), data, expiresAt: Date.now() + ttlMs };
+}
+
 async function renderClassroomUpdates() {
   const goalsEl = document.getElementById("monthly-goals");
   if (!goalsEl) return;
-  if (classroomCache.data && Date.now() - classroomCache.at < 5 * 60 * 1000) {
+  if (classroomCache.data && Date.now() < (classroomCache.expiresAt || 0)) {
     paintClassroom(goalsEl, classroomCache.data);
     return;
   }
   try {
     const resp = await fetch("/api/google/updates", { credentials: "include", cache: "no-store" });
-    const data = await resp.json();
-    if (data.status === "NOT_CONNECTED" || resp.status === 401) {
+    const data = await resp.json().catch(() => ({}));
+    if (resp.status === 401 || data.status === "NOT_CONNECTED" || data.status === "UNAUTHENTICATED") {
+      rememberClassroom({ notConnected: true }, CLASSROOM_VERDICT_TTL_MS);
       paintClassroom(goalsEl, { notConnected: true });
-      classroomCache = { at: Date.now(), data: { notConnected: true } };
       return;
     }
     if (data.status !== "OK" && data.status !== "PARTIAL") throw new Error(data.status || "HTTP " + resp.status);
-    classroomCache = { at: Date.now(), data };
+    rememberClassroom(data, CLASSROOM_DATA_TTL_MS);
     paintClassroom(goalsEl, data);
   } catch (_) {
+    rememberClassroom({ unavailable: true }, CLASSROOM_DATA_TTL_MS);
     paintClassroom(goalsEl, { unavailable: true });
   }
 }
 
 function paintClassroom(el, data) {
+  // A throw here must never take the home page down with it: the page re-renders
+  // every second, so one bad paint would repeat forever in the console.
+  try {
+    paintClassroomCard(el, data);
+  } catch (error) {
+    console.warn("Classroom card could not be drawn:", error?.message || error);
+  }
+}
+
+function paintClassroomCard(el, data) {
   const pastels = ["soft-goal--peach", "soft-goal--mint", "soft-goal--lavender"];
   const meta = {
     announcement: { icon: "megaphone", label: "New post" },
