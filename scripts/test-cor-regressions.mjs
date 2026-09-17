@@ -352,6 +352,23 @@ assert.equal(resumed.status, 200, `an abandoned earlier import does not block th
 assert.equal((await resumed.json()).status, 'COMPLETE');
 console.log('PASS the newest pending import is the one confirmed');
 
+// A confirm that died half-way leaves the record at COMMITTING. That must be
+// retryable: it is the state the failed click itself produced, and refusing it
+// left those students with no button that could finish their setup.
+const interrupted = CorRecords.create({ ownerUserId: confirmUser.userId, status: 'REVIEW_REQUIRED', filename: 'interrupted.jpg' });
+Users.update(confirmUser, { corRecordId: interrupted.id });
+const interruptedDraft = reviewedDraft('WEDNESDAY', 'IT 304');
+CorDrafts.set(interrupted.id, interruptedDraft);
+// What the crashed attempt left behind: status advanced, nothing written.
+CorRecords.update(interrupted, { status: 'COMMITTING' });
+const retried = await confirmPost(await confirmRequest('/api/v1/cor/confirm', { corRecordId: interrupted.id, draft: interruptedDraft }));
+assert.equal(retried.status, 200, `an interrupted confirm can be retried — got ${retried.status} ${JSON.stringify(await retried.clone().json()).slice(0, 160)}`);
+const retriedBody = await retried.json();
+assert.equal(retriedBody.status, 'COMPLETE');
+assert.equal(retriedBody.entryCount, 1);
+assert.equal(CorRecords.getById(interrupted.id).status, 'COMPLETE');
+console.log('PASS an interrupted confirm (COMMITTING) is retryable instead of blocking the student');
+
 // Days spelled differently are the same day: the conflict check must still fire.
 const conflict = CorRecords.create({ ownerUserId: confirmUser.userId, status: 'REVIEW_REQUIRED', filename: 'clash.jpg' });
 Users.update(confirmUser, { corRecordId: conflict.id });

@@ -363,7 +363,15 @@ export async function onRequestPost(context) {
 
     // --- Get COR record (Maps or session fallback) ---
     const record = CorRecords.getById(user.corRecordId);
-    if (record && record.status !== "REVIEW_REQUIRED") {
+    // COMMITTING is retryable, not rejected: it is what a confirm that died
+    // half-way leaves behind (the status is written before the records are
+    // built, and nothing reaches Sheets until the single batch write). Refusing
+    // it locked those students out of the only button that could finish their
+    // setup — the app kept showing "we could not finish setting up your
+    // schedule" with no way forward. A confirm that did land flushes the record
+    // as COMPLETE and is answered by the idempotent branch above, and the batch
+    // handler refuses a duplicate confirmation under its own lock.
+    if (record && !["REVIEW_REQUIRED", "COMMITTING"].includes(record.status)) {
       return json(
         { status: "ERROR", error: `Cannot confirm COR in state: ${record.status}` },
         400
