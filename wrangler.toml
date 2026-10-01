@@ -1,9 +1,10 @@
 # Cloudflare Pages configuration
-# This project is a static site (HTML/CSS/JS). No framework build is required.
-# The build output is the repository root itself.
+# Static HTML/CSS/JS. Set the Pages build command to `npm run build` so asset
+# fingerprints and the service-worker manifest are generated for each deploy.
+# Only public files are staged in .build/pages; Functions compile from functions/.
 
 name = "qcu-schedule-web-app"
-pages_build_output_dir = "."
+pages_build_output_dir = ".build/pages"
 compatibility_date = "2024-11-01"
 
 # [vars] section removed — all runtime env vars are set in the Cloudflare Pages

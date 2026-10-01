@@ -13,10 +13,14 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
   <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
-<link rel="stylesheet" href="assets/css/styles.css?v=55">
-<link rel="stylesheet" href="assets/css/student.css?v=2">
-<link rel="stylesheet" href="assets/css/soft-ui.css?v=34">
-<link rel="stylesheet" href="assets/css/entry.css?v=3">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="assets/css/styles.css?v=1254bb55d03c">
+<link rel="stylesheet" href="assets/css/student.css?v=6d7bcbb967f6">
+<link rel="stylesheet" href="assets/css/soft-ui.css?v=a22c92c45b59">
+<link rel="stylesheet" href="assets/css/entry.css?v=dffc3b8b1cb7">
+<script src="assets/js/data-cache.js?v=502c0a662174"></script>
 <script>
   // Auth gate: start the session check immediately so the network round-trip
   // overlaps page parse, but apply DOM changes only AFTER <body> exists.
@@ -25,8 +29,7 @@
     var params = new URLSearchParams(window.location.search);
     var authResult = params.get("auth");
     // Always verify the session; URL parameters are not authentication proof.
-    var bootstrap = authResult === 'finishing' ? Promise.resolve(null) : fetch("/api/v1/bootstrap", { credentials: "include", cache: "no-store", signal: AbortSignal.timeout(35000) })
-      .then(function (r) { return r.json(); })
+    var bootstrap = authResult === 'finishing' ? Promise.resolve(null) : (window.QCUStartup || (window.QCUStartup = window.QCUData.dashboard()))
       .catch(function () { return { status: 'SERVICE_UNAVAILABLE' }; });
 
     function show(view) {
@@ -117,8 +120,8 @@
           return;
         }
         if (d && d.authenticated && d.routing === "admin") { window.location.replace("/admin.html"); return; }
-        if (d && d.authenticated && d.routing === "onboarding") { window.location.replace("/onboarding.html"); return; }
-        show(d && d.authenticated && d.routing === "dashboard" ? "dashboard" : "landing");
+        if (d && (d.routing === "onboarding" || ['INCOMPLETE', 'ONBOARDING_REQUIRED'].includes(d.status))) { window.location.replace("/onboarding.html"); return; }
+        show(d && d.status === 'OK' && (d.routing === 'dashboard' || Array.isArray(d.entries)) ? "dashboard" : "landing");
         window.history.replaceState({}, document.title, "/");
       });
     }
@@ -127,8 +130,8 @@
     else run();
   })();
 </script>
-  <link rel="stylesheet" href="assets/css/loading.css?v=7">
-  <script src="assets/js/loading.js?v=3"></script>
+  <link rel="stylesheet" href="assets/css/loading.css?v=1df68e62d39b">
+  <script src="assets/js/loading.js?v=982ac9f69bc1"></script>
 </head>
 <body data-page="home">
 
@@ -171,7 +174,23 @@
           </section>
         </div>
         <figure class="hero-visual">
-          <img class="hero-campus" src="assets/images/QCU-BUILDING-1024x683-1.jpg" alt="Quezon City University academic building under a blue sky" width="1024" height="683" fetchpriority="high">
+          <div class="hero-visual-media">
+            <img class="hero-campus" src="assets/images/QCU-BUILDING-1024x683-1.jpg" alt="Quezon City University academic building under a blue sky" width="1024" height="683" fetchpriority="high">
+            <div class="hero-preview" aria-hidden="true">
+              <div class="hero-preview-weather">
+                <i data-lucide="cloud-sun"></i>
+                <span><span class="hero-preview-temp">29°</span><span class="hero-preview-cond">FAIR WEATHER</span></span>
+              </div>
+              <div class="hero-preview-row is-mint">
+                <span class="hero-preview-rail">9:00</span>
+                <span class="hero-preview-copy"><span class="hero-preview-title">Data Structures</span><span class="hero-preview-meta">Room 214 · in session</span></span>
+              </div>
+              <div class="hero-preview-row is-peach">
+                <span class="hero-preview-rail">1:00</span>
+                <span class="hero-preview-copy"><span class="hero-preview-title">Discrete Math</span><span class="hero-preview-meta">Room 301 · up next</span></span>
+              </div>
+            </div>
+          </div>
           <figcaption class="hero-visual-caption">
             <span class="entry-icon"><i data-lucide="calendar-check-2" aria-hidden="true"></i></span>
             <div><strong>A little more organized. A lot more ready.</strong><p>Your next class is just a glance away.</p></div>
@@ -333,11 +352,11 @@
   <!-- AUTH CHECK LOADING STATE -->
   <div id="auth-loading" class="app-shell student-shell loading-auth" aria-busy="true"><header class="page-header"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></div></header><div class="bottom-nav" aria-hidden="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></div><main class="page-container section-stack" role="status"><span class="loading-sr">Loading your portal?</span><div class="loading-auth-heading" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards-grid" aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div><div class="loading-auth-summary" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-week"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></main></div>
 
-  <script src="assets/js/lucide.min.js?v=1"></script>
+  <script src="assets/js/lucide.min.js?v=3411692820cb"></script>
   <script>if (window.lucide) window.lucide.createIcons();</script>
-<script src="assets/js/academic.js?v=41"></script>
-<script src="assets/js/app.js?v=77"></script>
-<script src="assets/js/install-prompt.js?v=1"></script>
+<script src="assets/js/academic.js?v=f415419172a9"></script>
+<script src="assets/js/app.js?v=cfcb2cb55d0c"></script>
+<script src="assets/js/install-prompt.js?v=617f0c91b0cc"></script>
   <script>
     // Weather chip: keyless Open-Meteo, campus coordinates (same source the
     // ETA page uses). No API keys, honest "unavailable" fallback.

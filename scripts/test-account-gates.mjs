@@ -160,6 +160,10 @@ try {
   const coldDashboard = await callEndpoint(dashboardGet, env, cookieReady, "/api/v1/dashboard");
   check("the dashboard serves the week", coldDashboard.status === 200 && (coldDashboard.body?.entries || []).length > 0, `${coldDashboard.status} entries=${(coldDashboard.body?.entries || []).length}`);
   check("and the class times are the COR's own", coldDashboard.body?.entries?.[0]?.start === "08:00" && coldDashboard.body?.entries?.[0]?.end === "09:30", JSON.stringify(coldDashboard.body?.entries?.[0] || null));
+  Repo.reset();
+  const cacheCheck = await callEndpoint(dashboardGet, env, cookieReady, '/api/v1/dashboard?check=1');
+  check('repeat navigation verifies access without returning the full dashboard', cacheCheck.status === 200 && cacheCheck.body.routing === 'dashboard' && !('entries' in cacheCheck.body));
+  check('the validated cache key matches the full dashboard', Boolean(cacheCheck.body.cacheKey) && cacheCheck.body.cacheKey === coldDashboard.body.cacheKey);
 
   section("Session resolves for an active account");
   const cookie = await sealSession({ googleSub: STUDENT.googleSub, email: STUDENT.email, emailVerified: true, issuedAt: Date.now(), sessionExpiresAt: Date.now() + 3_600_000 });

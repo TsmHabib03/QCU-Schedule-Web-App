@@ -29,7 +29,7 @@ const navPage = NAV_PARENT_PAGE[page] || page;
 let scheduleDay = "all";
 
 /* ── Utils ───────────────────────────────────────────── */
-function iconify() { if (window.lucide) window.lucide.createIcons(); }
+function iconify() { if (window.lucide && document.querySelector('i[data-lucide]')) window.lucide.createIcons(); }
 
 function esc(value) {
   return String(value == null ? "" : value)
@@ -42,11 +42,13 @@ function esc(value) {
 
 const QCU_TIME = window.QCU_TIME || (() => {
   const zone = "Asia/Manila";
+  const dayFormatter = new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'long' });
+  const timeFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   function weekday(date = new Date()) {
-    return new Intl.DateTimeFormat("en-US", { timeZone: zone, weekday: "long" }).format(date);
+    return dayFormatter.format(date);
   }
   function minutes(date = new Date()) {
-    const value = new Intl.DateTimeFormat("en-GB", { timeZone: zone, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(date);
+    const value = timeFormatter.formatToParts(date);
     const p = Object.fromEntries(value.map(x => [x.type, x.value]));
     return Number(p.hour) * 60 + Number(p.minute) + Number(p.second) / 60;
   }
@@ -178,7 +180,7 @@ function statusLabel(s) {
 }
 
 function setText(id, val) {
-  document.querySelectorAll(`[id="${id}"]`).forEach(n => { n.textContent = val; });
+  document.querySelectorAll(`[id="${id}"]`).forEach(n => { if (n.textContent !== String(val)) n.textContent = val; });
 }
 
 function setInnerHTML(el, html) {
@@ -536,7 +538,7 @@ function todayTileTemplate(item, opts) {
   const stagger = opts.i !== undefined ? ` style="--i:${opts.i}"` : "";
 
   return `
-    <article class="home-today-card ${status}-tile${feature} ${todayTint(item)}"${stagger}>
+    <article class="home-today-card ${status}-tile${feature} ${todayTint(item)}" data-schedule-index="${state.schedule.indexOf(item)}"${stagger}>
       <div class="home-today-rail">
         <span class="home-today-rail-time">${hasTime ? formatTime(item.start) : "TBA"}</span>
         <span class="home-today-rail-rule"></span>
@@ -1011,12 +1013,25 @@ function renderHome() {
     setInnerHTML(grid, tiles.join(""));
   }
 
-  renderHomeBusCard();
   renderWeekProgress();
   renderHomeCalendar();
-  renderClassroomUpdates();
   renderTasksNotesColumn();
   iconify();
+  queueHomeWidgets();
+}
+
+let homeWidgetsQueued = false;
+function queueHomeWidgets() {
+  if (homeWidgetsQueued || !state.dashboard) return;
+  homeWidgetsQueued = true;
+  const run = () => {
+    homeWidgetsQueued = false;
+    if (!state.dashboard || document.hidden) return;
+    renderHomeBusCard();
+    renderClassroomUpdates();
+  };
+  if (window.requestIdleCallback) window.requestIdleCallback(run, { timeout: 1500 });
+  else setTimeout(run, 0);
 }
 
 /* ── Day Modal (weekly overview) ─────────────────────── */
@@ -1490,6 +1505,13 @@ async function readWithFeedback(url, key, retry, hasContent = false) {
   loadNotice(key, hasContent ? 'Refreshing…' : '');
   const slow = setTimeout(() => loadNotice(key, 'This is taking longer than usual. Still checking…'), 8000);
   try {
+    if (key === 'dashboard' && window.QCUData) {
+      const data = await (window.QCUStartup || window.QCUData.dashboard());
+      window.QCUStartup = null;
+      loadErrors.delete(key);
+      loadNotice(key, '');
+      return data;
+    }
     const response = await fetch(url, {credentials:'include', cache:'no-store', signal:AbortSignal.timeout(35000)});
     if (!response.ok) {
       // Routing signals arrive with a 4xx on purpose (409 for "your account is
@@ -1511,6 +1533,11 @@ async function readWithFeedback(url, key, retry, hasContent = false) {
     loadNotice(key, '');
     return data;
   } catch (error) {
+    if (key === 'dashboard') window.QCUStartup = null;
+    if (error.status === 401 || error.status === 403) {
+      window.QCUData?.invalidate('access');
+      if (typeof state !== 'undefined' && state.dashboard) hidePrivateContent();
+    }
     const message = navigator.onLine === false ? 'You are offline. Reconnect and try again.' : error.message;
     loadErrors.set(key, message);
     loadNotice(key, (hasContent ? 'Refresh failed. Showing your last loaded content. ' : '') + message,
@@ -1526,15 +1553,22 @@ async function readWithFeedback(url, key, retry, hasContent = false) {
 }
 let _tasksFetching = false;
 
+let _tasksFetchEpoch = -1;
 async function fetchTasksFromApi() {
-  if (_tasksFetching) return _tasksCache || [];
-  _tasksFetching = true;
-  try {
-    const d = await readWithFeedback('/api/v1/tasks', 'tasks', async () => { await fetchTasksFromApi(); renderTasks(); }, _tasksCache !== null);
-    _tasksCache = Array.isArray(d.data) ? d.data : [];
-    return _tasksCache;
-  } catch { return _tasksCache || []; }
-  finally { _tasksFetching = false; }
+  const version = window.QCUData?.epoch || 0;
+  if (_tasksFetching && _tasksFetchEpoch === version) return _tasksFetching;
+  _tasksFetchEpoch = version;
+  const work = (async () => {
+    try {
+      const d = await readWithFeedback('/api/v1/tasks', 'tasks', async () => { await fetchTasksFromApi(); renderTasks(); }, _tasksCache !== null);
+      if (version !== (window.QCUData?.epoch || 0)) return _tasksCache || [];
+      _tasksCache = Array.isArray(d.data) ? d.data : [];
+      return _tasksCache;
+    } catch { return _tasksCache || []; }
+  })();
+  _tasksFetching = work;
+  try { return await work; }
+  finally { if (_tasksFetching === work) _tasksFetching = false; }
 }
 
 async function loadTasks() {
@@ -1543,7 +1577,7 @@ async function loadTasks() {
 
 async function addTask(data) {
   try {
-    const r = await fetch("/api/v1/tasks", {
+    const r = await mutationFetch("/api/v1/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -1567,7 +1601,7 @@ async function updateTask(id, data) {
     if (data.priority !== undefined) payload.priority = data.priority.toUpperCase();
     if (data.deadline !== undefined) payload.dueDate = data.deadline || null;
     if (data.subjectId !== undefined) payload.subjectId = data.subjectId || null;
-    const r = await fetch(`/api/v1/tasks/${id}`, {
+    const r = await mutationFetch(`/api/v1/tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -1579,7 +1613,7 @@ async function updateTask(id, data) {
 
 async function deleteTask(id) {
   try {
-    const r = await fetch(`/api/v1/tasks/${id}`, { method: "DELETE", credentials: "include" });
+    const r = await mutationFetch(`/api/v1/tasks/${id}`, { method: "DELETE", credentials: "include" });
     if (r.ok) { await fetchTasksFromApi(); }
   } catch {}
 }
@@ -1590,7 +1624,7 @@ async function toggleTask(id) {
     const task = tasks.find(t => (t.taskId || t.id) === id);
     if (!task) return;
     const newStatus = task.status === "COMPLETED" ? "OPEN" : "COMPLETED";
-    const r = await fetch(`/api/v1/tasks/${id}`, {
+    const r = await mutationFetch(`/api/v1/tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -1814,15 +1848,22 @@ function closeTaskModal() {
 let _notesCache = null;
 let _notesFetching = false;
 
+let _notesFetchEpoch = -1;
 async function fetchNotesFromApi() {
-  if (_notesFetching) return _notesCache || [];
-  _notesFetching = true;
-  try {
-    const d = await readWithFeedback('/api/v1/notes', 'notes', async () => { await fetchNotesFromApi(); renderNotes(); }, _notesCache !== null);
-    _notesCache = Array.isArray(d.data) ? d.data : [];
-    return _notesCache;
-  } catch { return _notesCache || []; }
-  finally { _notesFetching = false; }
+  const version = window.QCUData?.epoch || 0;
+  if (_notesFetching && _notesFetchEpoch === version) return _notesFetching;
+  _notesFetchEpoch = version;
+  const work = (async () => {
+    try {
+      const d = await readWithFeedback('/api/v1/notes', 'notes', async () => { await fetchNotesFromApi(); renderNotes(); }, _notesCache !== null);
+      if (version !== (window.QCUData?.epoch || 0)) return _notesCache || [];
+      _notesCache = Array.isArray(d.data) ? d.data : [];
+      return _notesCache;
+    } catch { return _notesCache || []; }
+  })();
+  _notesFetching = work;
+  try { return await work; }
+  finally { if (_notesFetching === work) _notesFetching = false; }
 }
 
 async function loadNotes() {
@@ -1831,7 +1872,7 @@ async function loadNotes() {
 
 async function addNote(data) {
   try {
-    const r = await fetch("/api/v1/notes", {
+    const r = await mutationFetch("/api/v1/notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -1851,7 +1892,7 @@ async function updateNote(id, data) {
     if (data.title !== undefined) payload.title = data.title;
     if (data.body !== undefined) payload.body = data.body;
     if (data.subjectId !== undefined) payload.subjectId = data.subjectId || null;
-    const r = await fetch(`/api/v1/notes/${id}`, {
+    const r = await mutationFetch(`/api/v1/notes/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -1863,7 +1904,7 @@ async function updateNote(id, data) {
 
 async function deleteNote(id) {
   try {
-    const r = await fetch(`/api/v1/notes/${id}`, { method: "DELETE", credentials: "include" });
+    const r = await mutationFetch(`/api/v1/notes/${id}`, { method: "DELETE", credentials: "include" });
     if (r.ok) { await fetchNotesFromApi(); }
   } catch {}
 }
@@ -2030,23 +2071,52 @@ function closeNoteModal() {
 }
 
 /* ── Tick ────────────────────────────────────────────── */
-function tick() {
+let lastTickKey = '', lastTickSchedule, lastTickTasks, lastTickNotes;
+const liveTimeFormatter = new Intl.DateTimeFormat([], { timeZone: QCU_TIME.zone, hour: 'numeric', minute: '2-digit', hour12: true });
+function tick(force = false) {
+  if (document.hidden) return;
   updateClock();
-  if (page === "home")     renderHome();
-  if (page === "schedule") renderSchedule();
-  if (page === "tasks")    renderTasks();
-  if (page === "notes")    renderNotes();
-  if (page === "workspace") { renderTasks(); renderNotes(); }
+  const now = new Date(), minute = minutesNow(now), today = QCU_TIME.weekday(now);
+  const boundaries = state.schedule.filter(item => item.day === today)
+    .map(item => `${minute >= parseMinutes(item.start)}:${minute >= parseMinutes(item.end)}`).join(',');
+  const key = QCU_TIME.dateLabel(now) + ':' + Math.floor(minute / 60) + ':' + boundaries;
+  const scheduleChanged = force || key !== lastTickKey || lastTickSchedule !== state.schedule;
+  const tasksChanged = force || key !== lastTickKey || lastTickTasks !== _tasksCache;
+  const notesChanged = force || key !== lastTickKey || lastTickNotes !== _notesCache;
+  if (page === 'home') {
+    if (scheduleChanged) renderHome();
+    else if (tasksChanged || notesChanged) renderTasksNotesColumn();
+    document.querySelectorAll('.home-today-card[data-schedule-index]').forEach(card => {
+      const item = state.schedule[Number(card.dataset.scheduleIndex)];
+      if (!item) return;
+      const timing = todayTiming(item, getStatus(item, now), now);
+      const live = card.querySelector('.home-today-live');
+      if (live && live.textContent !== timing.live) live.textContent = timing.live;
+      const progress = card.querySelector('.home-today-progress span');
+      if (progress && timing.pct !== null) progress.style.width = timing.pct.toFixed(1) + '%';
+    });
+    const marker = document.querySelector('.home-today-now-label');
+    const label = 'Now · ' + liveTimeFormatter.format(now);
+    if (marker && marker.textContent !== label) marker.textContent = label;
+  }
+  if (page === 'schedule' && scheduleChanged) renderSchedule();
+  if (['tasks', 'workspace'].includes(page) && tasksChanged) renderTasks();
+  if (['notes', 'workspace'].includes(page) && notesChanged) renderNotes();
+  lastTickKey = key; lastTickSchedule = state.schedule; lastTickTasks = _tasksCache; lastTickNotes = _notesCache;
   // campus-eta page uses its own loop in eta.js
 }
 
 /* ── Schedule CRUD API ─────────────────────────────── */
+function mutationFetch(url, options) {
+  return window.QCUData ? window.QCUData.mutate(url, options) : fetch(url, options);
+}
+
 async function fetchScheduleFromApi() {
   return readWithFeedback('/api/v1/schedule', 'schedule', reloadSchedule, state.schedule.length > 0);
 }
 
 async function createScheduleEntry(payload) {
-  const resp = await fetch("/api/v1/schedule/entries", {
+  const resp = await mutationFetch("/api/v1/schedule/entries", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -2056,7 +2126,7 @@ async function createScheduleEntry(payload) {
 }
 
 async function updateScheduleEntry(entryId, payload) {
-  const resp = await fetch(`/api/v1/schedule/entries/${entryId}`, {
+  const resp = await mutationFetch(`/api/v1/schedule/entries/${entryId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -2066,7 +2136,7 @@ async function updateScheduleEntry(entryId, payload) {
 }
 
 async function deleteScheduleEntryApi(entryId) {
-  const resp = await fetch(`/api/v1/schedule/entries/${entryId}`, {
+  const resp = await mutationFetch(`/api/v1/schedule/entries/${entryId}`, {
     method: "DELETE",
     credentials: "include",
   });
@@ -2570,15 +2640,131 @@ function closeCrudModal() {
 /* ── Sign Out ────────────────────────────────────── */
 window.signOut = function (button) {
   window.QCULoading.button(button, true);
+  window.QCUData?.invalidate('logout');
   // GET /api/auth/logout does a 302 redirect that clears all cookies
   // reliably before landing on the login page.
   window.location.href = "/api/auth/logout";
 };
 
 /* ── Init ────────────────────────────────────────────── */
+let dashboardRefresh = null;
+function hidePrivateContent(message = 'Please sign in again to continue.') {
+  state.dashboard = null;
+  state.profile = null;
+  state.schedule = [];
+  state.buildings = [];
+  state.academic = null;
+  state.enrollment = null;
+  _tasksCache = null; _notesCache = null;
+  classroomCache = { at: 0, data: null };
+  document.querySelector('.app-shell')?.setAttribute('hidden', '');
+  let notice = document.getElementById('session-recheck');
+  if (!notice) {
+    notice = document.createElement('p');
+    notice.id = 'session-recheck';
+    notice.className = 'load-notice';
+    document.body.prepend(notice);
+  }
+  notice.replaceChildren(document.createTextNode(message + ' '));
+  const link = document.createElement('a');
+  link.href = '/'; link.textContent = 'Continue';
+  notice.appendChild(link);
+}
+async function refreshDashboard(force = false) {
+  if (!window.QCUData || dashboardRefresh) return dashboardRefresh;
+  const work = (async () => {
+    try {
+      const data = await window.QCUData.dashboard({ force });
+      if (!Array.isArray(data.entries) || data.status !== 'OK') {
+        hidePrivateContent();
+        if (data.routing === 'admin') location.replace('/admin.html');
+        else if (data.routing === 'onboarding') location.replace('/onboarding.html');
+        return;
+      }
+      applyDashboard(data);
+      loadNotice('dashboard', '');
+      tick(true);
+      if (page === 'buildings') renderBuildings();
+    } catch (error) {
+      if (document.querySelector('.app-shell')?.hasAttribute('hidden') && error.code !== 'SUPERSEDED') hidePrivateContent('We could not check your account. Reconnect and try again.');
+      if (error.code !== 'SUPERSEDED') loadNotice('dashboard', 'Refresh failed. Showing your last loaded content. ' + error.message, () => refreshDashboard(true));
+    }
+  })();
+  dashboardRefresh = work;
+  try { return await work; }
+  finally { if (dashboardRefresh === work) dashboardRefresh = null; }
+}
+window.addEventListener('qcu-dashboard-updated', event => {
+  const data = event.detail;
+  if (data.status !== 'OK' || !Array.isArray(data.entries)) { hidePrivateContent(); return; }
+  applyDashboard(data);
+  tick(true);
+});
+window.addEventListener('qcu-dashboard-refresh-failed', event => {
+  loadNotice('dashboard', 'Refresh failed. Showing your last loaded content. ' + event.detail.message, () => refreshDashboard(true));
+});
+let remoteRefreshTimer;
+window.addEventListener('qcu-data-invalidated', event => {
+  window.QCUStartup = null;
+  if (['logout', 'access'].includes(event.detail.reason)) { hidePrivateContent(); return; }
+  clearTimeout(remoteRefreshTimer);
+  remoteRefreshTimer = setTimeout(() => {
+    dashboardRefresh = null;
+    if (!document.hidden && state.dashboard) refreshDashboard(true);
+  }, 100);
+});
+window.addEventListener('pageshow', event => {
+  // BFCache can restore a page whose cookies now belong to another account.
+  if (event.persisted) location.reload();
+});
+window.addEventListener('pagehide', () => {
+  document.querySelector('.app-shell')?.setAttribute('hidden', '');
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state.dashboard) {
+    const shell = document.querySelector('.app-shell');
+    shell?.setAttribute('hidden', '');
+    refreshDashboard().finally(() => {
+      if (state.dashboard) shell?.removeAttribute('hidden');
+    });
+    tick();
+  }
+});
+
+function applyDashboard(data) {
+  state.error = null;
+  state.dashboard = data;
+  state.profile = data.profile || null;
+  state.enrollment = data.enrollment || null;
+  state.academic = data.academic || null;
+  state.buildings = (data.buildings || []).map(b => ({
+    code: b.code,
+    name: b.name,
+    shortName: b.shortName,
+    buildingId: b.buildingId,
+    campusId: b.campusId,
+    floors: b.floors,
+    rooms: Array.isArray(b.rooms) ? b.rooms : [],
+    image: b.image || null,
+    description: b.description || "",
+    lat: b.lat,
+    lng: b.lng,
+  }));
+  // Map dashboard entries to schedule item format expected by UI
+  state.schedule = (data.entries || []).map(mapEntryToSchedule);
+  // Seed task/note caches from dashboard response
+  if (Array.isArray(data.tasks)) _tasksCache = data.tasks;
+  if (Array.isArray(data.notes)) _notesCache = data.notes;
+  if (data.cacheInfo?.cached) {
+    const time = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit' }).format(new Date(data.cacheInfo.at));
+    loadNotice('freshness', 'Last updated at ' + time + '.', () => refreshDashboard(true), 'Refresh');
+  } else loadNotice('freshness', '');
+}
+
 async function init() {
   if (window.__QCU_INIT_STARTED) return;
   window.__QCU_INIT_STARTED = true;
+  if (page === 'home' && ['finishing', 'denied', 'failed', 'admin_denied', 'admin_expired', 'backend_unavailable'].includes(new URLSearchParams(location.search).get('auth'))) return;
 
   // HTML contains responsive placeholders until the profile and data are ready.
   renderShell();
@@ -2589,6 +2775,7 @@ async function init() {
   try {
     const data = await readWithFeedback('/api/v1/dashboard', 'dashboard', () => location.reload(), !!state.dashboard);
 
+    if (data.routing === 'admin') { window.location.replace('/admin.html'); return; }
     if (data.status === "UNAUTHENTICATED") {
       loadNotice('dashboard', 'Sign in to see your schedule.', () => { location.href='/api/auth/google/start'; }, 'Sign in again');
       // Not logged in — show shell with defaults, no schedule
@@ -2614,7 +2801,7 @@ async function init() {
       return;
     }
 
-    if (data.status === "DEACTIVATED") {
+    if (data.status === "DEACTIVATED" || data.status === 'FORBIDDEN') {
       loadNotice('dashboard', 'Your account is deactivated. Contact your administrator.');
       state.loading = false;
       renderShell();
@@ -2624,28 +2811,7 @@ async function init() {
 
     if (data.status !== 'OK') throw new Error('Dashboard data is unavailable.');
     if (data.status === "OK") {
-      state.dashboard = data;
-      state.profile = data.profile || null;
-      state.enrollment = data.enrollment || null;
-      state.academic = data.academic || null;
-      state.buildings = (data.buildings || []).map(b => ({
-        code: b.code,
-        name: b.name,
-        shortName: b.shortName,
-        buildingId: b.buildingId,
-        campusId: b.campusId,
-        floors: b.floors,
-        rooms: Array.isArray(b.rooms) ? b.rooms : [],
-        image: b.image || null,
-        description: b.description || "",
-        lat: b.lat,
-        lng: b.lng,
-      }));
-      // Map dashboard entries to schedule item format expected by UI
-      state.schedule = (data.entries || []).map(mapEntryToSchedule);
-      // Seed task/note caches from dashboard response
-      if (Array.isArray(data.tasks)) _tasksCache = data.tasks;
-      if (Array.isArray(data.notes)) _notesCache = data.notes;
+      applyDashboard(data);
     }
   } catch (e) {
     console.warn("Dashboard load failed:", e);
@@ -2860,19 +3026,16 @@ async function init() {
     // that clients.claim() fires is expected and must NOT trigger a reload.
     var hadController = !!navigator.serviceWorker.controller;
 
-    navigator.serviceWorker.register("service-worker.js").then(function (reg) {
-      // Ask the browser to re-check service-worker.js on every load so a new
-      // deploy (bumped CACHE_NAME) is picked up without closing all tabs.
-      reg.update();
-    }).catch(function () {});
+    // Registration already checks for an updated script. Avoid a second
+    // overlapping update job; always bypass HTTP cache for the worker itself.
+    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' }).catch(function () {});
 
-    // When a new worker takes over an already-controlled page, reload once so
-    // the tab runs the freshly-fetched HTML/JS instead of the old worker's copy.
+    // Offer the new release without interrupting a task/note or class edit.
     var swReloaded = false;
     navigator.serviceWorker.addEventListener("controllerchange", function () {
       if (swReloaded || !hadController) return;
       swReloaded = true;
-      window.location.reload();
+      loadNotice('update', 'An update is ready. Refresh when you have finished editing.', () => window.location.reload(), 'Refresh');
     });
   }
 

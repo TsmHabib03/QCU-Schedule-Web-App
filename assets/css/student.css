@@ -245,3 +245,5 @@
 @media (prefers-reduced-motion: reduce) {
   .student-shell *, .student-shell *::before, .student-shell *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+/* A hidden account view must stay hidden while its session is rechecked. */
+.app-shell[hidden] { display: none !important; }

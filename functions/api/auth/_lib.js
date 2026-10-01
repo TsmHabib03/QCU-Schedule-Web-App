@@ -481,6 +481,9 @@ async function hydrateRepo(context, session) {
   if (path.startsWith('/api/auth/google/')) kinds = ['users'];
   else if (path === '/api/v1/me') kinds = ['users','profiles'];
   else if (path === '/api/v1/bootstrap') kinds = ['users','profiles','enrollments','schedules','scheduleEntries'];
+  else if (path === '/api/v1/dashboard') kinds = requestUrl.searchParams.get('check') === '1'
+    ? ['users','enrollments','schedules','scheduleEntries']
+    : ['users','profiles','enrollments','schedules','scheduleEntries','enrollmentSubjects','tasks','notes'];
   else if (path.startsWith('/api/v1/cor/') && !path.endsWith('/confirm')) kinds = ['users','corRecords','corDrafts'];
   else if (path === '/api/v1/onboarding/status') kinds = ['users','corRecords','enrollments','schedules','scheduleEntries'];
   else if (path.startsWith('/api/v1/tasks')) kinds = ['users','tasks','enrollmentSubjects','scheduleEntries'];

@@ -24,10 +24,11 @@
 /data/*.json
   Cache-Control: no-store
 
-# Version-stamped static assets (loaded as .css?v=NN / .js?v=NN) are safe to
-# cache long-term: a new deploy bumps the ?v= query so the URL changes.
+# The service worker serves content-versioned assets directly from its release
+# cache. Uncontrolled browsers revalidate: this rule also covers unversioned
+# images and scripts, so a blanket one-year HTTP lifetime is unsafe.
 /assets/*
-  Cache-Control: public, max-age=31536000
+  Cache-Control: public, no-cache
 /admin.html
   Cache-Control: no-store
   X-Frame-Options: DENY

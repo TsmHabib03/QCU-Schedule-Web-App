@@ -25,6 +25,7 @@ import {
   isScheduleReady,
 } from "../repo/index.js";
 import { normalizeDayOfWeek } from "../_lib/day-time.js";
+import { isAdminIdentity } from "../admin/_lib.js";
 
 export async function onRequestGet(context) {
   try {
@@ -34,7 +35,10 @@ export async function onRequestGet(context) {
       return json({ status: "UNAUTHENTICATED", authenticated: false }, 401);
     }
 
-    const { user } = resolved;
+    const { user, session: verifiedSession } = resolved;
+    if (isAdminIdentity(context.env, verifiedSession)) {
+      return json({ status: 'OK', authenticated: true, routing: 'admin' });
+    }
 
     if (user.state === "DEACTIVATED") {
       return json({ status: "DEACTIVATED", error: "Account deactivated" }, 403);
@@ -60,6 +64,17 @@ export async function onRequestGet(context) {
       }, 409);
     }
 
+    // Validate access on every navigation, even when the browser has a snapshot.
+    // A new login, COR revision, or catalog deploy cannot reuse an old snapshot.
+    const activeSchedule = Schedules.getActiveByUserId(user.userId);
+    const cacheKey = JSON.stringify([user.userId, verifiedSession.issuedAt,
+      activeSchedule?.scheduleId, activeSchedule?.revisionNumber,
+      CatalogSeed.meta()?.version]);
+    const dashboardJson = (data) => json({ ...data, cacheKey });
+    if (new URL(context.request.url).searchParams.get('check') === '1') {
+      return dashboardJson({ status: 'OK', authenticated: true, routing: 'dashboard' });
+    }
+
     // ── Try in-memory Maps first (works locally), fall back to session snapshot (CF Pages) ──
     const session = await readPlatformSession(context);
     const snapshot = session?.dashboardSnapshot || null;
@@ -69,7 +84,7 @@ export async function onRequestGet(context) {
 
     // If no in-memory enrollment but snapshot exists, use snapshot
     if (!activeEnrollment && snapshot) {
-      return json({
+      return dashboardJson({
         status: "OK",
         authenticated: true,
         routing: "dashboard",
@@ -88,7 +103,6 @@ export async function onRequestGet(context) {
       // CF Pages: Maps empty — try to reconstruct from session enrollment data.
       // The confirm endpoint stores compact enrollment + enrollmentSubjects
       // in the session so the dashboard can display schedule info.
-      console.log("dashboard: no in-memory enrollment — falling back to session data");
       const sessEnrollment = session?.enrollment || null;
       const sessSubjects = session?.enrollmentSubjects || null;
       if (sessEnrollment && sessSubjects && sessSubjects.length > 0) {
@@ -107,7 +121,7 @@ export async function onRequestGet(context) {
           enrollmentSubjects: sessSubjects,
         };
         const daySet = new Set();
-        return json({
+        return dashboardJson({
           status: "OK",
           authenticated: true,
           routing: "dashboard",
@@ -121,7 +135,7 @@ export async function onRequestGet(context) {
           profile: buildProfile(user),
         });
       }
-      return json({
+      return dashboardJson({
         status: "OK",
         authenticated: true,
         routing: "dashboard",
@@ -138,13 +152,11 @@ export async function onRequestGet(context) {
 
     // ── Schedule (looked up by enrollmentId) ────────────────────────────
     const schedule = Schedules.getActiveByUserId(user.userId);
-    console.log("dashboard: schedule lookup", schedule ? schedule.scheduleId : "null", "enrollments:", Enrollments.getByUserId(user.userId).length);
 
     // ── Entries ─────────────────────────────────────────────────────────
     const rawEntries = schedule
       ? ScheduleEntries.getByScheduleId(schedule.scheduleId)
       : [];
-    console.log("dashboard: raw entries count:", rawEntries.length);
 
     // ── Resolve entry details (subject, building, room) ─────────────────
     const entries = rawEntries.map((e) => {
@@ -252,7 +264,7 @@ export async function onRequestGet(context) {
     // ── Profile ─────────────────────────────────────────────────────────
     const profile = buildProfile(user);
 
-    return json({
+    return dashboardJson({
       status: "OK",
       authenticated: true,
       routing: "dashboard",
@@ -284,6 +296,8 @@ export async function onRequestGet(context) {
       profile,
     });
   } catch (error) {
+    if (error.code === 'UNAUTHENTICATED') return json({ status: 'UNAUTHENTICATED', authenticated: false, routing: 'login' }, 401);
+    if (error.code === 'FORBIDDEN') return json({ status: 'FORBIDDEN', authenticated: false, routing: 'login' }, 403);
     console.error("Dashboard fetch failed:", String(error?.message || error));
     return json({ status: "ERROR", error: "Failed to load dashboard" }, 500);
   }

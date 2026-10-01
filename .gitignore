@@ -7,3 +7,4 @@ node_modules/
 
 # Local validation output
 .build/admin-functions/
+.build/pages/

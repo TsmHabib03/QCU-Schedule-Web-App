@@ -26,10 +26,12 @@
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timer = controller ? setTimeout(() => controller.abort(), options.method === 'POST' ? 120000 : 25000) : null;
     try {
+      if (url.endsWith('/cor/confirm') || url.endsWith('/auth/logout')) window.QCUData?.invalidate(url.endsWith('/auth/logout') ? 'logout' : 'change');
       const response = await fetch(url, { credentials: 'include', cache: 'no-store', ...options, signal: controller?.signal });
       checkAccess(response.status);
       return response;
     } finally {
+      if (url.endsWith('/cor/confirm')) window.QCUData?.invalidate('change');
       if (timer) clearTimeout(timer);
     }
   }
