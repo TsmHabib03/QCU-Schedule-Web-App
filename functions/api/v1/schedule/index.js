@@ -10,6 +10,7 @@ import {
   Schedules,
   ScheduleEntries,
   Subjects,
+  EnrollmentSubjects,
   CatalogBuildings,
   CatalogRooms,
 } from "../../repo/index.js";
@@ -100,9 +101,8 @@ export async function onRequestGet(context) {
 }
 
 function resolveEntry(e) {
-  const subject = e.enrollmentSubjectId
-    ? Subjects.getById(e.enrollmentSubjectId)
-    : null;
+  const ens = e.enrollmentSubjectId ? EnrollmentSubjects.getById(e.enrollmentSubjectId) : null;
+  const subject = ens?.matchedSubjectId ? Subjects.getById(ens.matchedSubjectId) : null;
   const building = e.buildingId
     ? CatalogBuildings.getById(e.buildingId)
     : null;
@@ -114,9 +114,10 @@ function resolveEntry(e) {
     entryId: e.smeId,
     scheduleId: e.scheduleId,
     enrollmentSubjectId: e.enrollmentSubjectId,
-    code: subject?.subjectCode || "",
-    title: subject?.title || "",
-    units: subject?.units || 0,
+    code: ens?.subjectCodeSnapshot || subject?.subjectCode || "",
+    title: ens?.subjectTitleSnapshot || subject?.title || "",
+    units: ens?.units || subject?.units || 0,
+    instructor: e.instructorName ?? ens?.instructorName ?? "",
     modality: e.modality || "ONSITE",
     dayOfWeek: e.dayOfWeek,
     startTime: e.startTime,

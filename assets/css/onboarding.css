@@ -1,0 +1,105 @@
+/* COR setup: the same quiet, centered composition from upload to review. */
+@font-face { font-family: 'Public Sans'; src: url('../fonts/public-sans-latin-wght-normal.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+.cor-onboarding {
+  --e-primary: #7560db;
+  --e-primary-strong: #634bc9;
+  --e-primary-soft: #ede8fc;
+  --e-navy: #282733;
+  --e-ink: #393745;
+  --e-muted: #737082;
+  --e-grey: #737082;
+  --e-bg: #f5f5fa;
+  --e-shadow-primary: none;
+  font-family: 'Public Sans', 'Segoe UI', sans-serif;
+  background: #f5f5fa;
+}
+.cor-onboarding .onboarding-shell { min-height: 100svh; padding: 36px 20px 18px; align-items: center; justify-content: center; }
+.cor-onboarding .onboarding-card { width: 100%; max-width: 430px; min-height: min(780px, calc(100svh - 100px)); padding: 24px 34px 30px; background: linear-gradient(180deg, #f8f8fc 0%, #fff 88%); border-radius: 36px; box-shadow: 0 24px 48px -16px #34304429; transition: max-width .25s ease; }
+.cor-onboarding .onboarding-topbar { display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; min-height: 48px; margin: 0 -8px 34px; }
+.cor-onboarding .onboarding-back, .cor-onboarding .onboarding-skip { display: grid; place-items: center; width: 48px; min-height: 48px; border: 0; background: none; padding: 0; cursor: pointer; }
+.cor-onboarding .onboarding-back { color: #282733; }
+.cor-onboarding .onboarding-back .lucide { width: 27px; height: 27px; }
+.cor-onboarding .onboarding-skip { color: #6b50d2; font-size: 14px; font-weight: 700; }
+.cor-onboarding .stage-tracker { display: flex; width: 124px; gap: 5px; margin: 0 auto; padding: 0; background: none; border: 0; box-shadow: none; }
+.cor-onboarding .stage-item { display: block; flex: 1; height: 7px; min-height: 0; margin: 0; padding: 0; background: #e3ddf4; border: 0; border-radius: 999px; }
+.cor-onboarding .stage-item.active, .cor-onboarding .stage-item.completed { background: #7b63e2; }
+.cor-onboarding .onboarding-main { display: flex; flex-direction: column; min-height: 620px; padding: 0; margin: 0; background: none; border-radius: 0; box-shadow: none; }
+.cor-onboarding .onboarding-eyebrow { color: #6b50d2; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: .12em; margin: 0 0 12px; }
+.cor-onboarding .onboarding-step.active { display: flex; flex-direction: column; flex: 1; }
+.cor-onboarding :is(.welcome-title, .processing-title, .confirm-title, .success-title) { text-align: center; font-size: clamp(24px, 5vw, 28px); line-height: 1.22; font-weight: 750; letter-spacing: -.035em; margin: 0 auto 12px; max-width: 340px; }
+.cor-onboarding :is(.welcome-subtitle, .processing-text, .confirm-text, .success-text) { color: #737082; text-align: center; font-size: 14px; line-height: 1.65; font-weight: 400; margin: 0 auto; max-width: 330px; }
+.cor-onboarding .upload-zone { display: flex; flex-direction: column; align-items: center; padding: 0; margin: 22px 0 14px; background: none; border: 0; border-radius: 24px; }
+.cor-onboarding .upload-zone:hover, .cor-onboarding .upload-zone.dragover { background: #eee9fc; }
+.cor-onboarding .upload-zone.dragover { outline: 2px dashed #7560db; outline-offset: 4px; }
+.cor-onboarding .cor-illustration { display: block; width: min(100%, 248px); height: auto; margin: 0 auto; }
+.cor-onboarding .upload-zone-text { font-size: 12px; font-weight: 600; color: #7560db; margin: 6px 0; }
+.cor-onboarding .upload-zone-hint { font-size: 10px; line-height: 1.5; font-weight: 400; color: #737082; }
+.cor-onboarding .cor-benefits { list-style: none; padding: 0; margin: 6px 0 20px; }
+.cor-onboarding .cor-benefits li { display: flex; gap: 16px; align-items: center; min-height: 48px; padding: 9px 0; color: #393745; font-size: 14px; border-bottom: 1px solid #eeedf4; }
+.cor-onboarding .cor-benefits li:last-child { border-bottom: 0; }
+.cor-onboarding .cor-benefits .lucide { color: #8067dd; width: 23px; height: 23px; }
+.cor-onboarding .onboarding-actions { margin-top: auto; padding-top: 22px; display: flex; flex-direction: column; gap: 8px; }
+.cor-onboarding .btn-primary { min-height: 56px; border-radius: 999px; font-size: 15px; font-weight: 650; box-shadow: none; background: #7560db; }
+.cor-onboarding .btn-primary:hover { background: #634bc9; transform: none; }
+.cor-onboarding button:disabled { opacity: .62; cursor: default; }
+.cor-onboarding .onboarding-text-link, .cor-onboarding .btn-secondary { display: flex; justify-content: center; align-items: center; min-height: 44px; border: 0; padding: 8px 4px; background: none; color: #6b50d2; font-size: 13px; font-weight: 650; text-decoration: none; cursor: pointer; box-shadow: none; }
+.cor-onboarding .onboarding-text-link:hover, .cor-onboarding .btn-secondary:hover { color: #5137af; transform: none; }
+.cor-onboarding .cor-privacy { font-size: 10px; line-height: 1.6; color: #898596; text-align: center; margin: 0; }
+.cor-onboarding .upload-file-summary { background: #ede8fc; margin-top: 0; border-radius: 18px; padding: 14px 16px; }
+.cor-onboarding .upload-file-name { font-size: 13px; }
+.cor-onboarding .upload-file-remove { min-height: 44px; margin: 0; color: #6b50d2; }
+.cor-onboarding .upload-error { margin: 10px 0 0; }
+.cor-onboarding .cor-scan-art { position: relative; margin: 46px auto 30px; width: min(100%, 248px); }
+.cor-onboarding .cor-later-art { margin: 44px auto 28px; }
+.cor-onboarding #processing-spinner { border: 0; border-radius: 0; height: auto; padding: 0; background: none; animation: none; }
+.cor-onboarding .cor-scan-line { position: absolute; left: 24%; top: 35%; width: 52%; height: 3px; background: #55c6c8; box-shadow: 0 0 16px 5px #8ce4e66b; border-radius: 999px; animation: cor-scan 2.8s ease-in-out infinite alternate; }
+.cor-onboarding .cor-scan-dot { position: absolute; top: 15%; right: 12%; width: 8px; height: 8px; background: #9ce4e5; border-radius: 50%; animation: cor-pulse 1.8s ease-in-out infinite; }
+.cor-onboarding [data-extraction-state="ready"] .cor-scan-line { display: none; }
+.cor-onboarding [data-extraction-state="ready"] .cor-scan-dot { animation: none; }
+.cor-onboarding .cor-extraction-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
+.cor-onboarding .cor-extraction-summary > div { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 18px 8px; border-radius: 22px; background: #eee8fe; }
+.cor-onboarding .cor-extraction-summary > div + div { background: #e9f7f6; }
+.cor-onboarding .cor-extraction-summary .lucide { width: 26px; height: 26px; color: #7560db; }
+.cor-onboarding .cor-extraction-summary strong { font-size: 12px; font-weight: 650; }
+.cor-onboarding .cor-extraction-summary span { font-size: 10px; color: #737082; }
+.cor-onboarding .upload-progress { margin-top: 20px; }
+.cor-onboarding .upload-progress-text { font-weight: 400; font-size: 11px; }
+.cor-onboarding .onboarding-footer { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 22px; color: #898596; font-size: 10px; }
+.cor-onboarding .onboarding-footer img { object-fit: contain; }
+.cor-onboarding .onboarding-footer a { color: #898596; padding-block: 6px; }
+.cor-onboarding .onboarding-card:is([data-onboarding-step="review"], [data-onboarding-step="confirm"]) { max-width: 720px; }
+.cor-onboarding #step-review .welcome-subtitle { max-width: 520px; margin-bottom: 24px; }
+.cor-onboarding .review-card { background: #f2effa; box-shadow: none; border-radius: 22px; }
+.cor-onboarding .review-label { color: #686375; }
+.cor-onboarding .subject-card { border: 1px solid #ede9f5; box-shadow: none; border-radius: 22px; background: #fcfbfe; }
+.cor-onboarding .btn-row { margin-top: auto; padding-top: 24px; }
+.cor-onboarding #step-review .btn-row { margin-top: 0; }
+.cor-onboarding .confirm-icon, .cor-onboarding .success-check { width: 120px; height: 120px; border-radius: 50%; margin: 32px auto; }
+.cor-onboarding .confirm-icon .lucide, .cor-onboarding .success-check .lucide { width: 50px; height: 50px; }
+.cor-onboarding .confirm-summary { border-radius: 24px; background: #f2effa; }
+.cor-onboarding .cor-loading-top { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 8px; }
+.cor-onboarding .cor-loading-top .loading-bar { width: 28px; height: 20px; }
+.cor-onboarding .cor-loading-top .loading-bar:nth-child(2) { width: 124px; height: 7px; }
+.cor-onboarding .onboarding-main > .cor-loading-main { inset: 0; display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 12px 0; }
+.cor-onboarding .cor-loading-main .loading-bar:nth-of-type(2) { width: 95px; height: 10px; }
+.cor-onboarding .cor-loading-main .loading-bar:nth-of-type(3) { width: 75%; height: 28px; }
+.cor-onboarding .cor-loading-main .loading-bar:nth-of-type(4) { width: 224px; height: 224px; border-radius: 50%; margin: 30px 0; }
+.cor-onboarding .cor-loading-main .loading-bar:nth-of-type(5) { width: 100%; height: 120px; border-radius: 18px; }
+.cor-onboarding .cor-loading-main .loading-bar:nth-of-type(6) { width: 100%; height: 56px; margin-top: auto; border-radius: 999px; }
+@keyframes cor-scan { from { top: 35%; } to { top: 72%; } }
+@keyframes cor-pulse { 50% { opacity: .4; transform: translateY(-6px); } }
+@media (max-width: 479px) {
+  .cor-onboarding .onboarding-shell { padding: 12px; justify-content: flex-start; }
+  .cor-onboarding .onboarding-card { min-height: calc(100svh - 24px); padding: calc(18px + env(safe-area-inset-top, 0px)) 28px calc(20px + env(safe-area-inset-bottom, 0px)); border-radius: 28px; box-shadow: 0 12px 30px -18px #34304429; }
+  .cor-onboarding .onboarding-topbar { margin-bottom: 26px; }
+  .cor-onboarding .onboarding-main { min-height: calc(100svh - 156px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+  .cor-onboarding .onboarding-footer { margin: 16px 0; }
+}
+@media (max-width: 359px) {
+  .cor-onboarding .onboarding-card { padding-inline: 22px; }
+  .cor-onboarding .cor-illustration { width: 218px; }
+  .cor-onboarding .cor-benefits li { gap: 12px; font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cor-onboarding *, .cor-onboarding *::before, .cor-onboarding *::after { animation: none !important; transition: none !important; }
+}

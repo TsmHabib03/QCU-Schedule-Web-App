@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>QCU Schedule logo reversed</title>
+  <path fill="#FFFFFF" fill-rule="evenodd"
+        d="M128 32 a96 96 0 1 0 0 192 a96 96 0 1 0 0 -192 Z
+           M128 72 a56 56 0 1 1 0 112 a56 56 0 1 1 0 -112 Z"/>
+  <rect fill="#F2A900" x="128" y="117" width="112" height="22" rx="11" transform="rotate(45 128 128)"/>
+  <circle fill="#F2A900" cx="128" cy="128" r="15"/>
+</svg>

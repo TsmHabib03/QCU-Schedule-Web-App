@@ -28,12 +28,12 @@ function element() {
 async function harness(uploadResult, stage = 'WELCOME', overrides = {}, editors = []) {
   const nodes = new Map();
   const get = id => { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); };
-  const steps = ['welcome', 'upload', 'processing', 'review', 'confirm', 'success'].map(x => get('step-' + x));
+  const steps = ['upload', 'processing', 'review', 'confirm', 'success', 'later'].map(x => get('step-' + x));
   const calls = [];
   const timers = new Map();
   let timerId = 0;
   const c = { console, crypto: globalThis.crypto, FormData: class { append() {} }, sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
-    document: { getElementById: get, querySelectorAll: selector => selector.includes('data-meeting') ? editors : (selector.includes('data-loading-') ? [] : steps), createElement: element },
+    document: { getElementById: get, querySelector: selector => get(selector), querySelectorAll: selector => selector.includes('data-meeting') ? editors : (selector.includes('data-loading-') ? [] : steps), createElement: element },
     addEventListener() {},
     location: {}, scrollTo() {}, setTimeout() {}, clearInterval: id => timers.delete(id), setInterval: fn => { timers.set(++timerId, fn); return timerId; },
     fetch: async (url, options) => {
@@ -62,6 +62,14 @@ async function harness(uploadResult, stage = 'WELCOME', overrides = {}, editors 
 
 const extracted = await harness({ status: 'EXTRACTED', corRecordId: 'cor-test', result: draft });
 await extracted.c.uploadCor();
+assert(extracted.get('step-processing').classList.contains('active'));
+assert.equal(extracted.get('processing-continue').disabled, false);
+assert.equal(extracted.get('processing-continue').textContent, 'Continue');
+extracted.c.skipOnboarding();
+assert(extracted.get('step-later').classList.contains('active'));
+extracted.c.onboardingBack();
+assert.equal(extracted.get('processing-continue').disabled, false, 'Returning from Skip preserves the ready result');
+extracted.c.continueToReview();
 assert(extracted.get('step-review').classList.contains('active'));
 assert(!extracted.calls.some(x => x.url.endsWith('/process')));
 assert.equal(extracted.get('review-program').value, 'BSCS');
@@ -79,6 +87,7 @@ console.log('PASS extracted upload, compact program, validation retry, reviewed 
 
 const duplicate = await harness({ status: 'DUPLICATE', corRecordId: 'cor-test', importStatus: 'REVIEW_REQUIRED' });
 await duplicate.c.uploadCor();
+duplicate.c.continueToReview();
 assert(duplicate.get('step-review').classList.contains('active'));
 assert(!duplicate.calls.some(x => x.url.endsWith('/process')));
 console.log('PASS duplicate upload resumes review');
@@ -89,6 +98,7 @@ for (const uploadFailure of [new Error('Connection lost after save'), {status:'S
     '/api/v1/cor/status': {status:'OK', hasImport:true, corRecordId:'cor-test', importStatus:'REVIEW_REQUIRED'},
   });
   await recovered.c.uploadCor();
+  recovered.c.continueToReview();
   assert(recovered.get('step-review').classList.contains('active'));
   assert(!recovered.get('upload-error').classList.contains('visible'));
   assert(recovered.calls.some(call => call.url.includes('/status?requestId=')));
@@ -97,6 +107,7 @@ const lostConfirmation = await harness({status:'EXTRACTED',corRecordId:'cor-test
   '/api/v1/cor/confirm':new Error('Response lost'),
 });
 await lostConfirmation.c.uploadCor();
+lostConfirmation.c.continueToReview();
 await lostConfirmation.c.saveAndConfirm();
 await lostConfirmation.c.confirmAndActivate();
 // A lost confirm response must NOT silently assume success or bounce the user
@@ -126,6 +137,7 @@ const expired = await harness({}, 'PROCESSING', {
   '/api/v1/cor/status': { status: 'OK', corRecordId: 'cor-test', importStatus: 'PROCESSING', canResume: true },
   '/api/v1/cor/process': { status: 'REVIEW_REQUIRED', result: draft },
 });
+expired.c.continueToReview();
 assert(expired.get('step-review').classList.contains('active'));
 assert.equal(expired.calls.filter(x => x.url.endsWith('/process')).length, 1);
 console.log('PASS stable upload IDs, completed duplicates, busy scans, and expired lease recovery');
@@ -182,7 +194,7 @@ const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const authScript = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 for (const query of ['', '?auth=dashboard', '?auth=unexpected']) {
   const nodes = new Map(['auth-landing', 'auth-dashboard', 'auth-loading'].map(id => [id, element()]));
-  const c = { URLSearchParams, AbortSignal, addEventListener() {}, fetch: async () => ({ json: async () => ({ authenticated: false }) }), document: { readyState: 'complete', querySelectorAll: () => [], getElementById: id => nodes.get(id) }, location: { search: query }, history: { replaceState() {} } };
+  const c = { URLSearchParams, AbortSignal, QCUData: { dashboard: async () => ({ authenticated: false }) }, addEventListener() {}, fetch: async () => ({ json: async () => ({ authenticated: false }) }), document: { readyState: 'complete', querySelectorAll: () => [], getElementById: id => nodes.get(id) }, location: { search: query }, history: { replaceState() {} } };
   c.window = c;
   vm.runInNewContext(authScript, c);
   await new Promise(setImmediate);
@@ -225,9 +237,10 @@ assert.equal(offline.status, 503);
 assert.equal((await offline.json()).status, 'OFFLINE');
 console.log('PASS service worker preserves API failures and returns JSON offline');
 networkResponse = new Response('Missing page', {status:404});
-handlers.fetch({request:new Request('https://example.test/missing'),respondWith:promise=>{reply=promise;}});
-assert.equal((await reply).status,404);
-console.log('PASS service worker never replaces a network 404 with cached content');
+let interceptedMissing = false;
+handlers.fetch({request:new Request('https://example.test/missing'),respondWith:()=>{interceptedMissing=true;}});
+assert.equal(interceptedMissing,false);
+console.log('PASS service worker leaves unknown pages to the network');
 
 // ---------------------------------------------------------------------------
 // The day column of a COR must survive every way it is printed.
@@ -485,6 +498,7 @@ const rejectedDraft = await harness({ status: 'EXTRACTED', corRecordId: 'cor-tes
   '/api/v1/cor/confirm': { status: 'VALIDATION_ERROR', error: 'Please fix the following issues before confirming.', issues: [{ field: 'subjects[0].schedule[0].day', message: 'Unknown day: MONDAY' }] },
 });
 await rejectedDraft.c.uploadCor();
+rejectedDraft.c.continueToReview();
 await rejectedDraft.c.saveAndConfirm();
 await rejectedDraft.c.confirmAndActivate();
 assert(rejectedDraft.get('step-confirm').classList.contains('active'), 'a rejected confirm keeps the student on the last step');
@@ -519,6 +533,7 @@ const corrected = await harness({ status: 'EXTRACTED', corRecordId: 'cor-test', 
   editor('0-0', 'day', 'WEDNESDAY'), editor('0-0', 'start', '13:00'), editor('0-0', 'end', '14:30'),
 ]);
 await corrected.c.uploadCor();
+corrected.c.continueToReview();
 await corrected.c.saveAndConfirm();
 assert(corrected.get('step-confirm').classList.contains('active'), 'a corrected class saves and reaches the confirm step');
 const savedSubjects = JSON.parse(corrected.calls.find(x => x.url.endsWith('/review')).options.body).subjects;
@@ -532,6 +547,7 @@ console.log('PASS a class corrected in the review step is what gets saved');
 const noDay = reviewDraft([{ day: { value: null }, time: { start: '08:00', end: '09:30' } }]);
 const blockedDay = await harness({ status: 'EXTRACTED', corRecordId: 'cor-test', result: noDay }, 'WELCOME', withResult(noDay));
 await blockedDay.c.uploadCor();
+blockedDay.c.continueToReview();
 await blockedDay.c.saveAndConfirm();
 assert(blockedDay.get('step-review').classList.contains('active'), 'the student stays on the review step');
 assert(!blockedDay.calls.some(x => x.url.endsWith('/review')), 'nothing is saved without a day');
@@ -540,6 +556,7 @@ assert.match(blockedDay.get('review-error').textContent, /choose the day/, `show
 const backwardsReview = reviewDraft([{ day: { value: 'MONDAY' }, time: { start: '14:30', end: '13:00' } }]);
 const blockedWindow = await harness({ status: 'EXTRACTED', corRecordId: 'cor-test', result: backwardsReview }, 'WELCOME', withResult(backwardsReview));
 await blockedWindow.c.uploadCor();
+blockedWindow.c.continueToReview();
 await blockedWindow.c.saveAndConfirm();
 assert(!blockedWindow.calls.some(x => x.url.endsWith('/review')), 'a window that runs backwards is not saved');
 assert.match(blockedWindow.get('review-error').textContent, /end time must be after the start time/, `shown: ${blockedWindow.get('review-error').textContent}`);
@@ -547,6 +564,7 @@ assert.match(blockedWindow.get('review-error').textContent, /end time must be af
 const halfWindow = reviewDraft([{ day: { value: 'MONDAY' }, time: { start: '13:00', end: null } }]);
 const blockedHalf = await harness({ status: 'EXTRACTED', corRecordId: 'cor-test', result: halfWindow }, 'WELCOME', withResult(halfWindow));
 await blockedHalf.c.uploadCor();
+blockedHalf.c.continueToReview();
 await blockedHalf.c.saveAndConfirm();
 assert(!blockedHalf.calls.some(x => x.url.endsWith('/review')), 'half a window is not saved');
 assert.match(blockedHalf.get('review-error').textContent, /set the end time as well/, `shown: ${blockedHalf.get('review-error').textContent}`);

@@ -1,0 +1,125 @@
+/* Reference-inspired welcome screen. Scoped to the public authentication view. */
+.login-screen {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  overflow: clip;
+  background: #4a3aff;
+  color: #202124;
+  font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.login-screen::before,
+.login-screen::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: min(80vw, 900px);
+  aspect-ratio: 1;
+  border: clamp(60px, 12vw, 160px) solid rgba(255, 255, 255, 0.055);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.login-screen::before { top: -50%; left: -30%; }
+.login-screen::after { right: -36%; bottom: -45%; }
+
+.login-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - max(24px, env(safe-area-inset-top)) - max(24px, env(safe-area-inset-bottom)));
+  min-height: calc(100dvh - max(24px, env(safe-area-inset-top)) - max(24px, env(safe-area-inset-bottom)));
+}
+
+.login-card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 380px;
+  min-height: clamp(480px, calc(100dvh - 48px), 660px);
+  padding: clamp(56px, 10dvh, 92px) clamp(24px, 6vw, 32px) 32px;
+  border-radius: 36px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(27, 19, 112, 0.16);
+  text-align: center;
+}
+
+.login-watermark {
+  position: absolute;
+  z-index: -1;
+  top: -122px;
+  right: -142px;
+  width: 420px;
+  height: 420px;
+  max-width: none;
+  opacity: 0.055;
+  filter: grayscale(1) brightness(0);
+  pointer-events: none;
+  user-select: none;
+}
+
+.login-intro { display: flex; flex-direction: column; align-items: center; }
+.login-logo { width: 84px; height: 84px; object-fit: contain; margin-bottom: 20px; }
+.login-title { margin: 0; font-size: clamp(32px, 8vw, 36px); font-weight: 750; line-height: 1.15; letter-spacing: -0.035em; }
+.login-title span { display: block; }
+.login-subtitle { max-width: 25ch; margin: 16px 0 0; color: #5f6368; font-size: 14px; line-height: 1.6; text-wrap: balance; }
+.login-actions { margin-top: auto; padding-top: 72px; }
+
+.login-google,
+.login-recovery-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 14px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: #202124;
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.login-google svg { width: 20px; height: 20px; flex-shrink: 0; }
+.login-google:hover, .login-recovery-button:hover { background: #34363a; }
+.login-google:active, .login-recovery-button:active { background: #111; }
+.login-google[aria-busy="true"], .login-recovery-button:disabled { opacity: 0.7; cursor: wait; }
+.login-screen :is(a, button):focus-visible { outline: 3px solid #005bac; outline-offset: 4px; }
+.login-screen [hidden] { display: none !important; }
+.login-alert { margin: 0 0 16px; padding: 12px 14px; border-radius: 16px; color: #9f2542; background: #fff0f3; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.login-retry { margin: 0 0 16px; padding: 8px 12px; color: #005bac; font-size: 14px; font-weight: 600; text-underline-offset: 4px; }
+.login-finish { margin-bottom: 16px; }
+.login-finish p { margin-bottom: 16px; color: #5f6368; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+
+.login-skip { position: fixed; top: 12px; left: 16px; z-index: 100; padding: 12px 20px; border-radius: 12px; background: #fff; color: #202124; font-weight: 600; transform: translateY(-150%); }
+.login-skip:focus { transform: translateY(0); }
+
+@media (min-width: 768px) {
+  .login-screen { padding: max(40px, env(safe-area-inset-top)) 32px max(40px, env(safe-area-inset-bottom)); }
+  .login-stage { min-height: calc(100dvh - max(40px, env(safe-area-inset-top)) - max(40px, env(safe-area-inset-bottom))); }
+  .login-card { min-height: clamp(480px, calc(100dvh - 80px), 660px); }
+}
+
+@media (max-height: 600px) {
+  .login-card { min-height: 432px; padding-top: 40px; border-radius: 28px; }
+  .login-logo { width: 72px; height: 72px; margin-bottom: 16px; }
+  .login-actions { padding-top: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-screen :is(a, button) { transition: none; }
+}

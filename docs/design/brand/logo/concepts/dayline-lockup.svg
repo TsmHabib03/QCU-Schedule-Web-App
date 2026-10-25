@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 256">
+  <!-- symbol -->
+  <g transform="translate(20,38) scale(0.703)" fill="#000">
+    <rect x="40" y="150" width="176" height="12" rx="6"/>
+    <circle cx="70" cy="156" r="6"/>
+    <circle cx="100" cy="156" r="6"/>
+    <circle cx="186" cy="156" r="6"/>
+    <rect x="122" y="92" width="12" height="86" rx="6"/>
+    <circle cx="128" cy="86" r="17"/>
+  </g>
+  <!-- wordmark (exploration type; final will be drawn as paths in Public Sans) -->
+  <text x="238" y="138" font-family="'Public Sans','Helvetica Neue',Arial,sans-serif" font-size="112" font-weight="800" fill="#000" letter-spacing="-2">QCU</text>
+  <text x="241" y="196" font-family="'Public Sans','Helvetica Neue',Arial,sans-serif" font-size="50" font-weight="500" fill="#000" letter-spacing="6">Schedule</text>
+</svg>

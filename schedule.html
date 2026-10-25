@@ -10,32 +10,36 @@
   <meta http-equiv="Expires" content="0">
   <title>Full Schedule | QCU Portal</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="stylesheet" href="assets/css/styles.css?v=1254bb55d03c">
-  <link rel="stylesheet" href="assets/css/student.css?v=6d7bcbb967f6">
-  <link rel="stylesheet" href="assets/css/soft-ui.css?v=a22c92c45b59">
-  <link rel="stylesheet" href="assets/css/loading.css?v=1df68e62d39b">
-  <script src="assets/js/loading.js?v=982ac9f69bc1"></script>
+  <link rel="icon" type="image/svg+xml" href="assets/images/brand/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/brand/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/images/brand/apple-touch-icon.png">
+  <link rel="stylesheet" href="assets/css/styles.css?v=034e5a2c2473">
+  <link rel="stylesheet" href="assets/css/student.css?v=9ecad895a789">
+  <link rel="stylesheet" href="assets/css/soft-ui.css?v=edf140f7712a">
+  <link rel="stylesheet" href="assets/css/loading.css?v=05b6d5c0e71e">
+  <link rel="stylesheet" href="assets/css/planner.css?v=eda93e2404f4">
+  <script src="assets/js/loading.js?v=01a8e56243a0"></script>
   <script src="assets/js/data-cache.js?v=502c0a662174"></script>
 </head>
 <body data-page="schedule">
   <div class="app-shell student-shell">
     <a class="student-skip" href="#main-content">Skip to content</a>
-    <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></div></header>
-    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
+    <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span></div><span class="loading-profile-ring"><span class="skeleton-pulse loading-profile-face"></span></span></div></div></header>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div class="nav-strip" aria-hidden="true"><span class="nav-item loading-nav-item active"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-add loading-nav-add"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span></div></nav>
 
     <main id="main-content" tabindex="-1" class="page-container section-stack schedule-page">
 
       <section class="student-heading">
-        <div><h1 class="page-title">Full Schedule</h1><p>Your week at a glance. Choose a day to focus on.</p></div>
+        <div><span class="planner-eyebrow">YOUR WEEK, ORGANIZED</span><h1 class="page-title" id="schedule-title">Full Schedule</h1><p id="schedule-hint">A little structure for every day. Tap a class to edit its details.</p></div>
         <div class="student-actions">
           <button class="student-button" id="schedule-today-btn" type="button"><i data-lucide="calendar-days" aria-hidden="true"></i> Today</button>
+          <button class="student-button" id="schedule-edit-btn" type="button" aria-pressed="false"><i data-lucide="pencil" aria-hidden="true"></i><span>Edit schedule</span></button>
           <button class="student-button student-button--primary" id="schedule-add-btn" type="button"><i data-lucide="plus" aria-hidden="true"></i> Add class</button>
         </div>
       </section>
 
       <section class="schedule-controls" aria-label="Schedule filters">
+        <div class="planner-section-heading"><h2 id="schedule-week-label">This week</h2><span class="planner-caption">Weekly timetable</span></div>
         <div id="schedule-days" class="schedule-days" role="group" aria-label="Filter by day">
           <button type="button" data-schedule-day="all" aria-pressed="true" aria-controls="schedule-rows">Full week</button>
           <button type="button" data-schedule-day="Monday" aria-pressed="false" aria-label="Monday" aria-controls="schedule-rows">Mon</button>
@@ -49,25 +53,8 @@
         <p id="schedule-result" class="schedule-result" role="status" aria-live="polite">Loading your timetable…</p>
       </section>
 
-      <section class="table-wrap">
-        <table class="schedule-table" role="table">
-          <caption>Weekly class schedule</caption>
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Subject</th>
-              <th>Code</th>
-              <th>Location</th>
-              <th>Units</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="schedule-rows" data-loading-region="dashboard" aria-busy="true">
-            <tr aria-hidden="true"><td><div class="skel-schedule-table"><div class="skel-cell skeleton-pulse" style="width:70px"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell skeleton-pulse" style="width:140px"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse" style="width:24px"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse"></div></div></td></tr>
-            <tr aria-hidden="true"><td><div class="skel-schedule-table"><div class="skel-cell skeleton-pulse" style="width:70px"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell skeleton-pulse" style="width:120px"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse" style="width:24px"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse"></div></div></td></tr>
-            <tr aria-hidden="true"><td><div class="skel-schedule-table"><div class="skel-cell skeleton-pulse" style="width:70px"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell skeleton-pulse" style="width:100px"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse" style="width:24px"></div></div></td><td><div class="skel-schedule-table"><div class="skel-cell-sm skeleton-pulse"></div></div></td></tr>
-          </tbody>
-        </table>
+      <section id="schedule-rows" class="schedule-timeline" aria-label="Class timeline" data-loading-region="dashboard" aria-busy="true">
+        <div class="timeline-loading loading-placeholder" role="status"><span class="loading-sr">Loading your timetable</span><div class="loading-cards" aria-hidden="true"><div class="loading-card"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar"></span></div></div><div class="loading-card"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar"></span></div></div><div class="loading-card"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar"></span></div></div></div></div>
       </section>
 
     </main>
@@ -82,6 +69,7 @@
 
   <script src="assets/js/lucide.min.js?v=3411692820cb"></script>
   <script src="assets/js/academic.js?v=f415419172a9"></script>
-  <script src="assets/js/app.js?v=cfcb2cb55d0c"></script>
+  <script src="assets/js/course-icons.js?v=bb76f05dc7ad"></script>
+  <script src="assets/js/app.js?v=d69b881571ea"></script>
 </body>
 </html>

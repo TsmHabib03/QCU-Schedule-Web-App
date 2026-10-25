@@ -153,6 +153,7 @@ async function main() {
       scheduleId: schedule.scheduleId, enrollmentId: enrollment.enrollmentId, userId,
       enrollmentSubjectId: ens.ensId, dayOfWeek: 1, dayLabel: "Monday",
       startTime: "09:00", endTime: "10:30", locationText: "Room 301", sortOrder: 1,
+      instructorName: "Prof. Maria Reyes",
     });
     Users.update(currentUser, { state: "ACTIVE", corRecordId: corRecord.id });
     // Re-read after the resets above: `corRecord` from the earlier hydrate is an
@@ -206,6 +207,7 @@ async function main() {
       JSON.stringify(entries.map((e) => e.startTime))
     );
     check("entry dayLabel survived via extraJson", entries[0]?.dayLabel === "Monday", String(entries[0]?.dayLabel));
+    check("professor survives a cold isolate via extraJson", entries[0]?.instructorName === "Prof. Maria Reyes", String(entries[0]?.instructorName));
     check("enrollment subject survived", subjects.length === 1, String(subjects.length));
     check("roomSnapshot survived via extraJson", subjects[0]?.roomSnapshot === "Room 301", String(subjects[0]?.roomSnapshot));
     check("user is ACTIVE after restart", Users.getByGoogleSub(ACTOR.googleSub)?.state === "ACTIVE");
@@ -247,7 +249,7 @@ async function main() {
       await Repo.hydrate({ ...env, APPS_SCRIPT_SECRET: "wrong-secret" }, { googleSub: "attacker" });
       check("a bad signature is rejected", false, "the request was accepted");
     } catch (error) {
-      check(`a bad signature is rejected (${error.code})`, error.code === "UNAUTHENTICATED", error.message);
+      check(`a bad signature is rejected (${error.code})`, error.code === "BACKEND_AUTH_FAILED", error.message);
     }
 
     Repo.reset();

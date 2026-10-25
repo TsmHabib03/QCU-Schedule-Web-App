@@ -14,7 +14,7 @@ export async function onRequestPost(context) {
       return json({
         connected: true,
         needsGmailAuthorization: true,
-        authorizationUrl: "/api/google/connect?gmail=1&return=google.html%23google-integration"
+        authorizationUrl: "/api/google/connect?gmail=1&return=settings.html%23google-connection"
       }, 409);
     }
     session.preferences = next;

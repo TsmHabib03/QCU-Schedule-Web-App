@@ -121,12 +121,17 @@ vm.runInNewContext(readFileSync(new URL('../service-worker.js', import.meta.url)
   URL, Response,
   self: { location: { origin: 'https://portal.test' }, addEventListener: (event, handler) => { handlers[event] = handler; } },
   fetch: async () => { throw Error('Offline'); },
-  caches: { match: async key => key === 'offline.html' ? new Response('<h1>Check your connection</h1>') : undefined },
+  caches: { open: async () => ({ match: async key => key === '/offline.html' ? new Response('<h1>Check your connection</h1>') : undefined }) },
 });
-let offlineResponse;
-handlers.fetch({ request: { url: 'https://portal.test/nested/uncached', method: 'GET', mode: 'navigate' }, respondWith: pending => { offlineResponse = pending; } });
+// Unknown pages stay with the network so the origin can return its own 404.
+let unknownResponse;
+handlers.fetch({ request: { url: 'https://portal.test/nested/uncached', method: 'GET', mode: 'navigate' }, respondWith: pending => { unknownResponse = pending; } });
+assert.equal(unknownResponse, undefined);
+let offlineResponse, offlineWork;
+handlers.fetch({ request: { url: 'https://portal.test/schedule', method: 'GET', mode: 'navigate' }, respondWith: pending => { offlineResponse = pending; }, waitUntil: pending => { offlineWork = pending; } });
 const offline = await offlineResponse;
+await offlineWork;
 assert.equal(offline.status, 503);
 assert.match(offline.headers.get('Content-Type'), /text\/html/);
 assert.match(await offline.text(), /Check your connection/);
-console.log('PASS offline navigation returns the recovery page with HTTP 503');
+console.log('PASS known offline navigation returns recovery with HTTP 503; unknown pages stay with the network');

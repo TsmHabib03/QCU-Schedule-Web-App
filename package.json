@@ -5,7 +5,11 @@
   "type": "module",
   "description": "QCU Student Portal \u00e2\u20ac\u201d a static HTML/CSS/JS PWA for viewing schedules, current/next classes, and campus buildings.",
   "scripts": {
+    "check:project": "node scripts/check-project.mjs",
     "test:student": "node scripts/test-student-design.mjs",
+    "test:bus": "node scripts/test-bus-map.mjs",
+    "test:google": "node scripts/test-google-connection.mjs",
+    "test:feedback": "node scripts/test-feedback.mjs",
     "test:cor": "node scripts/test-cor-regressions.mjs && node scripts/test-cor-jobs.mjs && node scripts/test-loading-states.mjs",
     "test:loading": "node scripts/test-loading-states.mjs && node scripts/test-responsive-loading.mjs",
     "build": "npm run build:css && npm run build:cache && npm run build:pages",

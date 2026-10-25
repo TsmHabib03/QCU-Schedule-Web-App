@@ -132,7 +132,7 @@ try {
   await Repo.flush(env, STUDENT);
 
   section("With classes on the schedule the dashboard is available again");
-  const cookieReady = await sealSession({ googleSub: STUDENT.googleSub, email: STUDENT.email, emailVerified: true, issuedAt: Date.now(), sessionExpiresAt: Date.now() + 3_600_000 });
+  const cookieReady = await sealSession({ googleSub: STUDENT.googleSub, email: STUDENT.email, name: 'Google Display Name', picture: 'https://lh3.googleusercontent.com/synthetic-photo', emailVerified: true, issuedAt: Date.now(), sessionExpiresAt: Date.now() + 3_600_000 });
   Repo.reset();
   await Repo.hydrate(env, STUDENT);
   const routingAfter = await callEndpoint(bootstrapGet, env, cookieReady, "/api/v1/bootstrap");
@@ -159,6 +159,8 @@ try {
   Repo.reset();
   const coldDashboard = await callEndpoint(dashboardGet, env, cookieReady, "/api/v1/dashboard");
   check("the dashboard serves the week", coldDashboard.status === 200 && (coldDashboard.body?.entries || []).length > 0, `${coldDashboard.status} entries=${(coldDashboard.body?.entries || []).length}`);
+  check('profile exposes the active Google name independently of the stored student name', coldDashboard.body?.profile?.googleAccount?.name === 'Google Display Name' && coldDashboard.body?.profile?.name === 'Gate Student');
+  check('profile exposes the Google photo and verified email from the signed session', coldDashboard.body?.profile?.googleAccount?.picture === 'https://lh3.googleusercontent.com/synthetic-photo' && coldDashboard.body?.profile?.googleAccount?.email === STUDENT.email && coldDashboard.body?.profile?.googleAccount?.emailVerified === true);
   check("and the class times are the COR's own", coldDashboard.body?.entries?.[0]?.start === "08:00" && coldDashboard.body?.entries?.[0]?.end === "09:30", JSON.stringify(coldDashboard.body?.entries?.[0] || null));
   Repo.reset();
   const cacheCheck = await callEndpoint(dashboardGet, env, cookieReady, '/api/v1/dashboard?check=1');

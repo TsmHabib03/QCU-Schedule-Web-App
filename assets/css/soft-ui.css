@@ -2,7 +2,7 @@
    QCUians Schedule — soft-ui.css
    Design system overlay for the QCU Student Portal.
 
-   Ports the approved mockup (design-mockup/app-responsive.html)
+   Ports the approved mockup (docs/design/mockups/app-responsive.html)
    onto the existing vanilla-CSS app WITHOUT rewriting legacy
    rules: loaded AFTER styles.css/student.css so these win.
 
@@ -675,123 +675,121 @@
   flex-shrink: 0;
 }
 
-/* ════════════════════════════════════════════════════════
-   BOTTOM NAV: minimal tabs + circular Classroom FAB
-   ════════════════════════════════════════════════════════ */
-.bottom-nav {
-  position: fixed !important;   /* beat student.css's desktop sticky-top */
-  bottom: 0 !important;
-  top: auto !important;
-  left: 0; right: 0;
+/* Floating student navigation: one layout at every viewport width. */
+.student-shell .bottom-nav {
+  --nav-bg: #4435ee;
+  --nav-active: #e9e5ff;
+  --nav-muted: #c5bdff;
+  position: fixed;
+  inset: auto auto calc(14px + env(safe-area-inset-bottom, 0px)) 50%;
+  transform: translateX(-50%);
+  width: min(420px, calc(100% - 24px));
+  max-width: none;
   z-index: 50;
-  background: #fff;             /* solid white, never blends into the page */
-  border-radius: 24px 24px 0 0;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.05) !important;  /* soft, wide */
-  border-top: 0;
-  border-bottom: 0 !important;
-  padding-top: 12px;            /* pt-3 */
-  padding-bottom: max(16px, env(safe-area-inset-bottom));  /* pb-4 */
-}
-.bottom-nav > div {
-  display: flex;
-  align-items: flex-end;        /* items-end: FAB breaks out, tabs sit on the base */
-  justify-content: space-around;
-  width: min(100%, 560px) !important;
-  max-width: 560px !important;  /* beat student.css's 1200px desktop strip */
-  margin: 0 auto;
-  padding: 0 12px;
-  gap: 0;
-}
-/* Standard tabs: icon over label, no pill/background/border states */
-.bottom-nav .nav-item {
-  flex-direction: column;
-  gap: 3px;
-  color: #64748B;               /* slate-500 inactive */
-  font-size: 10px;
-  font-weight: 400;             /* font-normal inactive */
-  padding: 6px 10px;
-  border-radius: 12px;
-  background: none;
+  margin: 0;
+  padding: 8px;
   border: 0;
-  box-shadow: none;
-  transition: color .2s ease;
+  border-radius: 999px;
+  background: var(--nav-bg);
+  box-shadow: 0 12px 28px -8px rgba(49, 35, 140, .32);
 }
-.bottom-nav .nav-item:hover { color: #6366F1; }   /* hover:text-indigo-500 */
-.bottom-nav .nav-item svg { width: 23px; height: 23px; stroke-width: 1.7; }
-.bottom-nav .nav-item.active {
-  color: #4F46E5;               /* indigo-600: purple icon + text only */
-  font-weight: 500;             /* font-medium */
-  background: none;             /* NO pill, NO border — minimal active state */
-}
-.bottom-nav .nav-item.active::before,
-.bottom-nav .nav-item.active::after { display: none; }
-
-/* Central floating Classroom button — w-14 h-14 rounded-full bg-indigo-600,
-   wrapped in a relative container so ONLY the circle breaks the bar's top
-   edge (-mt-8 effect) while the label stays in the tab-label row. */
-.bottom-nav .nav-item.nav-fab {
-  background: none;
-  color: #64748B;               /* label matches inactive tab gray */
-  position: relative;           /* relative wrapper per spec */
-  min-width: 0 !important;      /* beat styles.css's 50px min-width */
-  width: auto !important;
-  align-self: flex-start;
-  margin-top: -32px;            /* -mt-8: circle floats out of the bar */
-}
-.bottom-nav .nav-item.nav-fab .nav-fab-btn {
-  width: 56px; height: 56px;    /* w-14 h-14 */
-  box-sizing: border-box;       /* ring included — stays a perfect circle */
-  background: #4F46E5;          /* indigo-600 */
-  border-radius: 9999px;        /* rounded-full */
-  box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.55);  /* shadow-lg */
-  display: flex;                /* flex items-center justify-center */
+.student-shell .bottom-nav > div {
+  display: flex;
   align-items: center;
   justify-content: center;
-  border: 4px solid #fff;       /* clean separation from the bar edge */
+  width: 100%;
+  max-width: none;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+}
+.student-shell .bottom-nav .nav-item {
+  display: flex;
+  flex: 1 1 44px;
+  flex-direction: row;
+  min-width: 44px;
+  min-height: 48px;
+  height: 48px;
+  padding: 0 6px;
+  gap: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--nav-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  box-shadow: none;
+  transition: flex-grow 300ms cubic-bezier(.22, 1, .36, 1), flex-basis 300ms cubic-bezier(.22, 1, .36, 1),
+    background-color 300ms ease, color 300ms ease, gap 300ms ease;
+}
+.student-shell .bottom-nav .nav-item :is(svg, i) {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  stroke-width: 1.9;
+}
+.student-shell .bottom-nav .nav-item .nav-label {
+  display: block;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  text-overflow: clip;
+  line-height: 1.2;
+  transition: max-width 300ms cubic-bezier(.22, 1, .36, 1), opacity 200ms ease;
+}
+.student-shell .bottom-nav .nav-item.active {
+  flex-grow: 2.3;
+  flex-basis: 96px;
+  flex-shrink: 0;
+  gap: 6px;
+  background: var(--nav-active);
+  color: #3424c5;
+}
+.student-shell .bottom-nav .nav-item.active .nav-label { max-width: 70px; opacity: 1; }
+.student-shell .bottom-nav .nav-item::before,
+.student-shell .bottom-nav .nav-item::after { display: none; }
+.student-shell .bottom-nav .nav-item:hover:not(.active) { color: #eeeaff; background: #5a4bf2; }
+.student-shell .bottom-nav .nav-item.active:hover { background: #f2efff; color: #3424c5; }
+.student-shell .bottom-nav .nav-add {
+  display: grid;
+  place-items: center;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #8174fa;
+  color: #fff;
   cursor: pointer;
-  transition: transform .15s ease, box-shadow .15s ease;
+  transition: background-color 200ms ease, transform 200ms ease;
 }
-.bottom-nav .nav-item.nav-fab .nav-fab-btn:hover {
-  transform: scale(1.06);
-  box-shadow: 0 14px 30px -5px rgba(79, 70, 229, 0.65);
+.student-shell .bottom-nav .nav-add svg { width: 25px; height: 25px; stroke-width: 1.5; }
+.student-shell .bottom-nav .nav-add:hover { background: #9589ff; }
+.student-shell .bottom-nav .nav-google { background: #fff; }
+.student-shell .bottom-nav .nav-google:hover { background: #f2efff; }
+.student-shell .bottom-nav .nav-add:active { transform: scale(.94); }
+.student-shell .bottom-nav :is(.nav-item, .nav-add):focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
-.bottom-nav .nav-item.nav-fab .nav-fab-btn svg {
-  width: 27px; height: 27px;
-  display: block;
+.student-shell .page-container { padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px)) !important; }
+.student-shell .page-container .fab { bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important; }
+@media (max-width: 389px) {
+  .student-shell .bottom-nav > div { gap: 0; }
+  .student-shell .bottom-nav .nav-add { flex-basis: 44px; width: 44px; height: 44px; }
 }
-.bottom-nav .nav-item.nav-fab .nav-fab-label {
-  font-size: 10px;
-  font-weight: 400;
-  color: #64748B;               /* aligns stylistically with the other tabs */
-  margin-top: 6px;
-  margin-bottom: -32px;         /* cancel the -mt-8: label stays in the row */
-  position: relative;
-  top: -7px;                    /* exact baseline alignment with tab labels */
-  display: block;
-}
-
-/* Desktop (≥1024px): larger, more clickable nav — placed AFTER the base rules
-   so this media block wins the cascade at desktop width. */
-@media (min-width: 1024px) {
-  .bottom-nav { padding-top: 14px; }
-  .bottom-nav > div {
-    width: min(100%, 640px) !important;
-    max-width: 640px !important;
-    padding: 0 16px;
-  }
-  .bottom-nav .nav-item {
-    font-size: 11px;
-    padding: 8px 14px;
-    gap: 4px;
-  }
-  .bottom-nav .nav-item svg { width: 24px; height: 24px; }
-  .bottom-nav .nav-item.nav-fab { margin-top: -34px; }
-  .bottom-nav .nav-item.nav-fab .nav-fab-btn {
-    width: 60px; height: 60px;
-    box-shadow: 0 12px 30px -6px rgba(79, 70, 229, 0.6);
-  }
-  .bottom-nav .nav-item.nav-fab .nav-fab-btn svg { width: 29px; height: 29px; }
-  .bottom-nav .nav-item.nav-fab .nav-fab-label { margin-bottom: -34px; }
+@media (max-width: 359px) {
+  .student-shell .bottom-nav > div { gap: 0; }
+  .student-shell .bottom-nav .nav-item { flex-basis: 34px; min-width: 34px; padding-inline: 4px; }
+  .student-shell .bottom-nav .nav-item { min-height: 44px; height: 44px; }
+  .student-shell .bottom-nav .nav-item.active { flex-basis: 96px; }
 }
 
 /* ════════════════════════════════════════════════════════
@@ -2034,87 +2032,6 @@
   padding: 12px 18px !important;
 }
 
-/* ════════════════════════════════════════════════════════
-   DESKTOP NAV (≥1024px): the phone's bottom bar, floating.
-   Same tabs, same icon-over-label treatment, same indigo active
-   state and the same Classroom circle lifted out of the bar's top
-   edge — only difference is that on a wide screen the bar is a
-   centred dock floating above the bottom edge instead of a slab
-   stretched to the viewport width.
-   Placed at the END of the file so it wins both the base
-   `.bottom-nav { position: fixed !important }` and the earlier
-   ≥1024 block (equal specificity, later wins).
-   ════════════════════════════════════════════════════════ */
-@media (min-width: 1024px) {
-  .student-shell .bottom-nav {
-    position: fixed !important;
-    bottom: 18px !important;
-    top: auto !important;
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%);
-    width: min(680px, calc(100vw - 40px)) !important;
-    max-width: 680px !important;
-    margin: 0 !important;
-    border-radius: 28px !important;
-    box-shadow: 0 18px 40px -12px rgba(26, 27, 65, 0.22) !important;
-    padding: 10px 10px 8px !important;
-    z-index: 60;
-  }
-  .student-shell .bottom-nav > div {
-    width: 100% !important;
-    max-width: none !important;       /* beat student.css's 1200px strip */
-    align-items: flex-end !important; /* every label sits on one baseline */
-    justify-content: space-around !important;
-    gap: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  /* Tabs keep the mobile treatment: icon over label, no pill, no underline. */
-  .student-shell .bottom-nav .nav-item {
-    flex-direction: column !important;
-    gap: 3px !important;
-    font-size: 11px !important;
-    font-weight: 400 !important;
-    padding: 6px 10px !important;
-    border-radius: 12px !important;
-    background: none !important;
-    min-width: 0 !important;
-  }
-  .student-shell .bottom-nav .nav-item svg { width: 23px !important; height: 23px !important; stroke-width: 1.7 !important; }
-  .student-shell .bottom-nav .nav-item:hover { background: var(--soft-primary-soft) !important; color: #4F46E5 !important; }
-  .student-shell .bottom-nav .nav-item.active { color: #4F46E5 !important; font-weight: 500 !important; background: none !important; }
-  .student-shell .bottom-nav .nav-item.active::before,
-  .student-shell .bottom-nav .nav-item.active::after { display: none !important; }
-
-  /* Classroom FAB: the mobile circle (56px, 4px white ring, purple glow),
-     lifted above the dock's top edge so the dock reads exactly like the bar. */
-  .student-shell .bottom-nav .nav-item.nav-fab {
-    margin-top: -30px !important;
-    align-self: flex-start !important;
-  }
-  .student-shell .bottom-nav .nav-item.nav-fab .nav-fab-btn {
-    width: 56px !important;
-    height: 56px !important;
-    border: 4px solid #fff !important;
-    background: #4F46E5 !important;
-    box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.55) !important;
-  }
-  .student-shell .bottom-nav .nav-item.nav-fab .nav-fab-btn svg { width: 27px !important; height: 27px !important; }
-  .student-shell .bottom-nav .nav-item.nav-fab .nav-fab-label {
-    margin-top: 6px !important;
-    margin-bottom: 0 !important;
-    top: 0 !important;
-    font-size: 11px !important;
-    font-weight: 400 !important;
-    color: #64748B !important;
-  }
-
-  /* A bottom-docked bar overlays content, so every student page reserves room
-     for it (the lifted circle needs ~40px more than the bar itself). */
-  .student-shell .page-container { padding-bottom: 170px !important; }
-}
-
 /* Day modal (weekly table): classes whose time never made it into the database
    say so instead of rendering a bare "—" and a 0-hours stat. */
 .student-shell .day-modal-notime {
@@ -2890,38 +2807,6 @@
   .student-shell #note-modal .form-row { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ════════════════════════════════════════════════════════
-   NAV TAB STATES — one definition for every page and width.
-   Previously three sheets disagreed: styles.css gave non-active tabs a
-   --blue-soft background, student.css added a 2px blue underline under the
-   active tab (desktop only) and the dock block forced hover to text-only. So
-   the Home page — the one page whose tab is active — looked and felt different
-   from Full Schedule, where no tab matched and every tab showed the hover.
-   Now: active = indigo text, hover = indigo text on a lavender pill, identical
-   on phones and desktops, and the underline is gone.
-   ════════════════════════════════════════════════════════ */
-.student-shell .bottom-nav .nav-item,
-.student-shell .bottom-nav .nav-item.active {
-  box-shadow: none !important;          /* kill student.css's inset underline */
-  transition: background .15s ease, color .15s ease;
-}
-.student-shell .bottom-nav .nav-item:not(.nav-fab):hover,
-.student-shell .bottom-nav .nav-item:not(.nav-fab).active:hover {
-  background: var(--soft-primary-soft) !important;
-  color: #4F46E5 !important;
-}
-.student-shell .bottom-nav .nav-item:not(.nav-fab).active { color: #4F46E5 !important; }
-.student-shell .bottom-nav .nav-item:not(.nav-fab).active svg { stroke-width: 2.1; }
-
-/* The Classroom circle keeps its own language: the pill would paint a rectangle
-   behind it, so the active state is a stronger ring and an indigo label. */
-.student-shell .bottom-nav .nav-item.nav-fab.active .nav-fab-btn {
-  box-shadow: 0 12px 28px -5px rgba(79, 70, 229, 0.7), 0 0 0 4px rgba(79, 70, 229, 0.16) !important;
-}
-.student-shell .bottom-nav .nav-item.nav-fab.active .nav-fab-label { color: #4F46E5 !important; font-weight: 700 !important; }
-.student-shell .bottom-nav .nav-item.nav-fab .nav-fab-btn { transition: transform .15s ease, box-shadow .15s ease; }
-.student-shell .bottom-nav .nav-item.nav-fab:hover .nav-fab-btn { transform: translateY(-2px); }
-
 /* The save error can carry a fix (delete the duplicate that blocks the edit) */
 .student-shell #crud-modal .crud-error-action {
   display: inline-flex;
@@ -2966,4 +2851,303 @@
   padding: 10px 16px;
   border-radius: 9999px;
   font-weight: 700;
+}
+
+/* Dashboard palette and layout. Scope tokens to its content so the shared
+   navigation and other student screens retain their established styles. */
+body[data-page="home"] { background: #F4F5FB; }
+#auth-dashboard { background: #F4F5FB; --soft-font: 'Public Sans', -apple-system, 'Segoe UI', sans-serif; }
+#auth-dashboard .soft-home {
+  --soft-bg: #F4F5FB;
+  --soft-primary: #4A3AFF;
+  --soft-navy: #1B1E39;
+  --soft-grey: #646A83;
+  --soft-muted: #646A83;
+  --soft-peach: #FFE8D6;
+  --soft-peach-icon: #FF9F6E;
+  --soft-mint: #DCF4F7;
+  --soft-mint-icon: #4FC8DD;
+  --soft-lavender: #EAE6FF;
+  --soft-lav-icon: #8B7CF6;
+  --soft-radius: 26px;
+  --soft-radius-sm: 22px;
+  --soft-shadow: 0 12px 32px -12px rgba(27,30,57,0.12);
+  --soft-shadow-primary: 0 12px 24px -6px rgba(74,58,255,0.35);
+  --soft-font: 'Public Sans', -apple-system, 'Segoe UI', sans-serif;
+  display: block;
+  min-width: 0;
+  font-family: var(--soft-font);
+}
+#auth-dashboard .home-hero { padding: 8px 0 20px !important; gap: 18px; }
+#auth-dashboard .home-hero-main::after { content: none; }
+#auth-dashboard #home-greeting {
+  margin: 0;
+  color: var(--soft-muted);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -.01em;
+  overflow-wrap: anywhere;
+}
+#auth-dashboard .home-summary { margin: 8px 0 0; font-size: 26px; font-weight: 700; letter-spacing: -.03em; line-height: 1.3; color: var(--soft-navy); max-width: 560px; text-wrap: balance; }
+#auth-dashboard .home-summary strong { color: var(--soft-primary); font-weight: inherit; }
+#auth-dashboard .home-hero-side { align-items: center; gap: 14px; }
+#auth-dashboard .home-weather-chip { width: auto; flex: 1; justify-content: flex-start; padding: 14px 18px; border-radius: 22px; gap: 14px; transition: background-color 180ms ease; }
+#auth-dashboard .home-weather-chip:hover { background: #3C2CDF; }
+#auth-dashboard .home-weather-chip:active { background: #3324CA; }
+#auth-dashboard .home-weather-chip svg { width: 28px; height: 28px; flex-shrink: 0; }
+#auth-dashboard .home-weather-chip > span { text-align: left; min-width: 0; }
+#auth-dashboard .home-weather-chip-temp { font-size: 21px; }
+#auth-dashboard .home-weather-chip-cond { font-size: 12px; font-weight: 500; opacity: 1; overflow-wrap: anywhere; }
+#auth-dashboard .home-weather-chip-loc { color: #F0EEFF; opacity: 1; font-size: 11px; font-weight: 400; }
+#auth-dashboard .home-avatar {
+  display: grid; place-items: center;
+  width: 48px; height: 48px; flex: 0 0 48px;
+  border: 3px solid #fff; border-radius: 50%;
+  background: #4A3AFF; color: #fff; transition: background-color 180ms ease;
+  box-shadow: 0 10px 30px -8px rgba(27,30,57,0.10); text-decoration: none;
+  overflow: hidden; font-size: 15px; font-weight: 800;
+}
+#auth-dashboard .home-avatar img { width: 100%; height: 100%; object-fit: cover; }
+#auth-dashboard .home-avatar svg { width: 22px; height: 22px; }
+#auth-dashboard .home-avatar:hover { background: #3C2CDF; }
+#app-header .qc-pride-avatar {
+  display: grid; place-items: center; flex: 0 0 48px;
+  width: 48px; height: 48px; padding: 3px; border: 0;
+  border-radius: 50%; overflow: hidden;
+  background: #c5d8ff;
+  color: #fff; text-decoration: none; font-size: 15px; font-weight: 800;
+  box-shadow: 0 5px 16px rgba(27,30,57,.12);
+}
+:root { --google-avatar-ring: conic-gradient(#4285f4 0deg 90deg, #ea4335 90deg 180deg, #fbbc05 180deg 270deg, #34a853 270deg 360deg); }
+#app-header .qc-pride-avatar.google-verified-avatar { background: var(--google-avatar-ring); }
+#app-header .qc-pride-avatar .avatar-face {
+  display: grid; place-items: center; width: 100%; height: 100%;
+  border: 2px solid #fff; border-radius: 50%; overflow: hidden;
+  background: #4435EE;
+}
+#app-header .qc-pride-avatar img { width: 100%; height: 100%; object-fit: cover; }
+#app-header .qc-pride-avatar svg { width: 22px; height: 22px; }
+#app-header .qc-pride-avatar:hover .avatar-face { background: #3628CB; }
+#app-header .qc-pride-avatar:focus-visible { outline: 3px solid #1B1E39; outline-offset: 4px; }
+#auth-dashboard :is(.home-avatar, .home-weather-chip):focus-visible { outline: 3px solid #1B1E39; outline-offset: 3px; }
+#auth-dashboard .soft-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+#auth-dashboard .home-today-card { flex-direction: column !important; padding: 20px !important; gap: 14px !important; }
+#auth-dashboard .home-today-card .home-today-rail {
+  flex-direction: row !important; align-items: center !important;
+  width: auto !important; padding: 0 !important; border: 0 !important; gap: 8px !important;
+}
+#auth-dashboard .home-today-card .home-today-rail-time { font-size: 13px !important; }
+#auth-dashboard .home-today-card .home-today-rail-end { font-size: 13px !important; color: var(--soft-muted) !important; }
+#auth-dashboard .home-today-card .home-today-rail-rule { width: 12px; height: 1px; margin: 0; }
+#auth-dashboard .home-today-card .home-today-body { padding: 0 !important; }
+#auth-dashboard .home-today-card .home-today-head { flex-wrap: wrap !important; }
+#auth-dashboard .home-today-card .home-today-course, #auth-dashboard .home-today-done-row .home-today-course {
+  background: rgba(255,255,255,.6); padding: 5px 10px; border-radius: 9999px;
+  color: var(--soft-navy) !important; white-space: normal; overflow-wrap: anywhere;
+  font-size: 11px; font-weight: 800; overflow: visible; text-align: left;
+}
+#auth-dashboard .home-today-card .home-today-subject { font-size: 18px !important; font-weight: 700 !important; line-height: 1.4 !important; }
+#auth-dashboard .home-today-card--feature { padding: 24px !important; }
+#auth-dashboard .home-today-card .home-today-professor {
+  display: flex; align-items: center; gap: 6px; margin: 8px 0 0;
+  color: var(--soft-muted); font-size: 12px; font-weight: 500; overflow-wrap: anywhere;
+}
+#auth-dashboard .home-today-professor svg { width: 16px; height: 16px; flex-shrink: 0; }
+#auth-dashboard .home-today-card :is(.home-today-building, .home-today-live) { color: var(--soft-muted) !important; overflow-wrap: anywhere; }
+#auth-dashboard .home-today-card .home-today-duration { color: var(--soft-navy); }
+#auth-dashboard .home-today-card.pastel-peach { --tile-accent: var(--soft-peach-icon); }
+#auth-dashboard .home-today-card.pastel-mint { --tile-accent: var(--soft-mint-icon); }
+#auth-dashboard .home-today-card.pastel-lavender { --tile-accent: var(--soft-lav-icon); }
+#auth-dashboard .home-today-card:is(.current-tile, .home-today-card--feature) { --tile-accent: #fff; }
+#auth-dashboard .home-today-card:is(.current-tile, .home-today-card--feature) :is(.home-today-course, .home-today-rail-end, .home-today-building, .home-today-live, .home-today-professor) { color: #fff !important; }
+#auth-dashboard .home-today-card:is(.current-tile, .home-today-card--feature) :is(.home-today-course, .home-today-duration) { background: rgba(0,0,0,.14); }
+#auth-dashboard .home-today-done-main { flex-wrap: wrap; gap: 6px; }
+#auth-dashboard .home-today-done-meta { flex-wrap: wrap; }
+#auth-dashboard .home-today-done-details { display: flex; align-items: center; gap: 5px; flex-basis: 100%; color: var(--soft-muted); font-size: 11px; overflow-wrap: anywhere; }
+#auth-dashboard .home-today-done-details svg { width: 14px; height: 14px; flex-shrink: 0; }
+#auth-dashboard .home-today-done-time { color: var(--soft-muted); }
+#auth-dashboard .home-today-done-check { width: 36px; height: 36px; border-radius: 12px; }
+#auth-dashboard .home-break-tile { border-radius: 22px !important; flex-wrap: wrap; }
+#auth-dashboard .home-break-rail { color: var(--soft-muted) !important; }
+#auth-dashboard .home-break-label { color: #6557BC; }
+#auth-dashboard :is(.soft-note, .soft-goal) { border-radius: 20px; }
+#auth-dashboard :is(.soft-note-icon, .soft-goal-icon) { width: 38px; height: 38px; border-radius: 12px; background: rgba(255,255,255,.6); }
+#auth-dashboard :is(.soft-note-stamp, .soft-note-meta, .soft-goal-course, .soft-col-sub, .soft-progress-sub, .soft-week-day-label) { color: var(--soft-muted); }
+@media (min-width: 768px) {
+  #auth-dashboard .home-summary { font-size: 32px; }
+  #auth-dashboard .home-hero-side { width: auto; flex-shrink: 0; }
+  #auth-dashboard .home-weather-chip { flex: 0 1 auto; }
+}
+@media (min-width: 1024px) {
+  #auth-dashboard .soft-grid { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); align-items: start; }
+}
+
+/* The reference's white surfaces, compact dates and connected color blocks. */
+#auth-dashboard .home-hero { align-items: flex-start; padding-bottom: 28px !important; }
+#auth-dashboard .home-schedule-panel {
+  background: #fff; padding: 20px 16px; border-radius: 28px;
+  box-shadow: var(--soft-shadow); gap: 16px;
+}
+#auth-dashboard .home-support { display: flex; flex-direction: column; align-items: stretch; gap: 24px; min-width: 0; }
+#auth-dashboard .home-support-panel { width: 100%; background: #fff; border-radius: 28px; padding: 22px 18px; box-shadow: var(--soft-shadow); }
+#auth-dashboard .home-support-panel:has(> [hidden]:only-child) { display: none; }
+#auth-dashboard .soft-col-head { align-items: center; flex-wrap: wrap; gap: 4px 12px; padding: 0; }
+#auth-dashboard .soft-col-title { font-size: 18px; font-weight: 700; }
+#auth-dashboard .soft-col-link { display: inline-flex; align-items: center; min-height: 44px; background: transparent; color: var(--soft-primary); padding: 8px 0; font-size: 12px; font-weight: 600; box-shadow: none; white-space: normal; text-underline-offset: 4px; }
+#auth-dashboard .soft-col-link:hover { background: transparent; color: #3324CA !important; text-decoration: underline; transform: none; }
+#auth-dashboard .home-day-picker { min-width: 0; }
+#auth-dashboard .home-day-picker-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+#auth-dashboard .home-day-picker-head p { margin: 0; color: var(--soft-navy); font-size: 12px; font-weight: 700; }
+#auth-dashboard #calendar-label { display: block; margin-top: 4px; color: var(--soft-muted); font-size: 12px; font-weight: 400; }
+#auth-dashboard .home-picker-hint { font-size: 11px; color: var(--soft-muted); }
+#auth-dashboard .home-date-strip {
+  display: flex; gap: 6px; overflow-x: auto; padding: 4px 3px 10px;
+  scroll-snap-type: x proximity; scrollbar-width: thin;
+}
+#auth-dashboard .home-date-tab {
+  appearance: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex: 1 0 44px; min-height: 68px; gap: 6px; padding: 9px 4px;
+  border: 0; border-radius: 16px; color: var(--soft-muted); background: transparent;
+  font-family: inherit; cursor: pointer; scroll-snap-align: center;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+#auth-dashboard .home-date-day { font-size: 11px; font-weight: 600; }
+#auth-dashboard .home-date-number { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+#auth-dashboard .home-date-dot { width: 4px; height: 4px; border-radius: 50%; background: transparent; }
+#auth-dashboard .home-date-dot.has-classes { background: #AAA2D9; }
+#auth-dashboard .home-date-tab:hover { background: #F5F3FF; }
+#auth-dashboard .home-date-tab:active { background: #EAE6FF; }
+#auth-dashboard .home-date-tab.is-today { color: var(--soft-primary); }
+#auth-dashboard .home-date-tab.is-selected { background: var(--soft-primary); color: #fff; box-shadow: 0 6px 12px -4px rgba(74,58,255,.3); }
+#auth-dashboard .home-date-tab.is-selected .home-date-dot { background: #fff; }
+#auth-dashboard .home-date-tab:focus-visible { outline: 2px solid var(--soft-navy); outline-offset: 1px; }
+#auth-dashboard #today-grid { position: relative; padding: 2px 0 2px 22px !important; gap: 14px !important; }
+#auth-dashboard #today-grid:has(> article)::before { content: ''; position: absolute; left: 5px; top: 8px; bottom: 18px; width: 1px; background: #DED9ED; }
+#auth-dashboard #today-grid > article { position: relative; overflow: visible; }
+#auth-dashboard #today-grid > article::before {
+  content: ''; position: absolute; width: 8px; height: 8px; left: -21px; top: 27px;
+  border-radius: 50%; border: 2px solid #D65880; background: #fff; box-shadow: 0 0 0 4px #fff;
+}
+#auth-dashboard #today-grid > article.current-tile::before { border-color: var(--soft-primary); background: var(--soft-primary); box-shadow: 0 0 0 3px #fff, 0 0 0 4px var(--soft-primary); }
+#auth-dashboard .home-today-card { padding: 18px !important; border-radius: 22px !important; gap: 10px !important; box-shadow: none !important; }
+#auth-dashboard .home-today-card .home-today-rail { gap: 6px !important; }
+#auth-dashboard .home-today-card .home-today-rail-time,
+#auth-dashboard .home-today-card .home-today-rail-end { font-size: 12px !important; font-weight: 600 !important; font-variant-numeric: tabular-nums; }
+#auth-dashboard .home-today-card .home-today-head { margin-bottom: 8px !important; }
+#auth-dashboard .home-today-card .home-today-course { margin-left: 0 !important; }
+#auth-dashboard .home-today-card .home-today-subject { font-size: 17px !important; }
+#auth-dashboard .home-today-card .home-today-status { background: transparent !important; padding: 0 !important; font-size: 11px !important; font-weight: 600 !important; letter-spacing: .04em !important; }
+#auth-dashboard .home-today-card :is(.home-today-building, .home-today-professor) { font-size: 13px !important; line-height: 1.5; font-weight: 400; }
+#auth-dashboard .home-today-card .home-today-foot { padding-top: 12px !important; }
+#auth-dashboard .home-today-card .home-today-live { font-weight: 500; font-size: 12px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+#auth-dashboard .home-today-card.home-today-card--feature { box-shadow: 0 10px 22px -9px rgba(74,58,255,.38) !important; }
+#auth-dashboard .home-today-card.next-tile:not(.home-today-card--feature) { background: #CB3762 !important; color: #fff; --tile-accent: #fff; }
+#auth-dashboard .home-today-card.next-tile:not(.home-today-card--feature) :is(.home-today-status, .home-today-subject, .home-today-rail-time, .home-today-rail-end, .home-today-course, .home-today-professor, .home-today-building, .home-today-live) { color: #fff !important; }
+#auth-dashboard .home-today-card.next-tile:not(.home-today-card--feature) .home-today-course { background: rgba(0,0,0,.14); }
+#auth-dashboard .home-today-card.next-tile:not(.home-today-card--feature) .home-today-duration { color: #fff; background: rgba(0,0,0,.14); }
+#auth-dashboard .home-today-done-row { padding: 16px; border-radius: 24px; box-shadow: none; opacity: 1; }
+#auth-dashboard .home-break-tile { padding: 14px !important; background: #FAF8FF !important; box-shadow: none !important; }
+#auth-dashboard .home-today-now { padding: 0; }
+#auth-dashboard .home-today-now-label { font-size: 11px; }
+#auth-dashboard :is(.soft-goal, .soft-note) { box-shadow: none; }
+#auth-dashboard .soft-week-progress { padding: 0; background: transparent; box-shadow: none; }
+#auth-dashboard .soft-progress-track { margin-top: 16px; }
+#auth-dashboard .home-bus-card { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: start; gap: 4px 12px; margin: 0; padding: 16px; border-radius: 20px; box-shadow: none; }
+#auth-dashboard .home-bus-card .home-bus-icon { grid-row: 1 / 3; width: 40px; height: 40px; color: #6557BC; }
+#auth-dashboard .home-bus-card .home-bus-title { display: block; white-space: normal; font-size: 14px; font-weight: 700; }
+#auth-dashboard .home-bus-card .home-bus-sub { display: block; color: #655C8F; font-size: 12px; line-height: 1.6; margin-top: 4px; }
+#auth-dashboard .home-bus-card .home-bus-link { grid-column: 2; justify-self: start; display: inline-flex; align-items: center; min-height: 44px; text-underline-offset: 4px; }
+#auth-dashboard .home-bus-link:hover { text-decoration: underline; }
+#auth-dashboard :is(.soft-empty-tile, .soft-timeline-empty) { min-height: 124px; padding: 24px 16px; border-radius: 20px; background: #F7F6FC; box-shadow: none; color: var(--soft-muted); }
+#auth-dashboard .soft-empty-sub { color: var(--soft-muted); font-weight: 400; line-height: 1.6; }
+#auth-dashboard .soft-empty-tile a { display: inline-flex; align-items: center; min-height: 44px; text-underline-offset: 4px; }
+#auth-dashboard .soft-empty-tile a:hover { text-decoration: underline; }
+#auth-dashboard .soft-goal-title { font-weight: 600; line-height: 1.5; }
+#auth-dashboard .soft-goal-more { color: var(--soft-muted); }
+#auth-dashboard .soft-timeline-wrap { padding: 0; border-radius: 0; background: transparent; box-shadow: none; }
+#auth-dashboard .home-today-done-duration { color: var(--soft-navy); }
+#auth-dashboard .home-today-done-details { font-size: 12px; line-height: 1.5; }
+#auth-dashboard :is(.clock-day, .clock-date) { font-size: 11px !important; }
+#auth-dashboard .soft-timeline-empty a { display: inline-flex; align-items: center; min-height: 44px; text-underline-offset: 4px; }
+#auth-dashboard .soft-timeline-empty a:hover { text-decoration: underline; }
+#auth-dashboard ::selection { background: #EAE6FF; color: #1B1E39; }
+#auth-dashboard :is(a, button, [tabindex]) { scroll-margin-block: 100px 140px; }
+#auth-dashboard .page-container.home-layout.soft-home { max-width: 1440px !important; margin-inline: auto; }
+#auth-dashboard .header-inner { width: 100%; max-width: 1440px; padding-inline: 16px; }
+@media (prefers-reduced-motion: reduce) {
+  #auth-dashboard :is(.home-date-tab, .home-weather-chip, .home-avatar) { transition: none; }
+}
+@media (min-width: 600px) {
+  #auth-dashboard .home-schedule-panel { padding: 28px; }
+  #auth-dashboard .home-support-panel { padding: 24px; }
+  #auth-dashboard .home-support { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  #auth-dashboard .home-support-panel:last-child { grid-column: 1 / -1; }
+  #auth-dashboard .home-today-card { padding: 22px !important; }
+  #auth-dashboard .home-today-card .home-today-subject { font-size: 19px !important; }
+  #auth-dashboard .home-date-tab { flex-basis: 52px; }
+}
+@media (min-width: 1024px) {
+  #auth-dashboard .home-support { display: flex; align-items: stretch; }
+  #auth-dashboard .home-summary { max-width: 650px; }
+}
+@media (min-width: 768px) {
+  #auth-dashboard .home-hero { align-items: center; }
+  #auth-dashboard .header-inner { padding-inline: 32px; }
+}
+@media (min-width: 1536px) {
+  #auth-dashboard .header-inner { padding-inline: 40px; }
+}
+
+/* Monthly overview shares the selected date with the schedule timeline. */
+#auth-dashboard .home-month-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#auth-dashboard .home-month-heading h2 { margin: 0; }
+#auth-dashboard .home-month-today { padding: 8px 12px; min-height: 44px; border: 0; border-radius: 12px; background: #F0EDFF; color: #4934D1; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+#auth-dashboard .home-month-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-block: 12px; }
+#auth-dashboard #home-month-label { margin: 0; color: var(--soft-navy); font-size: 15px; font-weight: 600; }
+#auth-dashboard .home-month-nav { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 12px; background: transparent; color: #646A83; cursor: pointer; }
+#auth-dashboard .home-month-nav svg { width: 20px; height: 20px; }
+#auth-dashboard .home-month-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+#auth-dashboard .home-month-weekdays { margin-bottom: 4px; color: #646A83; text-align: center; font-size: 11px; font-weight: 600; }
+#auth-dashboard .home-month-weekdays span { padding-block: 8px; }
+#auth-dashboard .home-month-date { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; width: 100%; min-height: 44px; padding: 5px 0; background: transparent; color: var(--soft-navy); border: 0; border-radius: 12px; font: inherit; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; cursor: pointer; }
+#auth-dashboard .home-month-dot { width: 4px; height: 4px; border-radius: 50%; background: transparent; }
+#auth-dashboard .home-month-dot.has-classes { background: #AAA2D9; }
+#auth-dashboard .home-month-date.is-today { color: #4934D1; font-weight: 700; background: #F0EDFF; }
+#auth-dashboard .home-month-date:hover, #auth-dashboard .home-month-nav:hover, #auth-dashboard .home-month-today:hover { background: #EAE6FF; }
+#auth-dashboard .home-month-date.is-selected { background: var(--soft-primary); color: #fff; }
+#auth-dashboard .home-month-date.is-selected .home-month-dot.has-classes { background: #fff; }
+#auth-dashboard .home-month-panel :is(button):focus-visible { outline: 2px solid var(--soft-navy); outline-offset: 1px; }
+#auth-dashboard .home-month-hint { margin: 12px 0 0; color: #646A83; font-size: 12px; line-height: 1.5; }
+.crud-field-hint { margin: 6px 0 0; color: #646A83; font-size: 12px; line-height: 1.5; }
+.crud-optional { color: #646A83; font-weight: 400; }
+.schedule-professor { display: block; margin-top: 5px; color: #646A83; font-size: 12px; line-height: 1.5; font-weight: 400; overflow-wrap: anywhere; }
+
+/* Reference dialogs: white body, tinted top bar, outlined status icon. */
+.modal-backdrop { align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); background: rgba(26, 27, 65, .38); }
+.modal-backdrop.open { animation: feedback-fade-in 220ms ease-out; }
+.modal-backdrop.is-closing { display: flex; pointer-events: none; animation: feedback-fade-out 180ms ease-in forwards; }
+.modal-backdrop .modal-card.feedback-editor { width: min(640px, 100%); max-width: 640px; max-height: calc(100dvh - 48px); border: 0; background: #fff; animation: feedback-in 220ms cubic-bezier(.16, 1, .3, 1); box-shadow: 0 24px 64px -16px rgba(26, 27, 65, .3) !important; }
+.modal-backdrop.is-closing .modal-card { animation: feedback-out 180ms ease-in forwards; }
+.modal-card.feedback-editor > .feedback-header { position: sticky; top: 0; z-index: 2; }
+.student-shell .modal-card.feedback-editor .modal-inner { padding: 0 24px 24px; }
+.modal-card.feedback-editor .feedback-intro { padding: 28px 0 24px; }
+.modal-card.feedback-editor .feedback-title { color: var(--feedback-text); }
+.student-shell #crud-modal .feedback-editor .modal-inner { padding: 0 24px 24px; }
+.student-shell #crud-modal .feedback-editor .crud-form { margin-top: 0; }
+.student-shell #crud-modal .feedback-editor .crud-field label, .feedback-editor .form-label { color: #53566F !important; }
+.feedback-editor input::placeholder, .feedback-editor textarea::placeholder { color: #646A83 !important; }
+.feedback-editor .feedback-actions { margin: 8px -24px -24px; padding: 18px 24px; }
+.student-shell :is(#task-modal, #note-modal) .feedback-editor .feedback-actions .action-button { width: auto; min-height: 44px; margin: 0; border-radius: 12px !important; box-shadow: 0 4px 10px -4px rgba(26, 27, 65, .3); }
+.student-shell #crud-modal .feedback-editor .crud-actions { flex-direction: row; align-items: center; justify-content: flex-end; margin-top: 8px; padding-top: 18px; }
+.student-shell #crud-modal .feedback-editor .crud-actions .btn { width: auto; min-height: 44px; border-radius: 12px !important; }
+.student-shell #crud-modal .feedback-editor .crud-actions-right { margin-left: auto; }
+.student-shell #crud-modal .feedback-editor .btn-danger { color: var(--feedback-error-text) !important; border-color: #E7B7BF !important; }
+.student-shell #crud-modal .feedback-editor .crud-error { background: var(--feedback-error-soft); color: var(--feedback-error-text); }
+@media (max-width: 480px) {
+  .student-shell .modal-card.feedback-editor .modal-inner, .student-shell #crud-modal .feedback-editor .modal-inner { padding: 0 20px 20px; }
+  .modal-card.feedback-editor .feedback-intro { padding: 24px 0 20px; }
+  .feedback-editor .feedback-actions { margin: 8px -20px -20px; padding: 16px 20px; }
+  .student-shell #crud-modal .feedback-editor .crud-actions-right { width: auto; flex-wrap: wrap; justify-content: flex-end; }
+  .student-shell #crud-modal .feedback-editor .crud-actions-right .btn { flex: none; }
 }

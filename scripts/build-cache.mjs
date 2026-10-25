@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('..', import.meta.url));
-const pages = ['index', 'schedule', 'workspace', 'buildings', 'settings', 'google', 'campus-eta', 'onboarding', 'offline', 'privacy', 'terms', '404', 'admin'];
+const pages = ['index', 'schedule', 'workspace', 'buildings', 'settings', 'campus-eta', 'onboarding', 'offline', 'privacy', 'terms', '404', 'admin'];
 const shells = pages.filter(name => name !== 'admin' && name !== 'onboarding');
 const assets = new Set(shells.map(name => '/' + name + '.html'));
 const hash = bytes => createHash('sha256').update(bytes).digest('hex').slice(0, 12);
@@ -22,6 +22,9 @@ for (const page of pages) {
   if (updated !== html) await writeFile(file, updated);
 }
 assets.add('/assets/fonts/public-sans-latin-wght-normal.woff2');
+// The authenticated header inserts this image from app.js, so it is not found
+// among the static HTML references after the public login view is rendered.
+assets.add('/assets/images/Quezon_City_Government.png');
 assets.add('/manifest.json');
 const ordered = [...assets].sort();
 const digest = createHash('sha256');

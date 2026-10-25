@@ -10,7 +10,7 @@ import { pageErrorResponse } from '../functions/_errors.js';
 const root = resolve('.');
 const output = resolve(tmpdir(), 'qcu-cor-ux-checks');
 await mkdir(output, { recursive: true });
-const mime = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.jpg': 'image/jpeg', '.json': 'application/json' };
+const mime = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.json': 'application/json' };
 const server = createServer(async (req, res) => {
   const path = new URL(req.url, 'http://localhost').pathname;
   const file = resolve(root, '.' + (path === '/' ? '/index.html' : path));
@@ -39,6 +39,7 @@ try {
   let stage = 'WELCOME', statusCode = 200, sessionCode = 200, reviewCode = 200, confirmSucceeds = false;
   let importStatus = 'REVIEW_REQUIRED', hasImport = true, abortUpload = false, uploadGate = null;
   let statusGate = null, calls = [], statusReply = null, bootstrapCode = 200, completeCode = 503, completeGate = null;
+  let uploadReply = null, uploadCode = 200, processGate = null;
   await context.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (url.origin !== origin) return route.abort();
@@ -47,6 +48,7 @@ try {
     const reply = (json, status = 200) => route.fulfill({ status, json });
     if (url.pathname.endsWith('/session')) return reply(sessionCode === 200 ? { status: 'OK', user: { userId: 'ux-student', name: 'Niño & 李 ' + 'Student '.repeat(12) } } : { status: sessionCode === 403 ? 'FORBIDDEN' : 'SERVICE_UNAVAILABLE' }, sessionCode);
     if (url.pathname.endsWith('/bootstrap')) return reply(bootstrapCode === 200 ? { authenticated: false } : { status: 'SERVICE_UNAVAILABLE' }, bootstrapCode);
+    if (url.pathname.endsWith('/dashboard')) return reply(bootstrapCode === 200 ? { status: 'UNAUTHENTICATED' } : { status: 'SERVICE_UNAVAILABLE' }, bootstrapCode === 200 ? 401 : bootstrapCode);
     if (url.pathname.endsWith('/auth/complete')) {
       if (completeGate) await completeGate;
       return reply(completeCode === 200 ? { status: 'OK', destination: '/onboarding.html' } : { status: 'SERVICE_UNAVAILABLE' }, completeCode);
@@ -55,7 +57,7 @@ try {
     if (url.pathname.endsWith('/cor/upload')) {
       if (uploadGate) await uploadGate;
       if (abortUpload) return route.abort('failed');
-      return reply({ status: 'EXTRACTED', corRecordId: 'cor-ux', result: draft });
+      return reply(uploadReply || { status: 'EXTRACTED', corRecordId: 'cor-ux', result: draft }, uploadCode);
     }
     if (url.pathname.endsWith('/cor/status')) {
       if (statusGate) await statusGate;
@@ -69,7 +71,10 @@ try {
       if (confirmSucceeds) return reply({ status: 'COMPLETE', corRecordId: 'cor-ux' });
       return route.abort('failed');
     }
-    if (url.pathname.endsWith('/process')) return reply({ status: 'REVIEW_REQUIRED', result: draft });
+    if (url.pathname.endsWith('/process')) {
+      if (processGate) await processGate;
+      return reply({ status: 'REVIEW_REQUIRED', result: draft });
+    }
     return reply({ status: 'OK', data: [] });
   });
   const page = await context.newPage();
@@ -97,10 +102,15 @@ try {
   assert.match(await message('processing-message'), /could not check your session/i);
   sessionCode = 200;
   await page.locator('#processing-retry').click();
-  await active('welcome');
-  await page.locator('#welcome-start-btn').click();
   await active('upload');
-  assert.equal(await page.locator('#step-upload h2').evaluate(el => document.activeElement === el), true);
+  assert.equal(await page.locator('#step-upload h1').evaluate(el => document.activeElement === el), true);
+  const primaryChooser = page.waitForEvent('filechooser');
+  await page.locator('#upload-btn').click();
+  await (await primaryChooser).setFiles([]);
+  await page.locator('#onboarding-skip').click();
+  await active('later');
+  await page.getByRole('button', { name: 'Continue setup', exact: true }).click();
+  await active('upload');
   await page.locator('#upload-zone').focus();
   const chooser = page.waitForEvent('filechooser');
   await page.keyboard.press('Enter');
@@ -109,7 +119,7 @@ try {
   assert.match(await message('upload-error'), /empty/i);
   await selectFile({ ...validFile, name: 'cor.txt', type: 'text/plain' });
   assert.match(await message('upload-error'), /PDF, JPG, or PNG/);
-  assert(await page.locator('#upload-btn').isDisabled());
+  assert(await page.locator('#upload-btn').isEnabled(), 'Invalid files leave the picker available');
   assert.equal(calls.filter(call => call.path.endsWith('/upload')).length, 0);
   await selectFile(validFile);
   assert(!(await page.locator('#upload-btn').isDisabled()), 'A valid PDF with no MIME can be selected');
@@ -125,7 +135,12 @@ try {
   assert(await page.locator('#upload-remove').isDisabled());
   assert.equal(await page.locator('#upload-progress-bar').getAttribute('role'), 'progressbar');
   await page.evaluate(() => uploadCor());
+  await active('processing');
+  assert(await page.locator('#processing-continue').isDisabled());
+  assert(await page.locator('#onboarding-skip').isDisabled());
   release();
+  await page.getByRole('button', { name: 'Continue', exact: true }).waitFor({ state: 'visible' });
+  await page.locator('#processing-continue').click();
   await active('review');
   assert.equal(calls.filter(call => call.path.endsWith('/upload')).length, 1);
   assert.equal(await page.getByLabel('Program *', { exact: true }).inputValue(), 'BSCS');
@@ -183,6 +198,8 @@ try {
   await page.locator('#processing-retry').click();
   await page.evaluate(() => resumeProcessing());
   releaseStatus();
+  await page.getByRole('button', { name: 'Continue', exact: true }).waitFor({ state: 'visible' });
+  await page.locator('#processing-continue').click();
   await active('review');
   statusGate = null;
   assert.equal(calls.filter(call => call.path.endsWith('/cor/status')).length, beforeRetry + 1);
@@ -190,8 +207,7 @@ try {
   // An upload whose save is unknown keeps the same ID when the same file is selected.
   await page.evaluate(() => sessionStorage.clear());
   stage = 'WELCOME'; hasImport = false; uploadGate = null; abortUpload = true;
-  await page.reload(); await active('welcome');
-  await page.locator('#welcome-start-btn').click();
+  await page.reload(); await active('upload');
   await selectFile(validFile); await page.locator('#upload-btn').click();
   await page.locator('#processing-select-file').waitFor({ state: 'visible' });
   const firstId = calls.filter(call => call.path.endsWith('/upload')).at(-1).id;
@@ -207,12 +223,51 @@ try {
   assert.match(await message('processing-message'), /administrator/);
   assert(await page.locator('#processing-retry').isHidden());
   assert(await page.locator('#processing-select-file').isHidden());
+  assert(await page.locator('#onboarding-skip').isDisabled());
+  assert(await page.locator('#upload-back').isDisabled());
   sessionCode = 200;
+
+  // A successful file transfer still waits for the extraction endpoint.
+  await page.evaluate(() => sessionStorage.clear());
+  stage = 'WELCOME'; abortUpload = false;
+  uploadReply = { status: 'ACCEPTED', corRecordId: 'cor-ux' };
+  let releaseProcessing;
+  processGate = new Promise(resolve => { releaseProcessing = resolve; });
+  await page.reload(); await active('upload');
+  await selectFile(validFile);
+  await page.locator('#upload-btn').click();
+  await page.waitForFunction(() => document.getElementById('processing-message').textContent.includes('Reading your COR'));
+  assert(await page.locator('#processing-continue').isDisabled());
+  await page.evaluate(() => continueToReview());
+  assert(await page.locator('#step-review').isHidden());
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  assert.equal(await page.locator('.cor-scan-line').evaluate(el => getComputedStyle(el).animationName), 'cor-scan');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal(await page.locator('.cor-scan-line').evaluate(el => getComputedStyle(el).animationName), 'none');
+  releaseProcessing();
+  await page.getByRole('button', { name: 'Continue', exact: true }).waitFor({ state: 'visible' });
+  await page.locator('#processing-continue').click();
+  await active('review');
+  await page.locator('#review-back').click(); await active('upload');
+  processGate = null;
+  uploadReply = { status: 'UNSUPPORTED_FILE_TYPE' }; uploadCode = 400;
+  await selectFile(validFile); await page.locator('#upload-btn').click();
+  await page.locator('#upload-error').waitFor({ state: 'visible' });
+  await active('upload');
+  assert.match(await message('upload-error'), /PDF, JPG, or PNG/);
+  assert(await page.locator('#onboarding-skip').isEnabled());
+  uploadReply = { status: 'UNAUTHORIZED' }; uploadCode = 401;
+  await page.locator('#upload-btn').click();
+  await page.locator('#processing-sign-in').waitFor({ state: 'visible' });
+  assert(await page.locator('#onboarding-skip').isDisabled());
+  assert(await page.locator('#upload-back').isDisabled());
+  uploadReply = null; uploadCode = 200;
+  console.log('PASS separate extraction waits for backend, scanner respects reduced motion, rejected upload returns to selection, expired upload locks navigation');
 
   // Bounded visual batch: the same key states at desktop and narrow mobile.
   await page.evaluate(() => sessionStorage.clear());
   stage = 'REVIEW'; hasImport = true; statusCode = 200; importStatus = 'REVIEW_REQUIRED';
-  for (const width of [1280, 320]) {
+  for (const width of [1440, 768, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(origin + '/onboarding.html'); await active('review');
     await noOverflow();
@@ -221,9 +276,34 @@ try {
     await page.locator('#review-back').click();
     await active('upload');
     assert.equal(await page.evaluate(() => sessionStorage.getItem('qcu-cor-request')), null);
+    await noOverflow();
+    await page.screenshot({ path: resolve(output, `upload-empty-${width}.png`), fullPage: true });
+    assert((await page.locator('#upload-btn').boundingBox()).height >= 48);
     await selectFile({ ...validFile, name: 'COR-' + 'Long-name-'.repeat(25) + '李.PDF' });
     await noOverflow();
     await page.screenshot({ path: resolve(output, `upload-${width}.png`), fullPage: true });
+    abortUpload = false;
+    let releaseScan;
+    uploadGate = new Promise(resolve => { releaseScan = resolve; });
+    await page.locator('#upload-btn').click();
+    await active('processing');
+    assert(await page.locator('#processing-continue').isDisabled());
+    await noOverflow();
+    await page.screenshot({ path: resolve(output, `scanning-${width}.png`), fullPage: true });
+    releaseScan();
+    await page.getByRole('button', { name: 'Continue', exact: true }).waitFor({ state: 'visible' });
+    await noOverflow();
+    assert.equal(await page.locator('#extracted-class-count').innerText(), '1 subject found');
+    await page.screenshot({ path: resolve(output, `ready-${width}.png`), fullPage: true });
+    await page.locator('#onboarding-skip').click();
+    await active('later');
+    await page.locator('#upload-back').click();
+    assert(await page.locator('#processing-continue').isEnabled());
+    await page.locator('#processing-continue').click();
+    await active('review');
+    await page.locator('#review-back').click();
+    await active('upload');
+    uploadGate = null;
     const missing = await page.goto(origin + '/old/link/no-longer-here');
     assert.equal(missing.status(), 404);
     assert.equal(await page.getByRole('link', { name: 'Continue COR upload' }).getAttribute('href'), '/onboarding.html');

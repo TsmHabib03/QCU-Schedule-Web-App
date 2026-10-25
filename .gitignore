@@ -5,6 +5,15 @@
 node_modules/
 .wrangler/
 
-# Local validation output
-.build/admin-functions/
-.build/pages/
+# Generated builds, fixtures, logs, and local scratch files
+.build/
+.local/
+*.log
+*.bak
+*.tmp.*
+temp_*.txt
+
+# Machine-specific assistant state
+.codex/
+.freebuff/
+.kilo/

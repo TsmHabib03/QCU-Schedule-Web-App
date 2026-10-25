@@ -20,6 +20,11 @@ let map = null;
 let busData = null;
 let corridor = null;
 let activeDay = "weekdays";
+const routeMarkers = [];
+let markerFrame = 0;
+let mapLoadTimer;
+let tripExpanded = false;
+let activeStopIndex = -1;
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
@@ -57,9 +62,9 @@ function formatHeadway(headway) {
 
 /** Maps the real weekday onto one of the three schedule tabs. */
 function todayDayKey(now = new Date()) {
-  const day = now.getDay();
-  if (day === 0) return "sunday";
-  if (day === 6) return "saturday";
+  const day = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", weekday: "short" }).format(now);
+  if (day === "Sun") return "sunday";
+  if (day === "Sat") return "saturday";
   return "weekdays";
 }
 
@@ -71,6 +76,7 @@ function dayOf(key) {
 
 async function initETA() {
   wireScheduleTabs();
+  wireRouteDetails();
 
   const [dataResult, corridorResult] = await Promise.allSettled([
     fetch(BUS_DATA_URL, { cache: "no-cache", signal: AbortSignal.timeout(35000) }).then((r) => {
@@ -101,6 +107,7 @@ async function initETA() {
   selectDay(activeDay, { animate: false, focus: false });
   renderAbout();
   renderSourceFooter();
+  renderTripDetails();
   initMap();
   refreshIcons();
 }
@@ -205,6 +212,7 @@ function selectDay(key, { animate = true, focus = true } = {}) {
   if (!body) return;
   body.setAttribute("aria-labelledby", `bus-tab-${key}`);
   body.innerHTML = scheduleBodyHTML(key);
+  renderTimelineStatus();
 
   // Restart the entrance animation on every day change.
   body.removeAttribute("data-enter");
@@ -411,21 +419,190 @@ function showMapUnavailable(reason) {
     <i data-lucide="map-off" aria-hidden="true"></i>
     <p class="map-unavailable-title">Map unavailable</p>
     <p class="map-unavailable-desc">${esc(reason)}</p>`;
+  if (wrapper.querySelector(".map-unavailable")) return;
+  document.getElementById("bus-map-loading")?.remove();
   wrapper.appendChild(panel);
   refreshIcons();
 }
 
-function pinMarker({ coords, label, variant }) {
-  const element = document.createElement("div");
-  element.className = variant === "campus" ? "qcu-marker-container" : "terminus-marker-container";
-  const pinClass = variant === "campus" ? "qcu-marker-pin" : "terminus-marker-pin";
-  const labelClass = variant === "campus" ? "qcu-marker-label" : "terminus-marker-label";
-  element.innerHTML = `
-    <div class="${pinClass}" title="${esc(label)}"></div>
-    <span class="${labelClass}">${esc(label)}</span>`;
-  // Offset by the label block so the pin's tip — not the label's baseline —
-  // lands on the coordinate.
-  return new maplibregl.Marker({ element, anchor: "bottom", offset: [0, 20] }).setLngLat(coords);
+/** The marker's blue dot is its anchor; the pill sits above it. */
+function pinMarker({ coords, label, variant = "stop", number = "" }) {
+  const element = document.createElement("button");
+  element.type = "button";
+  element.className = `route-marker route-marker--${variant}`;
+  element.setAttribute("aria-label", `${number ? "Stop " + number + ": " : ""}${label}. Center on this stop.`);
+  element.innerHTML = `<span class="route-marker-pill"><span class="route-marker-icon">${variant === "campus" ? '<i data-lucide="school" aria-hidden="true"></i>' : esc(number || "B")}</span><span class="route-marker-name">${esc(label)}</span></span><span class="route-marker-pointer" aria-hidden="true"></span><span class="route-marker-dot" aria-hidden="true"></span>`;
+  element.addEventListener("click", () => {
+    setActiveStop((busData?.route?.stops || []).findIndex(stop => stop.seq === number));
+    map.easeTo({ center: coords, zoom: Math.max(map.getZoom(), 14), duration: motionDuration() });
+  });
+  const marker = new maplibregl.Marker({ element, anchor: "center", offset: [0, 0] }).setLngLat(coords);
+  element.setAttribute("role", "button");
+  // addTo() supplies MapLibre's generic label; restore the stop name afterward.
+  const addTo = marker.addTo.bind(marker);
+  marker.addTo = target => {
+    addTo(target);
+    element.setAttribute("aria-label", `${number ? "Stop " + number + ": " : ""}${label}. Center on this stop.`);
+    return marker;
+  };
+  routeMarkers.push({ marker, element, coords, priority: variant === "stop" ? 1 : variant === "campus" ? 3 : 2 });
+  return marker;
+}
+
+function motionDuration() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550;
+}
+
+/** Colliding labels collapse to blue dots; focus/hover still reveals each stop. */
+function arrangeMarkerLabels() {
+  markerFrame = 0;
+  if (!map) return;
+  const occupied = [];
+  const size = map.getContainer().getBoundingClientRect();
+  const overlays = [...document.querySelectorAll("#app-header, .bus-map-heading, .bus-trip-card, #bottom-nav, .bus-map-controls button, .maplibregl-ctrl-group")].map(el => {
+    const r = el.getBoundingClientRect();
+    return { left: r.left - size.left, right: r.right - size.left, top: r.top - size.top, bottom: r.bottom - size.top };
+  });
+  for (const item of [...routeMarkers].sort((a, b) => b.priority - a.priority)) {
+    const p = map.project(item.coords);
+    const width = item.element.querySelector(".route-marker-pill").offsetWidth;
+    const rect = { left: p.x - width / 2, right: p.x + width / 2, top: p.y - 62, bottom: p.y - 15 };
+    const outside = rect.left < 8 || rect.right > size.width - 8 || rect.top < 0 || rect.bottom > size.height;
+    const collision = occupied.some(r => rect.left < r.right + 12 && rect.right > r.left - 12 && rect.top < r.bottom + 10 && rect.bottom > r.top - 10)
+      || overlays.some(r => rect.left < r.right + 4 && rect.right > r.left - 4 && rect.top < r.bottom + 4 && rect.bottom > r.top - 4);
+    item.element.classList.toggle("is-compact", outside || collision);
+    item.element.classList.toggle("is-overview", map.getZoom() < 12.8);
+    item.element.style.zIndex = outside || collision ? "1" : String(item.priority + 3);
+    if (!outside && !collision) occupied.push(rect);
+  }
+}
+
+function scheduleMarkerLabels() {
+  if (!markerFrame) markerFrame = requestAnimationFrame(arrangeMarkerLabels);
+}
+
+function wireRouteDetails() {
+  const dialog = document.getElementById("bus-details");
+  const opener = document.getElementById("bus-open-details");
+  const compact = window.matchMedia("(max-width: 899px), (max-height: 540px)");
+  const setExpanded = expanded => {
+    tripExpanded = expanded;
+    document.querySelector(".bus-trip-card")?.setAttribute("data-expanded", String(expanded));
+    document.getElementById("bus-toggle-trip")?.setAttribute("aria-expanded", String(expanded));
+    const content = document.getElementById("bus-trip-content");
+    if (content) content.hidden = !expanded;
+    const label = document.getElementById("bus-trip-toggle-label");
+    if (label) label.textContent = `${expanded ? "Collapse" : "Expand"} route details`;
+    scheduleMarkerLabels();
+  };
+  setExpanded(!compact.matches);
+  compact.addEventListener("change", event => setExpanded(!event.matches));
+  document.getElementById("bus-toggle-trip")?.addEventListener("click", () => setExpanded(!tripExpanded));
+  opener?.addEventListener("click", () => {
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    const scroll = dialog.querySelector(".bus-details-scroll");
+    if (scroll) scroll.scrollTop = 0;
+  });
+  document.getElementById("bus-close-details")?.addEventListener("click", () => dialog?.close());
+  document.getElementById("bus-return-map")?.addEventListener("click", () => dialog?.close());
+  dialog?.addEventListener("click", event => {
+    if (event.target !== dialog) return;
+    const box = dialog.getBoundingClientRect();
+    if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) dialog.close();
+  });
+  dialog?.addEventListener("close", () => opener?.focus());
+  dialog?.addEventListener("keydown", event => {
+    if (event.key !== "Tab") return;
+    const focusable = [...dialog.querySelectorAll('button:not(:disabled), a[href], [tabindex="0"]')]
+      .filter(element => element.getClientRects().length);
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
+    }
+  });
+  document.getElementById("bus-fit-route")?.addEventListener("click", () => { if (map) fitToCorridor(corridor?.coordinates || []); });
+  document.getElementById("bus-find-campus")?.addEventListener("click", () => {
+    setActiveStop((busData?.route?.stops || []).findIndex(stop => stop.kind === "QCU campus stop"));
+    map?.easeTo({ center: QCU_COORDS, zoom: 15, duration: motionDuration() });
+  });
+  document.getElementById("bus-zoom-in")?.addEventListener("click", () => map?.zoomIn({ duration: motionDuration() }));
+  document.getElementById("bus-zoom-out")?.addEventListener("click", () => map?.zoomOut({ duration: motionDuration() }));
+  document.getElementById("bus-stop-list")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-stop-index]");
+    const stop = busData?.route?.stops?.[Number(button?.dataset.stopIndex)];
+    if (!button || !map || !validCoordinates(stop?.coords)) return;
+    setActiveStop(Number(button.dataset.stopIndex));
+    dialog.close();
+    map.easeTo({ center: stop.coords, zoom: 15, duration: motionDuration() });
+  });
+}
+
+/** Active means selected on the map; it does not imply a GPS location. */
+function setActiveStop(index) {
+  if (!busData?.route?.stops?.[index]) return;
+  activeStopIndex = index;
+  document.querySelectorAll(".bus-stop-timeline [data-timeline-index]").forEach(item => {
+    const active = Number(item.dataset.timelineIndex) === index;
+    item.classList.toggle("is-active", active);
+    if (active) item.setAttribute("aria-current", "true");
+    else item.removeAttribute("aria-current");
+  });
+  const label = document.getElementById("bus-active-stop-label");
+  if (label) label.textContent = `Selected stop ${busData.route.stops[index].seq} · Tap a stop to view it on the map`;
+}
+
+function renderTimelineStatus() {
+  const status = document.getElementById("bus-timeline-status");
+  if (!status) return;
+  const day = dayOf(activeDay);
+  const known = typeof day?.operates === "boolean";
+  status.textContent = known
+    ? `${DAY_LABELS[activeDay]} · ${day.operates ? "Published schedule" : "No service"}`
+    : "Schedule unavailable";
+  status.parentElement.classList.toggle("is-unavailable", !known);
+}
+
+function validCoordinates(coords) {
+  return Array.isArray(coords) && coords.length === 2 && coords.every(Number.isFinite)
+    && Math.abs(coords[0]) <= 180 && Math.abs(coords[1]) <= 90;
+}
+
+function renderTripDetails() {
+  const target = document.getElementById("bus-trip-content");
+  const route = busData?.route;
+  const km = route?.distanceKm;
+  const termini = route?.termini || [];
+  const summaryDistance = document.getElementById("bus-trip-summary-distance");
+  if (summaryDistance) summaryDistance.textContent = Number.isFinite(km) ? `${km} km` : "Distance unavailable";
+  const summaryRoute = document.getElementById("bus-trip-summary-route");
+  const routeLabel = termini.length >= 2 ? `${termini[0].label} to ${termini[1].label}` : "Route endpoints unavailable";
+  if (summaryRoute) summaryRoute.textContent = routeLabel;
+  const subtitle = document.getElementById("bus-timeline-subtitle");
+  if (subtitle) subtitle.textContent = routeLabel;
+  if (target) {
+    target.innerHTML = `<dl class="bus-trip-stats"><div><dt>Distance</dt><dd id="bus-trip-distance">${Number.isFinite(km) ? esc(km) + ' <small>km</small>' : '<span class="bus-stat-unavailable">Unavailable</span>'}</dd><p>Published route</p></div><div><dt>Travel time</dt><dd class="bus-stat-unavailable">Not published</dd><p>Allow for traffic &amp; stops</p></div></dl>
+      <div class="bus-trip-endpoints"><div><span class="bus-endpoint-dot bus-endpoint-dot--origin" aria-hidden="true"></span><span><small>From</small><strong>${esc(termini[0]?.label || "Origin unavailable")}</strong></span></div><div><span class="bus-endpoint-dot bus-endpoint-dot--destination" aria-hidden="true"></span><span><small>To</small><strong>${esc(termini[1]?.label || "Destination unavailable")}</strong></span></div></div>`;
+    target.removeAttribute("aria-busy");
+  }
+  const list = document.getElementById("bus-stop-list");
+  if (list) {
+    list.innerHTML = route?.stops?.length ? route.stops.map((stop, index) => {
+      const detail = `${stop.kind || "Bus stop"}${validCoordinates(stop.coords) ? "" : " · Map location unverified"}`;
+      const content = `<strong>${esc(stop.name)}</strong><small>${esc(detail)}</small>`;
+      return `<li data-timeline-index="${index}"><span class="bus-stop-number" aria-hidden="true">${esc(stop.seq)}</span><span class="bus-stop-node" aria-hidden="true"></span>${validCoordinates(stop.coords) ? `<button type="button" class="bus-stop-content" data-stop-index="${index}" aria-label="Stop ${esc(stop.seq)}: Show ${esc(stop.name)} on the map" disabled>${content}</button>` : `<div class="bus-stop-content">${content}<span class="loading-sr">Stop ${esc(stop.seq)}</span></div>`}</li>`;
+    }).join("") : '<li class="bus-timeline-empty">Stop information is unavailable. Check official QC advisories.</li>';
+    if (route?.stops?.length) setActiveStop(activeStopIndex >= 0 ? activeStopIndex : 0);
+    else {
+      const label = document.getElementById("bus-active-stop-label");
+      if (label) label.textContent = "Stop locations unavailable";
+    }
+  }
 }
 
 function initMap() {
@@ -453,12 +630,14 @@ function initMap() {
     });
   } catch (error) {
     console.warn("Map could not start:", error);
-    showMapUnavailable("The map could not start in this browser. The schedule below is unaffected.");
+    showMapUnavailable("The map could not start in this browser. Published schedules remain available in route details.");
     return;
   }
 
   map.addControl(new maplibregl.AttributionControl({ compact: true }));
-  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+  map.on("move", scheduleMarkerLabels);
+  map.on("resize", scheduleMarkerLabels);
+  mapLoadTimer = setTimeout(() => showMapUnavailable("Map tiles are taking too long to load. Published schedules are still available."), 20000);
   map.on("error", (event) => console.warn("Map error:", event?.error?.message || event));
 
   // Markers are DOM overlays and the camera is available immediately, so
@@ -466,12 +645,28 @@ function initMap() {
   // layers need the style, which lands well before the first full render —
   // "style.load" rather than "load" keeps the route visible on slow links.
   drawTermini();
+  drawStops();
+  refreshIcons();
   annotateCorridorOverlay();
+  const sceneObserver = new ResizeObserver(() => { map.resize(); fitToCorridor(coordinates); });
+  sceneObserver.observe(document.querySelector(".bus-map-scene"));
+  const overlayObserver = new ResizeObserver(() => {
+    scheduleMarkerLabels();
+    if (map.getZoom() < 14) fitToCorridor(coordinates);
+  });
+  [".bus-trip-card", ".bus-map-heading", "#app-header", "#bottom-nav"].forEach(selector => {
+    const element = document.querySelector(selector);
+    if (element) overlayObserver.observe(element);
+  });
 
   map.on("style.load", () => {
     try {
+      styleRouteBasemap();
       if (coordinates.length > 1) drawCorridor(coordinates);
-      drawStops();
+      clearTimeout(mapLoadTimer);
+      document.getElementById("bus-map-loading")?.remove();
+      document.querySelector(".map-unavailable")?.remove();
+      document.querySelectorAll(".bus-map-controls button, [data-stop-index]").forEach(button => { button.disabled = false; });
     } catch (error) {
       console.warn("Route layers could not be drawn:", error);
     }
@@ -481,10 +676,52 @@ function initMap() {
   });
 }
 
+/** Keep OpenFreeMap geography legible while making the bus route stand out. */
+function styleRouteBasemap() {
+  for (const layer of map.getStyle().layers) {
+    const sourceLayer = layer["source-layer"];
+    if (layer.type === "background") {
+      map.setPaintProperty(layer.id, "background-color", "#F4F6F7");
+    } else if (layer.type === "fill") {
+      const color = sourceLayer === "water" ? "#DAE4EB"
+        : sourceLayer === "building" ? "#E1E6E9"
+        : sourceLayer === "park" || sourceLayer === "landcover" ? "#E3EBE5"
+        : sourceLayer === "landuse" ? "#EDF0F1" : null;
+      if (color) map.setPaintProperty(layer.id, "fill-color", color);
+      if (sourceLayer === "park" || sourceLayer === "building") {
+        map.setPaintProperty(layer.id, "fill-outline-color", "#DDE4E6");
+      }
+    } else if (layer.type === "line") {
+      if (sourceLayer === "transportation" && /^(road|tunnel|bridge)_/.test(layer.id) && !/rail/.test(layer.id)) {
+        map.setPaintProperty(layer.id, "line-color", /casing/.test(layer.id) ? "#DCE2E6" : "#FFFFFF");
+      } else if (sourceLayer === "waterway") {
+        map.setPaintProperty(layer.id, "line-color", "#CCDCE6");
+      } else if (sourceLayer === "boundary") {
+        map.setPaintProperty(layer.id, "line-color", "#C4CDD3");
+      }
+    } else if (layer.type === "symbol") {
+      if (/shield/.test(layer.id)) {
+        map.setLayoutProperty(layer.id, "visibility", "none");
+        continue;
+      }
+      if (layer.layout?.["text-field"]) {
+        map.setPaintProperty(layer.id, "text-color", "#74818C");
+        map.setPaintProperty(layer.id, "text-halo-color", "#FFFFFF");
+        map.setPaintProperty(layer.id, "text-opacity", ["interpolate", ["linear"], ["zoom"], 10, 0.5, 13, 0.75, 16, 1]);
+      }
+      // Local landmarks become useful when zoomed in; overview labels stay quiet.
+      if (sourceLayer === "poi") {
+        map.setLayerZoomRange(layer.id, Math.max(layer.minzoom || 0, 14), layer.maxzoom || 24);
+      }
+    }
+  }
+}
+
 /** Casing beneath the line keeps it legible over a light basemap. */
 function drawCorridor(coordinates) {
   map.addSource("route4", {
     type: "geojson",
+    lineMetrics: true,
     data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates } }
   });
 
@@ -493,7 +730,7 @@ function drawCorridor(coordinates) {
     type: "line",
     source: "route4",
     layout: { "line-join": "round", "line-cap": "round" },
-    paint: { "line-color": "#FFFFFF", "line-width": 8, "line-opacity": 0.9 }
+    paint: { "line-color": "#FFFFFF", "line-width": 11, "line-opacity": 0.92 }
   });
 
   map.addLayer({
@@ -501,7 +738,11 @@ function drawCorridor(coordinates) {
     type: "line",
     source: "route4",
     layout: { "line-join": "round", "line-cap": "round" },
-    paint: { "line-color": "#005BAC", "line-width": 4, "line-opacity": 0.95 }
+    paint: {
+      "line-width": 6,
+      "line-opacity": 1,
+      "line-gradient": ["interpolate", ["linear"], ["line-progress"], 0, "#2474E8", 0.32, "#367FE9", 0.5, "#EF655B", 0.68, "#E66A53", 0.84, "#31B88A", 1, "#159C73"]
+    }
   });
 }
 
@@ -510,79 +751,18 @@ function drawCorridor(coordinates) {
  * drawn line, so an unverified stop list simply renders no dots.
  */
 function drawStops() {
-  const stops = Array.isArray(busData?.route?.stops) ? busData.route.stops : [];
-  if (!stops.length) return;
-
-  map.addSource("route4-stops", {
-    type: "geojson",
-    data: {
-      type: "FeatureCollection",
-      features: stops
-        .filter((stop) => Array.isArray(stop.coords) && stop.coords.length === 2)
-        .map((stop) => ({
-          type: "Feature",
-          geometry: { type: "Point", coordinates: stop.coords },
-          properties: { name: stop.name, kind: stop.kind || "Bus stop" }
-        }))
-    }
+  (busData?.route?.stops || []).forEach(stop => {
+    if (!validCoordinates(stop.coords) || stop.kind === "Terminus" || stop.kind === "QCU campus stop") return;
+    pinMarker({ coords: stop.coords, label: stop.name, number: stop.seq }).addTo(map);
   });
-
-  map.addLayer({
-    id: "route4-stops-layer",
-    type: "circle",
-    source: "route4-stops",
-    paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 3.5, 14, 5.5, 16, 7],
-      "circle-color": "#FFFFFF",
-      "circle-stroke-color": "#005BAC",
-      "circle-stroke-width": 2
-    }
-  });
-
-  map.addLayer({
-    id: "route4-stops-labels",
-    type: "symbol",
-    source: "route4-stops",
-    minzoom: 13,
-    layout: {
-      "text-field": ["get", "name"],
-      "text-font": ["Noto Sans Bold"],
-      "text-size": 11,
-      "text-offset": [0, 1.1],
-      "text-anchor": "top",
-      "text-allow-overlap": false
-    },
-    paint: {
-      "text-color": "#0A3D6E",
-      "text-halo-color": "#FFFFFF",
-      "text-halo-width": 1.6
-    }
-  });
-
-  const popup = new maplibregl.Popup({ closeButton: true, offset: 10, maxWidth: "220px" });
-
-  map.on("click", "route4-stops-layer", (event) => {
-    const feature = event.features?.[0];
-    if (!feature) return;
-    popup
-      .setLngLat(feature.geometry.coordinates)
-      .setHTML(
-        `<p class="map-stop-popup-name">${esc(feature.properties.name)}</p>
-         <p class="map-stop-popup-kind">${esc(feature.properties.kind)}</p>`
-      )
-      .addTo(map);
-  });
-
-  map.on("mouseenter", "route4-stops-layer", () => { map.getCanvas().style.cursor = "pointer"; });
-  map.on("mouseleave", "route4-stops-layer", () => { map.getCanvas().style.cursor = ""; });
 }
 
 function drawTermini() {
-  pinMarker({ coords: QCU_COORDS, label: "QCU Campus", variant: "campus" }).addTo(map);
-
-  (busData?.route?.termini || []).forEach((terminus) => {
-    if (!Array.isArray(terminus.coords) || terminus.coords.length !== 2) return;
-    pinMarker({ coords: terminus.coords, label: terminus.label, variant: "terminus" }).addTo(map);
+  const campus = busData?.route?.stops?.find(stop => stop.kind === "QCU campus stop" && validCoordinates(stop.coords));
+  pinMarker({ coords: campus?.coords || QCU_COORDS, label: "QCU Main Campus", variant: "campus", number: campus?.seq }).addTo(map);
+  (busData?.route?.termini || []).forEach((terminus, index) => {
+    if (!validCoordinates(terminus.coords)) return;
+    pinMarker({ coords: terminus.coords, label: terminus.label, variant: "terminus", number: index === 0 ? 1 : busData.route.stopCount }).addTo(map);
   });
 }
 
@@ -597,17 +777,27 @@ function fitToCorridor(coordinates) {
     (acc, point) => acc.extend(point),
     new maplibregl.LngLatBounds(points[0], points[0])
   );
-  // The route plate sits top-left and the legend bottom-left. On a phone the
-  // container is portrait and the corridor is a narrow vertical ribbon, so the
-  // padding is biased right to keep the line clear of both overlays. Desktop has
-  // horizontal slack already and only needs to clear the chrome.
-  const isNarrow = window.matchMedia("(max-width: 480px)").matches;
-  map.fitBounds(bounds, {
-    padding: isNarrow
-      ? { top: 152, right: 20, bottom: 84, left: 20 }
-      : { top: 96, right: 48, bottom: 104, left: 48 },
-    duration: 0
-  });
+  const scene = document.querySelector(".bus-map-scene").getBoundingClientRect();
+  const heading = document.querySelector(".bus-map-heading").getBoundingClientRect();
+  const card = document.querySelector(".bus-trip-card").getBoundingClientRect();
+  const desktop = scene.width >= 900;
+  const landscape = scene.width > scene.height && scene.height <= 540;
+  const padding = desktop || landscape
+    ? { top: heading.bottom + 28, right: 86, bottom: 95, left: card.right + 36 }
+    : { top: heading.bottom + 24, right: 86, bottom: scene.height - card.top + 18, left: 36 };
+  // Fit into the exposed map area above the card, including on short phones.
+  if (!desktop && !landscape) {
+    padding.top = heading.bottom + 24;
+    padding.bottom = scene.height - card.top + 18;
+    padding.right = 86;
+    padding.left = 42;
+    padding.top = Math.max(100, Math.min(padding.top, scene.height - padding.bottom - 60));
+  } else {
+    padding.top = Math.min(padding.top, scene.height * .34);
+    padding.bottom = Math.min(padding.bottom, scene.height * .28);
+  }
+  map.fitBounds(bounds, { padding, duration: 0, maxZoom: 14 });
+  scheduleMarkerLabels();
 }
 
 /** Names the actual roads the drawn corridor follows, from the geometry file. */

@@ -95,7 +95,7 @@ export async function onRequestGet(context) {
         tasks: snapshot.tasks,
         notes: snapshot.notes,
         academic: snapshot.academic,
-        profile: snapshot.profile,
+        profile: { ...snapshot.profile, googleAccount: buildProfile(user, verifiedSession).googleAccount },
       });
     }
 
@@ -132,7 +132,7 @@ export async function onRequestGet(context) {
           tasks: formatDashboardTasks(user.userId),
           notes: formatDashboardNotes(user.userId),
           academic,
-          profile: buildProfile(user),
+          profile: buildProfile(user, verifiedSession),
         });
       }
       return dashboardJson({
@@ -146,7 +146,7 @@ export async function onRequestGet(context) {
         tasks: formatDashboardTasks(user.userId),
         notes: formatDashboardNotes(user.userId),
         academic: buildAcademicContext(null),
-        profile: buildProfile(user),
+        profile: buildProfile(user, verifiedSession),
       });
     }
 
@@ -219,7 +219,7 @@ export async function onRequestGet(context) {
         roomCode: room?.roomCode || "",
         floor: room?.floor || null,
         room: room?.roomCode || "",
-        instructor: "",
+        instructor: e.instructorName ?? ens?.instructorName ?? "",
         notes: e.locationText || "",
         enrollmentSubjectId: e.enrollmentSubjectId || null,
         originType: "COR_IMPORT",
@@ -262,7 +262,7 @@ export async function onRequestGet(context) {
     academic.enrollmentSubjects = enrollmentSubjects;
 
     // ── Profile ─────────────────────────────────────────────────────────
-    const profile = buildProfile(user);
+    const profile = buildProfile(user, verifiedSession);
 
     return dashboardJson({
       status: "OK",
@@ -371,7 +371,7 @@ function buildAcademicContext(enrollment) {
   };
 }
 
-function buildProfile(user) {
+function buildProfile(user, identity) {
   // Use COR-extracted name if available, fall back to Google account name
   const profile = user.profile || null;
   let displayName = user.name;
@@ -384,6 +384,13 @@ function buildProfile(user) {
     email: user.email,
     name: displayName,
     picture: user.picture,
+    // Preserve the Google identity separately from the COR display name.
+    googleAccount: {
+      name: identity.name || user.name,
+      email: identity.email || user.email,
+      picture: identity.picture || user.picture,
+      emailVerified: identity.emailVerified === true,
+    },
     state: user.state,
     role: user.role,
     profile,

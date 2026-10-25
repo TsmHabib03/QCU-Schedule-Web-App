@@ -25,6 +25,6 @@ export async function onRequestGet(context) {
     });
   } catch (error) {
     const reason = encodeURIComponent(String(error && error.message || "Google OAuth is not configured").slice(0, 180));
-    return redirect(`/google.html?google=unconfigured&reason=${reason}#google-integration`);
+    return redirect(`/settings.html?google=unconfigured&reason=${reason}#google-connection`);
   }
 }

@@ -49,7 +49,13 @@ const server = createServer(async (request, response) => {
     if (editedWorker && key === 'service-worker.js') bytes = Buffer.from(bytes.toString().replace(/const RELEASE = "[^"]+"/, 'const RELEASE = "fixture-next-release"'));
     await new Promise(done => setTimeout(done, 20));
     send(200, bytes, mime[extname(file)] || 'application/octet-stream', { 'Cache-Control': 'no-cache' });
-  } catch { send(404, 'Missing fixture resource', 'text/plain'); }
+  } catch (error) {
+    // Report permission and I/O failures accurately: a false 404 obscures why
+    // the worker cannot install when a sandbox blocks an existing asset.
+    if (error.code === 'ENOENT') return send(404, 'Missing fixture resource', 'text/plain');
+    console.error('Fixture resource read failed:', error.message);
+    send(500, 'Fixture resource unavailable', 'text/plain');
+  }
 });
 await new Promise(done => server.listen(0, '127.0.0.1', done));
 const origin = `http://cache.localhost:${server.address().port}`;
@@ -81,7 +87,15 @@ try {
     assert.equal(startupCalls, mode === 'before' ? 2 : 1, 'cold startup request count');
     await page.evaluate(() => Promise.race([
       navigator.serviceWorker.ready,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Service worker did not activate')), 12000))
+      new Promise((_, reject) => setTimeout(async () => {
+        const registration = await navigator.serviceWorker.getRegistration();
+        reject(new Error('Service worker did not activate: ' + JSON.stringify({
+          installing: registration?.installing?.state,
+          waiting: registration?.waiting?.state,
+          active: registration?.active?.state,
+          requests: performance.getEntriesByType('resource').filter(entry => entry.name.includes('service-worker')).map(entry => entry.name),
+        })));
+      }, 12000))
     ]));
     await page.waitForFunction(() => !!navigator.serviceWorker.controller);
     requests = [];
@@ -101,7 +115,7 @@ try {
     assert(!keys.some(key => key.includes('/api/')), 'private API data never enters the shared service worker cache');
     assert(keys.some(key => key.endsWith('/workspace.html')), 'workspace is precached');
     const card = await page.locator('.home-today-card').elementHandle();
-    const calendar = await page.locator('.soft-cal-cell[data-day-name]').first().elementHandle();
+    const calendar = await page.locator('#soft-calendar [data-day-name]').first().elementHandle();
     await page.waitForFunction(() => document.querySelector('#live-time')?.textContent.includes(':'));
     await new Promise(done => setTimeout(done, 2100));
     assert(await card.evaluate(node => node.isConnected), 'clock ticks preserve class cards');

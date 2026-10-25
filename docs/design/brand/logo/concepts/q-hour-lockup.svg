@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 256">
+  <!-- symbol -->
+  <g transform="translate(20,38) scale(0.703)">
+    <path fill="#000" fill-rule="evenodd"
+          d="M128 32 a96 96 0 1 0 0 192 a96 96 0 1 0 0 -192 Z
+             M128 70 a58 58 0 1 1 0 116 a58 58 0 1 1 0 -116 Z"/>
+    <path stroke="#000" stroke-width="22" stroke-linecap="round" d="M128 128 L202 202"/>
+    <circle cx="128" cy="128" r="15" fill="#000"/>
+  </g>
+  <!-- wordmark (exploration type; final will be drawn as paths in Public Sans) -->
+  <text x="238" y="138" font-family="'Public Sans','Helvetica Neue',Arial,sans-serif" font-size="112" font-weight="800" fill="#000" letter-spacing="-2">QCU</text>
+  <text x="241" y="196" font-family="'Public Sans','Helvetica Neue',Arial,sans-serif" font-size="50" font-weight="500" fill="#000" letter-spacing="6">Schedule</text>
+</svg>

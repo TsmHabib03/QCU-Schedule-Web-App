@@ -3,168 +3,86 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#005BAC">
+  <meta name="theme-color" content="#7560DB">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <title>Set Up Your Schedule - My-Schedule</title>
   <link rel="preload" href="assets/fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
-  <link rel="stylesheet" href="assets/css/styles.css?v=1254bb55d03c">
-  <link rel="stylesheet" href="assets/css/entry.css?v=dffc3b8b1cb7">
-  <link rel="stylesheet" href="assets/css/loading.css?v=1df68e62d39b">
-  <script src="assets/js/loading.js?v=982ac9f69bc1"></script>
+  <link rel="icon" type="image/svg+xml" href="assets/images/brand/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/brand/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/images/brand/apple-touch-icon.png">
+  <link rel="stylesheet" href="assets/css/styles.css?v=034e5a2c2473">
+  <link rel="stylesheet" href="assets/css/entry.css?v=25bc50dfb97b">
+  <link rel="stylesheet" href="assets/css/loading.css?v=05b6d5c0e71e">
+  <link rel="stylesheet" href="assets/css/onboarding.css?v=7d728988d4da">
+  <script src="assets/js/loading.js?v=01a8e56243a0"></script>
   <script src="assets/js/data-cache.js?v=502c0a662174"></script>
 </head>
-<body class="civic-entry">
+<body class="civic-entry cor-onboarding">
   <a class="entry-skip" href="#onboarding-main">Skip to setup</a>
   <noscript><p class="missing-page">JavaScript is needed to upload and review your COR. Enable it in your browser, then reload this page. <a href="/">Return home</a></p></noscript>
   <div class="onboarding-shell">
-    <div class="civic-rule" aria-hidden="true"></div>
-    <!-- Header -->
-    <header class="onboarding-header" data-loading-cover="onboarding" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></div></div>
-      <div class="entry-container entry-header-inner">
-      <a class="entry-brand onboarding-header-brand" href="/" aria-label="My-Schedule home"><img src="assets/images/QCU college of computer studies logo.jpg" alt="QCU College of Computer Studies" width="43" height="43"><span><strong>My-Schedule</strong><small>Quezon City University</small></span></a>
-      <div class="onboarding-header-user">
-        <span id="header-user-name"></span>
-        <img id="header-user-avatar" class="onboarding-header-avatar" src="/assets/images/cropped-logo.jpg" alt="" style="display:none;">
-        <button class="onboarding-header-signout" onclick="signOut()">Sign out</button>
-      </div>
-      </div>
-    </header>
-
-    <div class="entry-container onboarding-layout">
-    <aside class="onboarding-aside" aria-label="Your setup progress">
-      <h2 class="setup-aside-heading">A fresh start, organized.</h2>
-      <p class="setup-aside-description">Let's turn your COR into a schedule that keeps up with you.</p>
-    <!-- Stage Tracker -->
-    <nav class="stage-tracker" id="stage-tracker" aria-label="Setup steps" data-loading-cover="onboarding" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="loading-cover-nav"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div></div>
-      <div class="stage-item active" data-step="welcome">
-        <span class="stage-dot">1</span>
-        <span class="stage-copy">Welcome<small>A quick introduction</small></span>
-      </div>
-      <div class="stage-connector"></div>
-      <div class="stage-item" data-step="upload">
-        <span class="stage-dot">2</span>
-        <span class="stage-copy">Upload COR<small>Add your registration</small></span>
-      </div>
-      <div class="stage-connector"></div>
-      <div class="stage-item" data-step="review">
-        <span class="stage-dot">3</span>
-        <span class="stage-copy">Review<small>Check your class details</small></span>
-      </div>
-      <div class="stage-connector"></div>
-      <div class="stage-item" data-step="confirm">
-        <span class="stage-dot">4</span>
-        <span class="stage-copy">Confirm<small>Make it your schedule</small></span>
-      </div>
-    </nav>
-
-      <figure class="setup-campus"><img src="assets/images/QCU-BUILDING-1024x683-1.jpg" alt="Quezon City University academic building" width="1024" height="683"><figcaption><p><i data-lucide="map-pin" aria-hidden="true"></i> Quezon City University</p></figcaption></figure>
-      <div class="setup-support"><i data-lucide="shield-check" aria-hidden="true"></i><p>You're in control of your details.<br><a href="privacy.html">Read our privacy policy</a></p></div>
-    </aside>
-    <!-- Main Content -->
-    <main id="onboarding-main" class="onboarding-main" data-loading-cover="onboarding" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards " aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div></div>
-
-      <div class="setup-card-meta"><span id="setup-progress-label" role="status" aria-live="polite">Step 1 of 4</span><span><i data-lucide="graduation-cap" aria-hidden="true"></i> Student setup</span></div>
-      <!-- Step 1: Welcome -->
-      <section class="onboarding-step active" id="step-welcome">
-        <div class="welcome-icon-wrap">
-          <img src="assets/images/QCU college of computer studies logo.jpg" alt="QCU" class="welcome-icon">
-        </div>
-        <h1 class="welcome-title">Set up your student schedule</h1>
-        <p class="welcome-subtitle">
-          Upload your current COR. We will detect your student and class details,
-          then ask you to review everything before it is saved to your account.
-        </p>
-
-        <div class="welcome-features">
-          <div class="welcome-feature">
-            <div class="welcome-feature-icon"><i data-lucide="file-up" aria-hidden="true"></i></div>
-            <div class="welcome-feature-text">
-              <strong>COR upload</strong>
-              Upload a PDF, JPG, or PNG of your Certificate of Registration.
-            </div>
+    <div class="onboarding-card" data-onboarding-step="upload">
+      <header class="onboarding-topbar" aria-label="Onboarding navigation" data-loading-cover="onboarding" aria-busy="true" inert>
+        <div class="loading-cover cor-loading-top" aria-hidden="true"><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span></div>
+        <button class="onboarding-back" id="upload-back" type="button" onclick="onboardingBack()" aria-label="Back"><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+        <nav class="stage-tracker" id="stage-tracker" aria-label="Setup progress">
+          <span class="stage-item active" data-step="upload" aria-label="Step 1: Upload COR" aria-current="step"></span>
+          <span class="stage-item" data-step="processing" aria-label="Step 2: Extract schedule"></span>
+        </nav>
+        <button class="onboarding-skip" id="onboarding-skip" type="button" onclick="skipOnboarding()">Skip</button>
+      </header>
+      <main id="onboarding-main" class="onboarding-main" data-loading-cover="onboarding" aria-busy="true" inert>
+        <div class="loading-cover cor-loading-main" role="status"><span class="loading-sr">Loading your setup...</span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span></div>
+        <p class="onboarding-eyebrow" id="setup-progress-label" role="status" aria-live="polite">STEP 1/2</p>
+        <section class="onboarding-step active" id="step-upload">
+          <h1 class="welcome-title">Upload your COR</h1>
+          <p class="welcome-subtitle">A little upload. A more organized semester.</p>
+          <div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Choose COR file" aria-describedby="upload-file-hint upload-error" onclick="if (!document.getElementById('file-input').disabled) document.getElementById('file-input').click()">
+            <img class="cor-illustration" src="assets/images/cor-upload.svg" alt="" width="280" height="260">
+            <span class="upload-zone-text" id="upload-zone-text">Choose a file or drag it here</span>
+            <span class="upload-zone-hint" id="upload-file-hint">JPG, PNG or PDF &middot; Up to 10 MB<br>Large photos are optimized; PDFs must be under 1.2 MB.</span>
           </div>
-          <div class="welcome-feature">
-            <div class="welcome-feature-icon"><i data-lucide="list-checks" aria-hidden="true"></i></div>
-            <div class="welcome-feature-text">
-              <strong>Review and confirm</strong>
-              Detected information remains a draft until you review and approve it.
-            </div>
+          <input type="file" id="file-input" class="upload-file-input" accept=".pdf,.jpg,.jpeg,.png">
+          <ul class="cor-benefits">
+            <li><i data-lucide="sparkles" aria-hidden="true"></i><span>Auto-generates your classes</span></li>
+            <li><i data-lucide="graduation-cap" aria-hidden="true"></i><span>Brings your class details together</span></li>
+            <li><i data-lucide="calendar-days" aria-hidden="true"></i><span>Sets up your weekly calendar</span></li>
+          </ul>
+          <div class="upload-file-summary" id="file-summary"><div class="upload-file-name" id="file-name"></div><div class="upload-file-meta" id="file-meta"></div><button class="upload-file-remove" id="upload-remove" type="button" onclick="removeFile()">Remove file</button></div>
+          <div class="upload-error" id="upload-error" role="alert"></div>
+          <div class="onboarding-actions">
+            <button class="btn-primary" id="upload-btn" type="button" onclick="chooseOrUploadCor()"><span class="btn-label">Upload Image</span></button>
+            <button class="onboarding-text-link" type="button" onclick="skipOnboarding()">Upload later</button>
+            <p class="cor-privacy">Your details stay private. Review everything before saving.</p>
           </div>
-          <div class="welcome-feature">
-            <div class="welcome-feature-icon"><i data-lucide="shield-check" aria-hidden="true"></i></div>
-            <div class="welcome-feature-text">
-              <strong>Private and secure</strong>
-              My-Schedule does not store a password. Your data stays private.
-            </div>
+        </section>
+        <section class="onboarding-step" id="step-processing">
+          <h2 class="processing-title" id="processing-title">Extracting Schedule...</h2>
+          <p class="welcome-subtitle" id="processing-subtitle">Turning your COR into a week that flows.</p>
+          <div class="cor-scan-art" id="processing-spinner" aria-hidden="true"><img class="cor-illustration" src="assets/images/cor-scan.svg" alt="" width="280" height="260"><span class="cor-scan-line"></span><span class="cor-scan-dot"></span></div>
+          <p class="processing-text" id="processing-message" role="status" aria-live="polite">We are reading your student and class details. This may take a moment.</p>
+          <div class="upload-progress" id="upload-progress"><div class="upload-progress-bar" id="upload-progress-bar" role="progressbar" aria-label="COR file transfer" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="upload-progress-fill" id="upload-progress-fill" style="width:0%"></div></div><div class="upload-progress-text" id="upload-progress-text" role="status" aria-live="polite">Uploading...</div></div>
+          <div class="cor-extraction-summary" id="extraction-summary" hidden><div><i data-lucide="clipboard-check" aria-hidden="true"></i><strong id="extracted-class-count"></strong><span>Ready to review</span></div><div><i data-lucide="calendar-check" aria-hidden="true"></i><strong>Weekly schedule</strong><span>Your semester, organized</span></div></div>
+          <div class="onboarding-actions">
+            <button class="btn-primary" id="processing-continue" type="button" disabled onclick="continueToReview()">Processing...</button>
+            <button class="btn-primary" id="processing-retry" type="button" hidden onclick="resumeProcessing()">Check again</button>
+            <a class="btn-primary" id="processing-sign-in" hidden href="/api/auth/google/start?returnTo=%2Fonboarding.html">Sign in again</a>
+            <button class="onboarding-text-link" id="processing-select-file" type="button" hidden onclick="goToStep('upload')">Select original file</button>
+            <p class="cor-privacy">You'll check the extracted details before they are saved.</p>
           </div>
-        </div>
-
-        <p class="setup-before"><i data-lucide="lightbulb" aria-hidden="true"></i> Before you start, have your current COR ready.</p>
-        <div class="btn-row">
-          <button class="btn-primary" id="welcome-start-btn" onclick="goToStep('upload')">Upload your COR</button>
-        </div>
-        <div class="btn-row-secondary">
-          <a href="privacy.html" class="btn-ghost">Privacy</a>
-          <a href="terms.html" class="btn-ghost">Terms</a>
-        </div>
-      </section>
-
-      <!-- Step 2: Upload COR -->
-      <section class="onboarding-step" id="step-upload">
-        <h2 class="welcome-title">Upload your COR</h2>
-        <p class="welcome-subtitle">
-          Use a clear copy of your Certificate of Registration with the entire subject table visible.
-        </p>
-
-        <div class="upload-zone" id="upload-zone" role="button" tabindex="0" aria-label="Choose COR file" aria-describedby="upload-file-hint upload-error" onclick="if (!document.getElementById('file-input').disabled) document.getElementById('file-input').click()">
-          <div class="upload-zone-icon"><i data-lucide="cloud-upload" aria-hidden="true"></i></div>
-          <div class="upload-zone-text" id="upload-zone-text">Choose a file or drag it here</div>
-          <div class="upload-zone-hint" id="upload-file-hint">PDF, JPG, or PNG &middot; Max 10 MB</div>
-        </div>
-        <input type="file" id="file-input" class="upload-file-input" accept=".pdf,.jpg,.jpeg,.png">
-
-        <div class="upload-file-summary" id="file-summary">
-          <div class="upload-file-name" id="file-name"></div>
-          <div class="upload-file-meta" id="file-meta"></div>
-          <button class="upload-file-remove" id="upload-remove" onclick="removeFile()">Remove file</button>
-        </div>
-
-        <div class="upload-privacy">
-          Your COR is stored privately and is used only to prepare your student profile
-          and schedule. Detected information is not saved as confirmed data until you
-          review and approve it.
-        </div>
-
-        <div class="upload-progress" id="upload-progress">
-          <div class="upload-progress-bar" id="upload-progress-bar" role="progressbar" aria-label="COR file transfer" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-            <div class="upload-progress-fill" id="upload-progress-fill" style="width:0%"></div>
+        </section>
+        <section class="onboarding-step" id="step-later">
+          <h2 class="welcome-title">Pick this up later</h2>
+          <p class="welcome-subtitle">Have your COR ready when you return. You'll need to finish setup to open your schedule.</p>
+          <img class="cor-illustration cor-later-art" src="assets/images/cor-upload.svg" alt="" width="280" height="260">
+          <p class="processing-text">Your saved import and draft will be here when you continue on this account.</p>
+          <div class="onboarding-actions">
+            <button class="btn-primary" type="button" onclick="resumeOnboarding()">Continue setup</button>
+            <button class="onboarding-text-link onboarding-header-signout" type="button" onclick="signOut()">Sign out for now</button>
           </div>
-          <div class="upload-progress-text" id="upload-progress-text" role="status" aria-live="polite">Uploading...</div>
-        </div>
-
-        <div class="upload-error" id="upload-error" role="alert"></div>
-
-        <div class="btn-row">
-          <button class="btn-primary" id="upload-btn" disabled onclick="uploadCor()"><span class="btn-label">Upload COR</span></button>
-          <button class="btn-secondary" id="upload-back" onclick="goToStep('welcome')">Back</button>
-        </div>
-      </section>
-
-      <!-- Step 2b: Processing -->
-      <section class="onboarding-step" id="step-processing">
-        <div class="processing-spinner" id="processing-spinner" aria-hidden="true"></div>
-        <h2 class="processing-title" id="processing-title">Reading your COR</h2>
-        <p class="processing-text" id="processing-message" role="status">We are extracting your student and class details. This may take a moment.</p>
-        <div class="btn-row"><button class="btn-secondary" id="processing-retry" hidden onclick="resumeProcessing()">Check again</button></div>
-        <div class="btn-row"><a class="btn-primary" id="processing-sign-in" hidden href="/api/auth/google/start?returnTo=%2Fonboarding.html">Sign in again</a><button class="btn-secondary" id="processing-select-file" hidden onclick="goToStep('upload')">Select original file</button></div>
-      </section>
-
-      <!-- Step 3: Review -->
+        </section>
+      <!-- Review extracted details -->
       <section class="onboarding-step" id="step-review">
         <h2 class="welcome-title">Review your information</h2>
         <p class="welcome-subtitle">
@@ -286,13 +204,14 @@
         </div>
       </section>
 
-    </main>
+
+      </main>
     </div>
-    <footer class="entry-footer onboarding-footer"><div class="entry-container entry-footer-inner"><p>My-Schedule &middot; For the QCU student community</p><div class="entry-footer-links"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div></div></footer>
+    <footer class="onboarding-footer"><img src="assets/images/brand/qcu-mark.svg" alt="" width="20" height="20"><span>My-Schedule</span><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></footer>
   </div>
 
   <script src="assets/js/lucide.min.js?v=3411692820cb"></script>
   <script>if (window.lucide) window.lucide.createIcons();</script>
-  <script src="assets/js/onboarding.js?v=634bbd2339a4"></script>
+  <script src="assets/js/onboarding.js?v=244780e1806d"></script>
 </body>
 </html>

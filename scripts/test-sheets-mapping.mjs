@@ -68,7 +68,7 @@ const samples = {
     smeId: "sme_1", scheduleId: "sch_1", enrollmentId: "enr_1", userId: USER_ID,
     enrollmentSubjectId: "ens_1", dayOfWeek: 1, dayLabel: "Monday", startTime: "09:00",
     endTime: "10:30", modality: "ONSITE", buildingId: "bld_1", roomId: "rm_1",
-    locationText: "Room 301", effectiveFrom: null, effectiveTo: null, sortOrder: 0,
+    locationText: "Room 301", instructorName: "Prof. Reyes", effectiveFrom: null, effectiveTo: null, sortOrder: 0,
     sourceCorDraftMeetingId: "cdm_1", originType: "COR_IMPORT", status: "ACTIVE",
     createdAt: ts, updatedAt: ts,
   },

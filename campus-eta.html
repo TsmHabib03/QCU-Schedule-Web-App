@@ -7,127 +7,88 @@
   <meta name="description" content="QCity Bus Libreng Sakay information for QCU San Bartolome commuters — Route 4 (QC Hall ↔ General Luis) corridor, published schedule, fare and stops. Schedule-based; no live bus tracking.">
   <title>QCity Bus · Libreng Sakay | QCU Portal</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
-
+  <link rel="icon" type="image/svg+xml" href="assets/images/brand/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/brand/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/images/brand/apple-touch-icon.png">
   <!-- MapLibre GL JS -->
   <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 
   <!-- CSS -->
-  <link rel="stylesheet" href="assets/css/styles.css?v=1254bb55d03c">
-  <link rel="stylesheet" href="assets/css/student.css?v=6d7bcbb967f6">
-  <link rel="stylesheet" href="assets/css/soft-ui.css?v=a22c92c45b59">
-  <link rel="stylesheet" href="assets/css/eta.css?v=e0cc1fc7944f">
-  <link rel="stylesheet" href="assets/css/loading.css?v=1df68e62d39b">
-  <script src="assets/js/loading.js?v=982ac9f69bc1"></script>
+  <link rel="stylesheet" href="assets/css/styles.css?v=034e5a2c2473">
+  <link rel="stylesheet" href="assets/css/student.css?v=9ecad895a789">
+  <link rel="stylesheet" href="assets/css/soft-ui.css?v=edf140f7712a">
+  <link rel="stylesheet" href="assets/css/eta.css?v=5228d7c512e3">
+  <link rel="stylesheet" href="assets/css/loading.css?v=05b6d5c0e71e">
+  <script src="assets/js/loading.js?v=01a8e56243a0"></script>
   <script src="assets/js/data-cache.js?v=502c0a662174"></script>
 </head>
 <body data-page="campus-eta">
   <div class="app-shell student-shell">
     <a class="student-skip" href="#main-content">Skip to content</a>
-    <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></div></header>
-    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
+    <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span></div><span class="loading-profile-ring"><span class="skeleton-pulse loading-profile-face"></span></span></div></div></header>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div class="nav-strip" aria-hidden="true"><span class="nav-item loading-nav-item active"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-add loading-nav-add"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span></div></nav>
 
-    <main id="main-content" tabindex="-1" class="page-container section-stack">
-
-      <!-- ── Page header ─────────────────────────────────────── -->
-      <section class="portal-card">
-        <div class="bus-page-head">
-          <span class="bus-page-mark" aria-hidden="true"><i data-lucide="bus"></i></span>
-          <div class="bus-page-headings">
-            <div class="bus-title-row">
-              <h1 class="page-title">QCity Bus · Libreng Sakay</h1>
-              <span class="bus-free-badge"><i data-lucide="ticket" aria-hidden="true"></i> Free ride</span>
-            </div>
-            <p class="caption" style="margin-top:4px;">
-              Find useful information about the free QCity Bus serving routes near QCU San Bartolome.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── Route 4 information ─────────────────────────────── -->
-      <section class="bus-panel" aria-labelledby="bus-route-heading">
-        <div class="bus-route-ident">
-          <span class="bus-route-no" aria-hidden="true">4</span>
-          <div class="bus-route-ident-text">
-            <h2 class="bus-route-corridor" id="bus-route-heading">
-              <span class="bus-sr">Route 4 · </span>QC Hall ↔ General Luis
-            </h2>
-            <p class="bus-route-anchor">QCU San Bartolome</p>
-          </div>
-        </div>
-
-        <p class="bus-route-note">
-          Route&nbsp;4 runs Mindanao Avenue onto Quirino Highway through Novaliches before turning
-          into General&nbsp;Luis Street. <strong>QCU Main Campus is one of its 15 designated
-          stops</strong> — the 10th heading to General&nbsp;Luis, the 6th heading back to QC&nbsp;Hall —
-          so both directions serve the campus.
-        </p>
-
-        <dl class="bus-facts">
-          <div class="bus-fact">
-            <dt class="bus-fact-k">Route</dt>
-            <dd class="bus-fact-v">4</dd>
-          </div>
-          <div class="bus-fact">
-            <dt class="bus-fact-k">Direction</dt>
-            <dd class="bus-fact-v">QC Hall ↔ General Luis</dd>
-          </div>
-          <div class="bus-fact">
-            <dt class="bus-fact-k">Fare</dt>
-            <dd class="bus-fact-v bus-fact-v--free">Free</dd>
-          </div>
-          <div class="bus-fact">
-            <dt class="bus-fact-k">Service</dt>
-            <dd class="bus-fact-v bus-fact-v--muted">QCity Bus · Libreng Sakay</dd>
-          </div>
-          <div class="bus-fact">
-            <dt class="bus-fact-k">Frequency</dt>
-            <dd class="bus-fact-v" id="bus-fact-frequency">—</dd>
-          </div>
-          <div class="bus-fact">
-            <dt class="bus-fact-k">Status</dt>
-            <dd class="bus-fact-v bus-fact-v--muted">Schedule-based · No live bus tracking</dd>
-          </div>
-        </dl>
-
-        <div class="bus-advisory">
-          <i data-lucide="locate-off" class="bus-advisory-icon" aria-hidden="true"></i>
-          <div>
-            <p><strong>No live bus tracking available.</strong></p>
-            <p>Schedules and intervals may change depending on QCity Bus operations and advisories.</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── Map: primary visual element ─────────────────────── -->
+    <main id="main-content" tabindex="-1" class="bus-map-scene">
       <div class="eta-map-wrapper">
-        <div id="eta-map" role="img"
-             aria-label="Map of the QCity Bus Route 4 corridor between Quezon City Hall and General Luis Street, showing the QCU San Bartolome campus on Quirino Highway."></div>
-
-        <div class="map-route-overlay">
-          <div class="map-route-overlay-head">
-            <span class="map-route-overlay-no" aria-hidden="true">4</span>
-            <span class="map-route-overlay-label">QCity Bus corridor</span>
-          </div>
-          <p class="map-route-overlay-sub" id="map-route-overlay-sub">
-            Road path between the published Route&nbsp;4 endpoints — indicative, not a live bus position.
-          </p>
-        </div>
-
-        <div class="map-legend">
-          <p class="map-legend-title" id="map-legend-title">Legend</p>
-          <ul class="map-legend-list" aria-labelledby="map-legend-title">
-            <li class="map-legend-item"><span class="map-legend-key map-legend-key--campus" aria-hidden="true"></span> QCU Campus</li>
-            <li class="map-legend-item"><span class="map-legend-key map-legend-key--route" aria-hidden="true"></span> QCity Bus Route</li>
-            <li class="map-legend-item"><span class="map-legend-key map-legend-key--stop" aria-hidden="true"></span> Bus Stop</li>
-            <li class="map-legend-item"><span class="map-legend-key map-legend-key--terminus" aria-hidden="true"></span> Terminus</li>
-          </ul>
+        <div id="eta-map" aria-label="Interactive map of QCity Bus Route 4 between QC Hall and General Luis, serving QCU San Bartolome."></div>
+        <div id="bus-map-loading" class="bus-map-loading" role="status">
+          <span class="loading-sr">Loading the route map…</span>
+          <span class="skeleton-pulse bus-map-loading-pill" aria-hidden="true"></span>
+          <span class="skeleton-pulse bus-map-loading-pill" aria-hidden="true"></span>
+          <span class="skeleton-pulse bus-map-loading-pill" aria-hidden="true"></span>
         </div>
       </div>
 
-      <!-- ── Route 4 schedule ────────────────────────────────── -->
+      <section class="bus-map-heading" aria-labelledby="bus-map-title">
+        <span class="bus-map-icon" aria-hidden="true"><i data-lucide="bus"></i></span>
+        <div><p class="bus-map-eyebrow">QCity Bus · Libreng Sakay</p><h1 id="bus-map-title">Bus Route <span>04</span></h1></div>
+        <span class="bus-map-fare">Free ride</span>
+      </section>
+      <div class="bus-map-controls" role="group" aria-label="Map controls">
+        <button type="button" id="bus-fit-route" aria-label="Show the full bus route" title="Show full route" disabled><i data-lucide="route" aria-hidden="true"></i></button>
+        <button type="button" id="bus-find-campus" aria-label="Show QCU campus on the map" title="Show QCU campus" disabled><i data-lucide="school" aria-hidden="true"></i></button>
+        <button type="button" id="bus-zoom-in" aria-label="Zoom in" title="Zoom in" disabled><i data-lucide="plus" aria-hidden="true"></i></button>
+        <button type="button" id="bus-zoom-out" aria-label="Zoom out" title="Zoom out" disabled><i data-lucide="minus" aria-hidden="true"></i></button>
+      </div>
+
+      <section class="bus-trip-card" aria-labelledby="bus-trip-title" data-expanded="false">
+        <button type="button" id="bus-toggle-trip" class="bus-trip-toggle" aria-expanded="false" aria-controls="bus-trip-content">
+          <span class="bus-trip-handle" aria-hidden="true"></span>
+          <span class="bus-trip-summary">
+            <span class="bus-trip-route-badge" id="bus-trip-title">Route 4</span>
+            <span class="bus-trip-summary-distance" id="bus-trip-summary-distance">Loading distance…</span>
+            <i data-lucide="chevron-up" aria-hidden="true"></i>
+          </span>
+          <span class="bus-trip-summary-route" id="bus-trip-summary-route">QC Hall to General Luis</span>
+          <span class="loading-sr" id="bus-trip-toggle-label">Expand route details</span>
+        </button>
+        <div id="bus-trip-content" class="bus-trip-content" aria-busy="true" hidden>
+          <div class="bus-trip-skeleton loading-placeholder" role="status">
+            <span class="loading-sr">Loading route details…</span>
+            <div class="bus-trip-stats" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-short"></span><span class="skeleton-pulse loading-bar loading-stat-value"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-short"></span><span class="skeleton-pulse loading-bar loading-stat-value"></span></div></div>
+            <div class="bus-trip-endpoints" aria-hidden="true"><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span></div>
+          </div>
+        </div>
+        <button type="button" id="bus-open-details" class="bus-trip-action" aria-haspopup="dialog" aria-controls="bus-details"><i data-lucide="calendar-clock" aria-hidden="true"></i> View schedule &amp; stops <i data-lucide="arrow-up-right" aria-hidden="true"></i></button>
+        <p class="bus-trip-disclaimer">Schedule-based · No live bus tracking</p>
+      </section>
+
+      <dialog id="bus-details" class="bus-details-dialog" aria-labelledby="bus-details-title">
+        <div class="bus-details-toolbar">
+          <button id="bus-close-details" type="button" aria-label="Back to route map" autofocus><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+          <span class="bus-timeline-badge" role="status"><i data-lucide="shield-check" aria-hidden="true"></i><span id="bus-timeline-status">Loading schedule…</span></span>
+        </div>
+        <div class="bus-details-heading">
+          <h2 id="bus-details-title">Route 4 Stops</h2>
+          <p id="bus-timeline-subtitle">QC Hall to General Luis</p>
+        </div>
+        <div class="bus-details-scroll">
+          <section class="bus-timeline-section" aria-label="Route 4 bus stops">
+            <p class="bus-timeline-context" id="bus-active-stop-label">Select a stop to view it on the map.</p>
+            <ol id="bus-stop-list" class="bus-stop-list bus-stop-timeline" aria-label="Stops from QC Hall to General Luis"></ol>
+            <p class="bus-route-note">Both directions serve QCU Main Campus: stop 10 toward General Luis, stop 6 toward QC Hall. Stop arrival times are not published.</p>
+            <p class="bus-route-note" id="bus-fact-frequency">Loading published frequency…</p>
+          </section>
       <section class="bus-panel" aria-labelledby="bus-sched-heading">
         <div class="bus-panel-head">
           <span class="bus-panel-title-group">
@@ -167,6 +128,8 @@
         <p class="bus-sched-foot">
           Schedule may change — check official QC advisories for updates.
         </p>
+        <p id="map-route-overlay-sub" class="bus-route-note">Indicative road path; no live bus position.</p>
+        <p class="bus-route-note">Route colors distinguish the path; they do not indicate traffic conditions.</p>
       </section>
 
       <!-- ── About Libreng Sakay ─────────────────────────────── -->
@@ -233,7 +196,12 @@
         </div>
       </section>
 
+
+        </div>
+        <div class="bus-details-footer"><button type="button" id="bus-return-map" class="bus-trip-action">Back to map <i data-lucide="arrow-right" aria-hidden="true"></i></button></div>
+      </dialog>
     </main>
+
 
 
   </div>
@@ -246,8 +214,8 @@
 
   <!-- App & page scripts -->
   <script src="assets/js/academic.js?v=f415419172a9"></script>
-  <script src="assets/js/app.js?v=cfcb2cb55d0c"></script>
-  <script src="assets/js/eta.js?v=8fc5721f8a5d"></script>
+  <script src="assets/js/app.js?v=d69b881571ea"></script>
+  <script src="assets/js/eta.js?v=827e6c551a34"></script>
   <script>initETA();</script>
 </body>
 </html>

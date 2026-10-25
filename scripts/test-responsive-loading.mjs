@@ -15,13 +15,18 @@ const server = createServer(async (request, response) => {
   const pathname = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
   const file = resolve(root, '.' + (pathname === '/' ? '/index.html' : pathname));
   if (!file.startsWith(root.endsWith(sep) ? root : root + sep)) { response.writeHead(403).end(); return; }
-  try { response.writeHead(200, { 'Content-Type': mime[extname(file)] || 'application/octet-stream' }).end(await readFile(file)); }
-  catch { response.writeHead(404).end(); }
+  try {
+    const bytes = await readFile(file);
+    response.writeHead(200, { 'Content-Type': mime[extname(file)] || 'application/octet-stream' }).end(bytes);
+  } catch (error) {
+    if (error.code !== 'ENOENT') console.error('Fixture resource read failed:', error.message);
+    response.writeHead(error.code === 'ENOENT' ? 404 : 500).end();
+  }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
 let browser;
-const pages = ['index', 'schedule', 'workspace', 'buildings', 'settings', 'google', 'campus-eta', 'onboarding', 'admin'];
+const pages = ['index', 'schedule', 'workspace', 'buildings', 'settings', 'campus-eta', 'onboarding', 'admin'];
 const dashboard = { status: 'OK', profile: { name: 'Test Student' }, entries: [], buildings: [], tasks: [], notes: [] };
 const adminUser = { userId: 'test-student', displayName: 'Test Student', accountStatus: 'ACTIVE', onboardingState: 'ACTIVE' };
 const admin = { users: [adminUser], total: 1, pageSize: 20, filters: { campuses: [], programs: [], sections: [] }, counts: { total: 1, today: 0, week: 0, active: 1, suspended: 0 }, audit: [], refreshedAt: new Date().toISOString() };
@@ -118,7 +123,7 @@ try {
       if (name === 'schedule') {
         const rows = await page.locator('#schedule-rows').evaluate(body => ({
           width: body.getBoundingClientRect().width,
-          rows: [...body.rows].map(row => row.getBoundingClientRect().width),
+          rows: [...body.querySelectorAll('.loading-card')].map(row => row.getBoundingClientRect().width),
           bars: [...body.querySelectorAll('.skeleton-pulse')].map(bar => bar.getBoundingClientRect().width)
         }));
         assert(rows.rows.every(row => row >= rows.width - 2), `Schedule at ${width}: collapsed placeholder rows`);

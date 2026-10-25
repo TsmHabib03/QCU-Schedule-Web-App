@@ -16,6 +16,7 @@ import {
   CatalogRooms,
 } from "../../../repo/index.js";
 import { normalizeDayOfWeek, normalizeTime, isClockTime } from "../../../_lib/day-time.js";
+import { validInstructorName, normalizeInstructorName } from "../../../_lib/instructor.js";
 
 const VALID_MODALITIES = ["ONSITE", "ONLINE", "HYBRID", "TBA"];
 
@@ -94,6 +95,9 @@ export async function onRequestPatch(context) {
     const buildingId = body.buildingId !== undefined ? body.buildingId : entry.buildingId;
     const roomId = body.roomId !== undefined ? body.roomId : entry.roomId;
     const locationText = body.locationText !== undefined ? body.locationText : entry.locationText;
+    if (!validInstructorName(body.instructorName)) {
+      return json({ status: "VALIDATION_FAILED", error: "Professor name must be text with at most 120 characters" }, 422);
+    }
 
     // ── Validate dayOfWeek ─────────────────────────────────────────────
     if (!dayOfWeek) {
@@ -233,6 +237,9 @@ export async function onRequestPatch(context) {
     if (body.sortOrder !== undefined) {
       updates.sortOrder = body.sortOrder;
     }
+    if (body.instructorName !== undefined) {
+      updates.instructorName = normalizeInstructorName(body.instructorName);
+    }
 
     const updated = ScheduleEntries.update(entry, updates);
 
@@ -255,6 +262,7 @@ export async function onRequestPatch(context) {
         code: ens?.subjectCodeSnapshot || catalogSubject?.subjectCode || "",
         title: ens?.subjectTitleSnapshot || catalogSubject?.title || "",
         units: ens?.units || catalogSubject?.units || 0,
+        instructor: updated.instructorName ?? ens?.instructorName ?? "",
         modality: updated.modality,
         dayOfWeek: updated.dayOfWeek,
         startTime: updated.startTime,

@@ -2,11 +2,9 @@
    QCU Student Portal — eta.css
    QCity Bus · Libreng Sakay panel (Route 4) + reference map
 
-   Design language inherited from the flood-advisory component in
-   styles.css: flat surfaces, hairline (1px) dividers, 3px top rail
-   for section identity, 4px radii, uppercase 800-weight micro-labels,
-   key-left / value-right metric rows, tabular numerals on all times.
-   No gradients. No live/real-time claims anywhere in this file.
+   Full viewport OpenFreeMap canvas, floating route card, pill stop
+   markers, and published schedule details. Route colors describe
+   the path; they do not imply traffic or live bus tracking.
    ============================================================ */
 
 /* Screen-reader-only text. The route plate carries "4" visually; the
@@ -481,7 +479,7 @@
   overflow: hidden;
 }
 
-.maplibregl-ctrl-group button { width: 32px !important; height: 32px !important; }
+.maplibregl-ctrl-group button { width: 44px; height: 44px; }
 .maplibregl-ctrl-group button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; box-shadow: none !important; }
 .maplibregl-ctrl-attrib { font-size: 10px; }
 .maplibregl-ctrl-attrib a { color: var(--muted); }
@@ -1243,6 +1241,236 @@
   padding-top: 14px !important;
 }
 .bus-source-note { color: #8E92AD !important; }
+/* Full viewport route map with independently floating, accessible controls. */
+body[data-page="campus-eta"] { overflow: hidden; }
+body[data-page="campus-eta"] .app-shell { padding: 0; min-height: 100dvh; }
+body[data-page="campus-eta"] .page-header {
+  position: fixed; inset: 12px 16px auto; z-index: 30;
+  border: 1px solid #E8EDF3; border-radius: 22px;
+  background: rgba(255,255,255,.96); box-shadow: 0 8px 30px #18345112;
+  max-width: 1408px; margin-inline: auto;
+}
+body[data-page="campus-eta"] .header-inner { min-height: 68px; padding: 10px 16px; }
+body[data-page="campus-eta"] .header-clock,
+body[data-page="campus-eta"] .qc-logo { display: none; }
+.bus-map-scene { position: relative; width: 100%; height: 100vh; height: 100dvh; outline: none; }
+.bus-map-scene .eta-map-wrapper {
+  position: absolute; inset: 0; height: 100%; width: 100%;
+  border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+  background: #EBEFF0; isolation: isolate;
+}
+.bus-map-scene #eta-map { width: 100%; height: 100%; }
+.bus-map-heading {
+  position: absolute; z-index: 3; top: calc(96px + env(safe-area-inset-top, 0px)); left: 24px;
+  display: flex; align-items: center; gap: 12px; max-width: calc(100% - 48px);
+  padding: 13px 16px; background: #fff; border: 1px solid #E4EAF1;
+  border-radius: 22px; box-shadow: 0 8px 28px #17355312;
+}
+.bus-map-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 15px; background: #E9F0FF; color: #245ACB; flex-shrink: 0; }
+.bus-map-icon svg { width: 23px; height: 23px; }
+.bus-map-eyebrow { color: #5A6578; font-size: 11px; font-weight: 600; margin: 0 0 3px; }
+.bus-map-heading h1 { font-size: 21px; line-height: 1.2; margin: 0; color: #1B2942; }
+.bus-map-heading h1 span { color: #245ACB; }
+.bus-map-fare { font-size: 11px; color: #16684F; background: #E8F7EF; border-radius: 30px; padding: 7px 10px; margin-left: 20px; white-space: nowrap; font-weight: 700; }
+.bus-map-controls {
+  position: absolute; z-index: 4; right: max(24px, env(safe-area-inset-right, 0px));
+  top: calc(96px + env(safe-area-inset-top, 0px)); display: flex; flex-direction: column;
+  padding: 3px; border-radius: 16px; background: #fff; box-shadow: 0 5px 18px #17355318;
+}
+.bus-map-controls button, .bus-details-toolbar button {
+  display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #DFE6EE;
+  border-radius: 15px; background: #fff; color: #245ACB; cursor: pointer; box-shadow: 0 5px 18px #17355312;
+}
+.bus-map-controls button { border: 0; border-radius: 11px; box-shadow: none; color: #5144EC; }
+.bus-map-controls button + button { border-top: 1px solid #EFEDF8; }
+.bus-map-controls button:hover:not(:disabled) { background: #F0EEFF; }
+.bus-map-controls button:disabled { opacity: .45; cursor: default; }
+.bus-map-controls svg, .bus-details-toolbar svg { width: 20px; height: 20px; }
+.bus-map-scene .maplibregl-ctrl-bottom-right { bottom: calc(87px + env(safe-area-inset-bottom, 0px)); right: 12px; }
+.bus-map-scene .maplibregl-ctrl-attrib { font-size: 10px; max-width: calc(100vw - 24px); background: rgba(255,255,255,.94); }
+.bus-trip-card {
+  position: absolute; z-index: 5; bottom: calc(106px + env(safe-area-inset-bottom, 0px)); left: 24px;
+  width: min(384px, calc(100% - 48px)); padding: 0 22px 16px;
+  max-height: calc(100dvh - 280px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  display: flex; flex-direction: column; background: #fff; border: 0; border-radius: 26px;
+  box-shadow: 0 14px 48px #17355320; color: #24232B;
+}
+.bus-trip-toggle { flex-shrink: 0; padding: 10px 0 12px; width: 100%; min-height: 44px; background: transparent; border: 0; text-align: left; color: inherit; cursor: pointer; }
+.bus-trip-handle { display: block; width: 34px; height: 4px; background: #DCD9ED; border-radius: 10px; margin: 0 auto 10px; }
+.bus-trip-summary { display: flex; align-items: center; gap: 10px; }
+.bus-trip-route-badge { color: #5144EC; background: #EFEDFF; padding: 5px 10px; font-size: 13px; border-radius: 30px; font-weight: 700; white-space: nowrap; }
+.bus-trip-summary-distance { margin-left: auto; color: #65616F; font-size: 13px; font-weight: 600; }
+.bus-trip-summary-distance { min-width: 0; text-align: right; }
+.bus-trip-summary svg { width: 18px; height: 18px; flex-shrink: 0; color: #5144EC; transition: transform 180ms ease-out; }
+.bus-trip-card[data-expanded="true"] .bus-trip-summary svg { transform: rotate(180deg); }
+.bus-trip-summary-route { display: block; margin-top: 8px; font-size: 14px; font-weight: 600; line-height: 1.4; }
+.bus-trip-content { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+.bus-trip-content[hidden] { display: none; }
+.bus-trip-stats { display: grid; grid-template-columns: 1fr 1.2fr; gap: 16px; margin: 18px 0; }
+.bus-trip-stats > div + div { border-left: 1px solid #E9EDF2; padding-left: 18px; }
+.bus-trip-stats dt { font-size: 12px; color: #657084; margin-bottom: 5px; }
+.bus-trip-stats dd { font-size: 30px; line-height: 1.15; font-weight: 800; margin: 0; letter-spacing: -.7px; }
+.bus-trip-stats dd small { font-size: 14px; font-weight: 500; letter-spacing: 0; }
+.bus-trip-stats dd.bus-stat-unavailable, .bus-trip-stats .bus-stat-unavailable { font-size: 16px; letter-spacing: -.3px; padding-top: 7px; }
+.bus-trip-stats p { font-size: 11px; color: #657084; margin: 5px 0 0; }
+.bus-trip-endpoints { display: grid; gap: 14px; position: relative; margin: 0 0 17px; }
+.bus-trip-endpoints::before { content: ""; position: absolute; left: 6px; top: 17px; bottom: 17px; border-left: 1px dashed #C5D3E4; }
+.bus-trip-endpoints > div { display: flex; align-items: center; gap: 12px; }
+.bus-endpoint-dot { width: 13px; height: 13px; border: 3px solid #D8E8FF; background: #2474E8; border-radius: 50%; flex-shrink: 0; z-index: 1; }
+.bus-endpoint-dot--destination { background: #159C73; border-color: #D7F0E6; }
+.bus-trip-endpoints small { display: block; font-size: 11px; color: #657084; margin-bottom: 1px; }
+.bus-trip-endpoints strong { font-size: 13px; font-weight: 700; }
+.bus-trip-action {
+  display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 46px;
+  border: 0; background: #5144EC; color: #fff; border-radius: 14px; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0;
+}
+.bus-trip-action svg:first-child { margin-left: 4px; }
+.bus-trip-action:hover { background: #4335D6; }
+.bus-trip-action svg { width: 18px; height: 18px; flex-shrink: 0; }
+.bus-trip-action svg:last-child { margin-left: auto; }
+.bus-trip-disclaimer { color: #65616F; font-size: 11px; text-align: center; margin: 8px 0 0; flex-shrink: 0; }
+.bus-details-dialog {
+  --timeline-blue: #5144EC;
+  padding: 0; margin: auto; width: min(500px, calc(100% - 32px)); height: min(88dvh, 920px); max-height: none;
+  border: 0; border-radius: 28px; background: #fff; color: #24232B;
+  box-shadow: 0 20px 80px #17355340; overflow: hidden;
+}
+.bus-details-dialog[open] { display: flex; flex-direction: column; }
+.bus-details-dialog::backdrop { background: #152A4B66; backdrop-filter: blur(3px); }
+.bus-details-toolbar { display: flex; align-items: center; gap: 12px; padding: 20px 24px 8px; flex-shrink: 0; }
+.bus-details-toolbar button { border: 0; border-radius: 50%; color: var(--timeline-blue); box-shadow: none; flex-shrink: 0; }
+.bus-details-toolbar button:hover { background: #F0EEFF; }
+.bus-timeline-badge { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; border-radius: 999px; background: var(--timeline-blue); color: #fff; font-size: 12px; font-weight: 600; line-height: 1.4; }
+.bus-timeline-badge svg { width: 16px; height: 16px; flex-shrink: 0; }
+.bus-timeline-badge.is-unavailable { background: #EFEDF8; color: #65616F; }
+.bus-details-heading { position: relative; padding: 12px 24px 20px 96px; flex-shrink: 0; }
+.bus-details-heading::before { content: ""; position: absolute; top: 22px; left: 50px; width: 25px; height: 54px; border: 3px solid #8378ED; border-right: 0; border-top-left-radius: 14px; border-bottom-left-radius: 14px; }
+.bus-details-heading h2 { margin: 0; color: #24232B; font-size: clamp(26px, 6vw, 32px); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
+.bus-details-heading p { color: #6B6775; font-size: 13px; line-height: 1.5; margin: 8px 0 0; }
+.bus-details-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 4px 28px 24px; scrollbar-width: thin; scrollbar-color: #B5ADEA #fff; }
+.bus-timeline-context { margin: 0 0 18px 68px; color: #6B6775; font-size: 12px; line-height: 1.5; }
+.bus-stop-timeline { list-style: none; padding: 0; margin: 0 0 24px; }
+.bus-stop-timeline li { position: relative; display: grid; grid-template-columns: 20px 20px minmax(0, 1fr); align-items: start; column-gap: 14px; padding: 0 0 32px; min-height: 110px; }
+.bus-stop-timeline li::before { content: ""; position: absolute; width: 3px; top: 18px; bottom: -18px; left: 42.5px; background: #8378ED; }
+.bus-stop-timeline li:last-child { padding-bottom: 0; min-height: 0; }
+.bus-stop-timeline li:last-child::before { display: none; }
+.bus-stop-timeline .bus-stop-number { display: block; padding-top: 9px; text-align: center; font-size: 14px; font-weight: 600; color: #38343F; }
+.bus-stop-node { position: relative; margin-top: 9px; width: 20px; height: 20px; border: 2px solid #DEDCE4; background: #fff; border-radius: 50%; box-shadow: 0 0 0 6px #fff; }
+.bus-stop-timeline .is-active .bus-stop-node { border-color: var(--timeline-blue); background: var(--timeline-blue); }
+.bus-stop-timeline .is-active .bus-stop-node::after { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: #fff; }
+.bus-stop-timeline .bus-stop-content { display: block; width: 100%; min-height: 44px; min-width: 0; padding: 5px 0 4px; border: 0; border-radius: 6px; background: transparent; text-align: left; color: inherit; box-shadow: none; }
+.bus-stop-timeline button.bus-stop-content { cursor: pointer; }
+.bus-stop-timeline button.bus-stop-content:hover:not(:disabled) { background: #F6F4FF; }
+.bus-stop-timeline button.bus-stop-content:disabled { cursor: default; }
+.bus-stop-timeline strong { display: block; font-size: 17px; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; }
+.bus-stop-timeline small { display: block; margin-top: 5px; color: #6B6775; font-size: 14px; line-height: 1.5; }
+.bus-stop-timeline li.bus-timeline-empty { display: block; color: #6B6775; font-size: 14px; line-height: 1.6; min-height: 0; }
+.bus-stop-timeline li.bus-timeline-empty::before { display: none; }
+.bus-details-scroll .bus-panel { margin: 28px 0 0; padding: 24px 0 0 !important; border-top: 1px solid #EFEDF5 !important; border-radius: 0 !important; background: #fff !important; box-shadow: none !important; }
+.bus-details-dialog .bus-panel-title { color: #24232B !important; }
+.bus-details-dialog .bus-route-note { font-size: 12px; color: #6B6775; line-height: 1.6; }
+.bus-details-dialog .bus-about-list { border: 0; background: transparent; }
+.bus-details-dialog .bus-about-item { border: 0 !important; border-radius: 0 !important; padding: 6px 0 !important; background: transparent !important; }
+.bus-details-dialog .bus-about-item :is(svg, i) { color: var(--timeline-blue) !important; }
+.bus-details-dialog .bus-about-item-d, .bus-details-dialog .bus-source-note, .bus-details-dialog .bus-sched-foot { color: #6B6775 !important; }
+.bus-details-dialog .bus-sched-tab-meta { color: #6B6775; font-size: 11px !important; }
+.bus-details-dialog .bus-source-note { font-size: 11px !important; }
+.bus-details-dialog .bus-sched-tab[aria-selected="true"] { background: var(--timeline-blue) !important; }
+.bus-details-footer { flex-shrink: 0; padding: 12px 24px 20px; background: #fff; }
+.bus-details-footer .bus-trip-action { position: relative; justify-content: center; min-height: 50px; font-size: 15px; padding-inline: 42px; }
+.bus-details-footer .bus-trip-action svg { position: absolute; right: 16px; }
+.bus-details-dialog ::selection { background: #E5E0FF; color: #30277B; }
+@media (prefers-reduced-motion: reduce) { .bus-trip-summary svg { transition: none; } }
+.route-marker { position: absolute; padding: 0; width: 14px; height: 14px; border: 0; background: transparent; cursor: pointer; z-index: 2; overflow: visible; }
+.route-marker-pill {
+  position: absolute; bottom: 27px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 7px; height: 36px; padding: 4px 11px 4px 4px;
+  width: max-content; max-width: 222px; background: #fff; color: #213958;
+  border: 1px solid #90A9D1; border-radius: 999px; box-shadow: 0 3px 10px #19335A24;
+}
+.route-marker-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #E8F0FF; color: #245ACB; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+.route-marker-icon svg { width: 15px; height: 15px; }
+.route-marker-name { font: 600 11px/1.3 var(--font-body, "Public Sans", sans-serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.route-marker-pointer { position: absolute; bottom: 11px; left: 6px; width: 2px; height: 16px; background: #245ACB; }
+.route-marker-dot { position: absolute; inset: 0; border-radius: 50%; border: 3px solid #fff; background: #245ACB; box-shadow: 0 0 0 1px #245ACB, 0 2px 5px #19335A24; }
+.route-marker--campus .route-marker-pill { border-color: #245ACB; border-width: 2px; }
+.route-marker--campus .route-marker-icon { background: #245ACB; color: #fff; }
+.route-marker.is-overview.is-compact .route-marker-dot { inset: 3px; border-width: 1px; box-shadow: 0 0 0 1px #fff; }
+.route-marker.is-overview:is(:hover, :focus-visible) .route-marker-dot { inset: 0; border-width: 3px; }
+.route-marker.is-compact .route-marker-pill, .route-marker.is-compact .route-marker-pointer { visibility: hidden; }
+.route-marker:is(:hover, :focus-visible) { z-index: 10 !important; }
+.route-marker:is(:hover, :focus-visible) .route-marker-pill, .route-marker:is(:hover, :focus-visible) .route-marker-pointer { visibility: visible; }
+.route-marker:focus-visible { outline: 3px solid #162F66; outline-offset: 4px; border-radius: 50%; }
+.bus-map-scene :is(.bus-trip-toggle, .bus-trip-action, .bus-map-controls button, .bus-details-dialog button):focus-visible { outline: 3px solid #5144EC; outline-offset: 3px; }
+.bus-map-scene .map-unavailable { inset: 180px 80px auto; padding: 18px; max-width: 400px; margin: auto; border: 1px solid #DCE4EE; border-radius: 20px; background: #fff; box-shadow: 0 8px 24px #17355312; }
+@media (max-width: 899px) {
+  .bus-map-heading { left: max(16px, env(safe-area-inset-left, 0px)); max-width: calc(100% - 96px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); gap: 9px; padding: 11px 13px; }
+  .bus-map-fare { display: none; }
+  .bus-map-controls { right: max(16px, env(safe-area-inset-right, 0px)); padding: 2px; border-radius: 14px; }
+  .bus-trip-card { left: max(16px, env(safe-area-inset-left, 0px)); width: min(460px, calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); padding: 0 18px 14px; max-height: calc(100dvh - 288px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+  .bus-trip-endpoints { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .bus-trip-endpoints::before { display: none; }
+  .bus-map-scene .map-unavailable { inset: 184px 80px auto 16px; font-size: 12px; }
+}
+@media (max-width: 599px) {
+  .bus-details-dialog { width: 100%; height: 100vh; height: 100dvh; max-width: none; max-height: none; margin: 0; border-radius: 0; }
+  .bus-details-toolbar { padding-top: calc(16px + env(safe-area-inset-top, 0px)); padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+  .bus-details-scroll { padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); }
+  .bus-details-footer { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); padding-left: max(24px, env(safe-area-inset-left, 0px)); padding-right: max(24px, env(safe-area-inset-right, 0px)); }
+  .bus-details-heading { padding-left: 92px; }
+  .bus-details-heading::before { left: 46px; }
+  .bus-timeline-badge { font-size: 11px; }
+}
+@media (max-width: 359px) {
+  .bus-map-heading { gap: 8px; padding: 10px; }
+  .bus-map-heading h1 { font-size: 19px; }
+  .bus-map-eyebrow { font-size: 11px; }
+  .bus-map-icon { width: 36px; height: 36px; border-radius: 12px; }
+  .bus-map-fare { padding: 6px 8px; font-size: 10px; }
+  .bus-trip-summary { gap: 7px; }
+  .bus-trip-summary-distance { font-size: 12px; }
+  .bus-details-toolbar { gap: 6px; padding-inline: 16px; }
+  .bus-details-heading { padding-right: 16px; }
+  .bus-stop-timeline strong { font-size: 16px; }
+}
+@media (max-height: 730px) and (max-width: 899px) {
+  .bus-trip-card[data-expanded="true"] { width: min(460px, calc(100% - 96px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))); }
+  .bus-trip-card[data-expanded="true"] .bus-trip-summary-route { display: none; }
+  .bus-trip-card[data-expanded="true"] .bus-trip-disclaimer { display: none; }
+  .bus-trip-stats { margin: 4px 0 14px; gap: 10px; }
+  .bus-trip-stats > div + div { padding-left: 10px; }
+  .bus-trip-stats dd { font-size: 26px; }
+  .bus-trip-stats dd.bus-stat-unavailable { font-size: 14px; }
+  .bus-trip-endpoints strong { font-size: 12px; }
+  .bus-trip-card { padding: 0 14px 12px; }
+  .bus-trip-action { font-size: 12px; min-height: 44px; gap: 6px; padding-inline: 8px; }
+}
+@media (max-height: 500px) and (orientation: portrait) {
+  .bus-trip-card { width: calc(100% - 96px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); }
+}
+@media (max-height: 540px) and (orientation: landscape) {
+  .bus-map-heading { top: 94px; left: 336px; max-width: calc(100% - 416px); }
+  .bus-map-fare { display: none; }
+  .bus-trip-card, .bus-trip-card[data-expanded="true"] { left: max(16px, env(safe-area-inset-left, 0px)); width: 300px; max-height: calc(100dvh - 204px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+  .bus-map-controls { top: 100px; }
+  .bus-details-toolbar { padding-block: 8px 0; }
+  .bus-details-heading { padding-block: 6px 10px; }
+  .bus-details-heading::before { height: 30px; top: 10px; }
+  .bus-details-footer { padding-block: 8px; }
+}
+@media (max-height: 380px) and (orientation: landscape) {
+  body[data-page="campus-eta"] .header-inner { min-height: 52px; padding-block: 6px; }
+  .bus-map-controls { top: calc(76px + env(safe-area-inset-top, 0px)); }
+  .bus-map-heading { top: calc(76px + env(safe-area-inset-top, 0px)); left: 280px; max-width: calc(100% - 360px); padding: 10px; }
+  .bus-map-heading h1 { font-size: 17px; }
+  .bus-map-heading .bus-map-icon { display: none; }
+  .bus-trip-card, .bus-trip-card[data-expanded="true"] { width: 248px; bottom: calc(88px + env(safe-area-inset-bottom, 0px)); max-height: calc(100dvh - 172px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+  .bus-trip-toggle { padding-block: 8px; }
+  .bus-trip-handle { margin-bottom: 6px; }
+  .bus-trip-summary-route { margin-top: 5px; font-size: 13px; }
+  .bus-trip-disclaimer { margin-top: 5px; }
+  .bus-trip-card[data-expanded="true"] .bus-trip-handle { display: none; }
+}
 .btn-primary, .bus-official-link {
   background: #4A3AFF !important;
   color: #fff !important;

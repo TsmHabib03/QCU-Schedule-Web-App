@@ -187,7 +187,7 @@ https://qcu-schedule-web-app.pages.dev/api/google/callback
 
 Add the matching `http://127.0.0.1:8790` callbacks when using Wrangler locally. Use your canonical hostname for a custom domain. Google requires exact callback matches, including hostname, port, and path.
 
-Enable the Google Classroom API for course integration and the Gmail API if you enable the optional Gmail feature. Sign-in and Classroom connection use separate authorization flows. See [Authentication](AUTHENTICATION.md) and [Google integration](GOOGLE_INTEGRATION.md) for details.
+Enable the Google Classroom API for course integration and the Gmail API if you enable the optional Gmail feature. Sign-in and Classroom connection use separate authorization flows. See [Authentication](docs/architecture/AUTHENTICATION.md) and [Google integration](docs/guides/GOOGLE_INTEGRATION.md) for details.
 
 ## Google Sheets setup
 
@@ -200,7 +200,7 @@ Enable the Google Classroom API for course integration and the Gmail API if you 
 
 Visit `/api/v1/health` to check configuration presence. `persistence: "sheets"` means the Sheets variables are set; verify the connection by saving and reloading a normal account change. The health endpoint does not perform a database round trip.
 
-For schema updates and publishing a new Apps Script version, follow [Deployment infrastructure](DEPLOYMENT_INFRASTRUCTURE.md) and [Administrator setup](ADMIN_DASHBOARD_SETUP.md).
+For schema updates and publishing a new Apps Script version, follow [Deployment infrastructure](docs/guides/DEPLOYMENT_INFRASTRUCTURE.md) and [Administrator setup](docs/guides/ADMIN_DASHBOARD_SETUP.md).
 
 ## Development commands
 
@@ -210,14 +210,18 @@ For schema updates and publishing a new Apps Script version, follow [Deployment 
 | `npm run dev:wrangler` | Run the local Cloudflare Pages runtime on port 8790. |
 | `npm run build` | Compile entry CSS, generate asset fingerprints and the service-worker manifest, and stage public files. |
 | `npm run watch:css` | Recompile entry styles as they change. |
+| `npm run check:project` | Check documentation links, app assets, and build contents. |
 | `npm run test:student` | Check responsive student pages, navigation, settings, and UI states with browser fixtures. |
+| `npm run test:google` | Check Google connection behavior and OAuth handling. |
+| `npm run test:bus` | Check the Route 4 interface and map rendering. |
+| `npm run test:feedback` | Check dialogs, focus management, and notification feedback. |
 | `npm run test:cor` | Check COR extraction, processing jobs, and loading behavior. |
 | `npm run test:schedule` | Check day/time handling and schedule mutations. |
 | `npm run test:accounts` | Check account access and active schedule selection. |
 | `npm run test:admin` | Check administrator security, APIs, and workflows. |
 | `npm run sheets:test-mapping` | Check Sheets schema mappings and time cells. |
 
-Browser suites require `npx playwright install chromium` once. Additional commands are listed in [package.json](package.json).
+Browser suites require `npx playwright install chromium` once. The bus suite may download MapLibre fixture assets on its first run. Additional commands are listed in [package.json](package.json).
 
 On Windows, use `npm.cmd` or `npx.cmd` if PowerShell blocks the corresponding `.ps1` launcher.
 
@@ -242,7 +246,7 @@ npm run deploy -- --branch main
 
 The `predeploy` script runs the build automatically. Use the Pages deployment command; this repository is configured as a Pages project. Apps Script updates must be published separately through its deployment editor.
 
-See [Deployment infrastructure](DEPLOYMENT_INFRASTRUCTURE.md) for the broader setup and [Administrator setup](ADMIN_DASHBOARD_SETUP.md) for account and database configuration.
+See [UI deployment](docs/guides/UI_DEPLOYMENT.md) for current publishing steps, [Deployment infrastructure](docs/guides/DEPLOYMENT_INFRASTRUCTURE.md) for the broader design, and [Administrator setup](docs/guides/ADMIN_DASHBOARD_SETUP.md) for account and database configuration.
 
 ## Project structure
 
@@ -260,7 +264,13 @@ QCU-Schedule-Web-App/
 ├── data/                       # Academic catalog and campus/advisory datasets
 ├── functions/                  # Cloudflare Pages middleware and API handlers
 ├── scripts/                    # Local server, builds, checks, and screenshot capture
-├── docs/screenshots/           # README screenshots
+├── docs/                       # Documentation index, guides, and screenshots
+│   ├── architecture/           # System and data design
+│   ├── guides/                 # Setup, integrations, and deployment
+│   ├── verification/           # Regression and release reports
+│   ├── design/                 # Brand source files and UI mockups
+│   ├── archive/                # Historical plans and reviews
+│   └── screenshots/            # Desktop and mobile app screenshots
 ├── setup-database.gs           # Google Apps Script database backend
 ├── manifest.json               # PWA metadata
 ├── service-worker.js           # Generated offline app shell
@@ -269,15 +279,19 @@ QCU-Schedule-Web-App/
 
 ## Documentation
 
+Browse the [documentation index](docs/README.md) for all guides, verification reports, and design assets. Historical plans and reviews are kept in `docs/archive/`. Builds, logs, and local scratch files are ignored by Git.
+
 | Guide | Coverage |
 | --- | --- |
-| [Architecture](ARCHITECTURE.md) | Overall system design and component responsibilities. |
-| [Authentication](AUTHENTICATION.md) | Google sign-in, sessions, and account routing. |
-| [Database](DATABASE.md) | Data models and persistence design. |
-| [COR pipeline](COR_AI_PIPELINE.md) | Registration extraction and review flow. |
-| [COR reliability](COR_RELIABILITY_VERIFICATION.md) | Processing checks and persistence requirements. |
-| [Google integration](GOOGLE_INTEGRATION.md) | Classroom connection and optional Gmail authorization. |
-| [Administrator setup](ADMIN_DASHBOARD_SETUP.md) | Administrator access and database setup. |
-| [Deployment infrastructure](DEPLOYMENT_INFRASTRUCTURE.md) | Hosting, configuration, and publishing the app. |
-| [Schedule management](SCHEDULE_CRUD.md) | Schedule data and class editing workflows. |
-| [Security and privacy](SECURITY_PRIVACY.md) | Security design and privacy considerations. |
+| [Architecture](docs/architecture/ARCHITECTURE.md) | Overall system design and component responsibilities. |
+| [Authentication](docs/architecture/AUTHENTICATION.md) | Google sign-in, sessions, and account routing. |
+| [Database](docs/architecture/DATABASE.md) | Data models and persistence design. |
+| [COR pipeline](docs/guides/COR_AI_PIPELINE.md) | Registration extraction and review flow. |
+| [COR reliability](docs/verification/COR_RELIABILITY_VERIFICATION.md) | Processing checks and persistence requirements. |
+| [Google integration](docs/guides/GOOGLE_INTEGRATION.md) | Classroom connection and optional Gmail authorization. |
+| [Administrator setup](docs/guides/ADMIN_DASHBOARD_SETUP.md) | Administrator access and database setup. |
+| [Deployment infrastructure](docs/guides/DEPLOYMENT_INFRASTRUCTURE.md) | Hosting, configuration, and publishing the app. |
+| [UI deployment](docs/guides/UI_DEPLOYMENT.md) | Current frontend, Functions, and Apps Script publishing steps. |
+| [Schedule deployment](docs/guides/SCHEDULE_PROFESSOR_DEPLOYMENT.md) | Professor fields and Apps Script compatibility. |
+| [Schedule management](docs/guides/SCHEDULE_CRUD.md) | Schedule data and class editing workflows. |
+| [Security and privacy](docs/architecture/SECURITY_PRIVACY.md) | Security design and privacy considerations. |

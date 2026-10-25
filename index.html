@@ -11,15 +11,17 @@
   <title>QCU Schedule — Home</title>
   <link rel="preload" href="assets/fonts/public-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
+  <link rel="icon" type="image/svg+xml" href="assets/images/brand/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/brand/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/images/brand/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="assets/css/styles.css?v=1254bb55d03c">
-<link rel="stylesheet" href="assets/css/student.css?v=6d7bcbb967f6">
-<link rel="stylesheet" href="assets/css/soft-ui.css?v=a22c92c45b59">
-<link rel="stylesheet" href="assets/css/entry.css?v=dffc3b8b1cb7">
+<link rel="stylesheet" href="assets/css/styles.css?v=034e5a2c2473">
+<link rel="stylesheet" href="assets/css/student.css?v=9ecad895a789">
+<link rel="stylesheet" href="assets/css/soft-ui.css?v=edf140f7712a">
+<link rel="stylesheet" href="assets/css/entry.css?v=25bc50dfb97b">
+<link rel="stylesheet" href="assets/css/login.css?v=52d27c1e9e55">
 <script src="assets/js/data-cache.js?v=502c0a662174"></script>
 <script>
   // Auth gate: start the session check immediately so the network round-trip
@@ -100,9 +102,9 @@
           error.style.display = "block";
           if (authResult === 'failed') {
             var reason = params.get('reason');
-            error.textContent = reason === 'state_mismatch' ? 'This sign-in link expired or belongs to another tab. Start again with Continue with Google.'
+            error.textContent = reason === 'state_mismatch' ? 'This sign-in link expired or belongs to another tab. Start again with Login with Google.'
               : reason === 'account_unavailable' ? 'Your account cannot access the portal. Contact your administrator.'
-              : 'We could not finish the Google sign-in. Check your connection and select Continue with Google.';
+              : 'We could not finish the Google sign-in. Check your connection and select Login with Google.';
           }
         }
         return;
@@ -130,125 +132,52 @@
     else run();
   })();
 </script>
-  <link rel="stylesheet" href="assets/css/loading.css?v=1df68e62d39b">
-  <script src="assets/js/loading.js?v=982ac9f69bc1"></script>
+  <link rel="stylesheet" href="assets/css/loading.css?v=05b6d5c0e71e">
+  <script src="assets/js/loading.js?v=01a8e56243a0"></script>
 </head>
 <body data-page="home">
 
-  <!-- PUBLIC LANDING: shown when not authenticated -->
-  <div id="auth-landing" class="civic-entry" style="display:none;">
-    <a class="entry-skip" href="#landing-main">Skip to content</a>
-    <div class="civic-rule" aria-hidden="true"></div>
-    <header class="entry-header">
-      <div class="entry-container entry-header-inner">
-        <a class="entry-brand" href="/" aria-label="My-Schedule home">
-          <img src="assets/images/QCU college of computer studies logo.jpg" alt="QCU College of Computer Studies" width="43" height="43">
-          <span><strong>My-Schedule</strong><small>Quezon City University</small></span>
-        </a>
-        <nav class="entry-nav" aria-label="Main navigation">
-          <a class="nav-about" href="#features">Explore the app</a>
-          <a class="nav-privacy" href="privacy.html">Privacy</a>
-          <a class="nav-privacy" href="terms.html">Terms</a>
-          <a class="nav-signin" href="#google-login-btn">Student sign in <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
-        </nav>
-      </div>
-    </header>
-    <main id="landing-main" class="entry-container">
-      <section class="landing-hero" aria-labelledby="landing-title">
-        <div>
-          <p class="hero-eyebrow"><i data-lucide="graduation-cap" aria-hidden="true"></i> Made for the QCU student day</p>
-          <h1 id="landing-title" class="hero-title">Your schedule.<span>Your next chapter.</span></h1>
-          <p class="hero-description">Classes, tasks, and campus life, all in one place. Make room for what matters at Quezon City University.</p>
-          <div class="hero-actions">
-            <a id="google-login-btn" class="entry-primary" href="/api/auth/google/start">
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="currentColor"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="currentColor"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="currentColor"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="currentColor"/></svg>
-              Continue with Google
-            </a>
-            <a class="entry-secondary" href="#how-it-works">How it works <i data-lucide="arrow-right" aria-hidden="true"></i></a>
-          </div>
-          <p id="auth-error-msg" class="entry-alert" role="alert" style="display:none;"></p>
-          <a id="auth-retry" class="entry-retry" href="/" style="display:none;">Try again</a>
-          <section id="auth-finish" class="entry-finish" hidden aria-label="Finish signing in">
+  <!-- PUBLIC LOGIN: shown when not authenticated -->
+  <div id="auth-landing" class="login-screen" style="display:none;">
+    <a class="login-skip" href="#landing-main">Skip to content</a>
+    <main id="landing-main" class="login-stage" tabindex="-1">
+      <section class="login-card" aria-labelledby="landing-title" aria-describedby="login-subtitle">
+        <img class="login-watermark" src="assets/images/brand/qcu-mark.svg" alt="" aria-hidden="true" width="420" height="420" draggable="false">
+        <div class="login-intro">
+          <img class="login-logo" src="assets/images/brand/qcu-mark.svg" alt="QCU Schedule logo" width="84" height="84" fetchpriority="high">
+          <h1 id="landing-title" class="login-title">Welcome<span>to My-Schedule</span></h1>
+          <p id="login-subtitle" class="login-subtitle">Your classes, tasks, and campus day, all in one place.</p>
+        </div>
+        <div class="login-actions">
+          <p id="auth-error-msg" class="login-alert" role="alert" style="display:none;"></p>
+          <a id="auth-retry" class="login-retry" href="/" style="display:none;">Try again</a>
+          <section id="auth-finish" class="login-finish" hidden aria-label="Finish signing in">
             <p id="auth-finish-message" role="status" aria-live="polite"></p>
-            <button id="auth-finish-retry" class="entry-primary" type="button">Finish signing in</button>
+            <button id="auth-finish-retry" class="login-recovery-button" type="button">Finish signing in</button>
           </section>
-        </div>
-        <figure class="hero-visual">
-          <div class="hero-visual-media">
-            <img class="hero-campus" src="assets/images/QCU-BUILDING-1024x683-1.jpg" alt="Quezon City University academic building under a blue sky" width="1024" height="683" fetchpriority="high">
-            <div class="hero-preview" aria-hidden="true">
-              <div class="hero-preview-weather">
-                <i data-lucide="cloud-sun"></i>
-                <span><span class="hero-preview-temp">29°</span><span class="hero-preview-cond">FAIR WEATHER</span></span>
-              </div>
-              <div class="hero-preview-row is-mint">
-                <span class="hero-preview-rail">9:00</span>
-                <span class="hero-preview-copy"><span class="hero-preview-title">Data Structures</span><span class="hero-preview-meta">Room 214 · in session</span></span>
-              </div>
-              <div class="hero-preview-row is-peach">
-                <span class="hero-preview-rail">1:00</span>
-                <span class="hero-preview-copy"><span class="hero-preview-title">Discrete Math</span><span class="hero-preview-meta">Room 301 · up next</span></span>
-              </div>
-            </div>
-          </div>
-          <figcaption class="hero-visual-caption">
-            <span class="entry-icon"><i data-lucide="calendar-check-2" aria-hidden="true"></i></span>
-            <div><strong>A little more organized. A lot more ready.</strong><p>Your next class is just a glance away.</p></div>
-            <i data-lucide="arrow-up-right" aria-hidden="true"></i>
-          </figcaption>
-        </figure>
-      </section>
-      <div class="civic-community">
-        <div class="community-identity">
-          <img src="assets/images/Quezon_City_Government.png" alt="Quezon City Government seal" width="44" height="44">
-          <span class="community-divider" aria-hidden="true"></span>
-          <img src="assets/images/cropped-logo.jpg" alt="Quezon City University seal" width="44" height="44">
-          <div><strong>Rooted in Quezon City.</strong><small>Built around the QCU community.</small></div>
-        </div>
-        <p class="community-note">Your campus. Your classes. Your time.</p>
-      </div>
-      <section id="features" class="landing-features" aria-labelledby="features-title">
-        <h2 id="features-title" class="entry-section-title">Less juggling. More learning.</h2>
-        <p class="entry-section-description">Everything you need to find your rhythm, from your first class to your last deadline.</p>
-        <div class="feature-layout">
-          <article class="feature-schedule">
-            <div class="feature-heading"><span class="entry-icon"><i data-lucide="calendar-days" aria-hidden="true"></i></span><h3>Your week, clearly organized</h3></div>
-            <p>See today's classes and your full weekly schedule. Know what's next, when it starts, and where you need to be.</p>
-            <div class="feature-highlights"><span><i data-lucide="clock-3" aria-hidden="true"></i> Daily overview</span><span><i data-lucide="calendar-range" aria-hidden="true"></i> Weekly schedule</span><span><i data-lucide="map-pin" aria-hidden="true"></i> Campus buildings</span></div>
-          </article>
-          <div class="feature-stack">
-            <article class="feature-row"><span class="entry-icon"><i data-lucide="file-up" aria-hidden="true"></i></span><div><h3>From COR to calendar</h3><p>Upload your Certificate of Registration, review your class details, and make your schedule your own.</p></div></article>
-            <article class="feature-row"><span class="entry-icon"><i data-lucide="notebook-pen" aria-hidden="true"></i></span><div><h3>A place for your tasks and notes</h3><p>Keep deadlines, to-dos, and class notes together in your personal workspace.</p></div></article>
-          </div>
-        </div>
-        <div id="how-it-works" class="entry-how">
-          <div><h3>One sign-in. A simpler semester.</h3><p>Continue with Google, upload your COR, then review and confirm your details. Your student dashboard is ready when you are.</p></div>
-          <details class="entry-faq"><summary>What do I need to get started? <i data-lucide="chevron-down" aria-hidden="true"></i></summary><p>Have your Google account and current Certificate of Registration ready. You can upload a PDF, JPG, or PNG up to 10 MB. You'll review the detected details before confirming your schedule.</p></details>
+          <a id="google-login-btn" class="login-google" href="/api/auth/google/start">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            <span>Login with Google</span>
+          </a>
         </div>
       </section>
     </main>
-    <footer class="entry-footer"><div class="entry-container entry-footer-inner">
-      <p>My-Schedule <span aria-hidden="true">&middot;</span> For the QCU student community</p>
-      <div class="entry-footer-links"><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a class="entry-admin" href="/api/auth/google/start?returnTo=%2Fadmin.html"><i data-lucide="shield" aria-hidden="true"></i> Administrator sign in</a></div>
-    </div></footer>
   </div>
 
   <!-- AUTHENTICATED DASHBOARD: shown after login -->
   <div id="auth-dashboard" class="app-shell student-shell" style="display:none;">
     <a class="student-skip" href="#main-content">Skip to content</a>
-    <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></div></header>
-    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
+    <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span></div><span class="loading-profile-ring"><span class="skeleton-pulse loading-profile-face"></span></span></div></div></header>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div class="nav-strip" aria-hidden="true"><span class="nav-item loading-nav-item active"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-add loading-nav-add"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span></div></nav>
 
     <main id="main-content" tabindex="-1" class="page-container home-layout soft-home">
 
-      <!-- 1. Hero: grouped greeting left / weather right -->
+      <!-- Greeting and weather panel -->
       <section class="home-hero">
         <div class="home-hero-greeting">
-          <div class="home-hero-main" id="home-hero-main" data-student-name="Student">
-            <p class="home-hero-eyebrow">
-              <span class="home-hero-rule"></span>
-              <span id="home-greeting">Good day</span>
-            </p>
+          <div class="home-hero-main" id="home-hero-main">
+            <h1 id="home-greeting">Your schedule</h1>
+            <p id="home-summary" class="home-summary">Getting your week ready…</p>
             <div class="home-hero-skeleton" id="hero-skeleton">
               <div class="skel-hero-stat"><div class="skel-hero-val skeleton-pulse"></div><div class="skel-hero-label skeleton-pulse"></div></div>
             </div>
@@ -266,18 +195,39 @@
         </div>
       </section>
 
-      <!-- divider + 3-column grid: Today Task / Calendar+Classroom / Tasks&Notes -->
-      <div class="soft-divider" aria-hidden="true"></div>
-
       <div class="soft-grid">
-        <!-- LEFT: Today Task cards + semester progress -->
-        <section class="soft-col" aria-labelledby="today-heading">
+        <!-- Selected-day class timeline -->
+        <section class="soft-col home-schedule-panel" aria-labelledby="today-heading">
           <div class="soft-col-head">
-            <h2 id="today-heading" class="soft-col-title">Today Schedule</h2>
+            <h2 id="today-heading" class="soft-col-title">Today’s schedule</h2>
             <a class="soft-col-link" href="schedule.html">Full schedule</a>
           </div>
-          <div id="today-grid" class="home-today-grid" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards--stack" aria-hidden="true"><div class="loading-card loading-card--pastel"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card loading-card--pastel"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card loading-card--pastel"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div></div>
+          <div class="home-day-picker">
+            <div class="home-day-picker-head">
+              <p id="calendar-heading">Your week <span id="calendar-label"></span></p>
+              <span class="home-picker-hint">Select a day</span>
+            </div>
+            <div id="soft-calendar" class="home-date-strip" role="tablist" aria-label="Class schedule by day" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading your week...</span><div class="loading-date-strip" aria-hidden="true"><span class="skeleton-pulse"></span><span class="skeleton-pulse"></span><span class="skeleton-pulse"></span><span class="skeleton-pulse"></span><span class="skeleton-pulse"></span><span class="skeleton-pulse"></span><span class="skeleton-pulse"></span></div></div></div>
+          </div>
+          <div id="today-grid" class="home-today-grid" role="region" aria-labelledby="today-heading" aria-live="polite" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards--stack" aria-hidden="true"><div class="loading-card loading-card--pastel"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card loading-card--pastel"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card loading-card--pastel"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div></div>
 
+        </section>
+
+        <aside class="home-support" aria-label="Student essentials">
+        <section class="home-support-panel home-month-panel" aria-labelledby="home-month-title">
+          <div class="home-month-heading">
+            <h2 id="home-month-title" class="soft-col-title">Monthly calendar</h2>
+            <button type="button" id="home-month-today" class="home-month-today">Today</button>
+          </div>
+          <div class="home-month-toolbar">
+            <button type="button" id="home-month-prev" class="home-month-nav" aria-label="Previous month"><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+            <p id="home-month-label" aria-live="polite"></p>
+            <button type="button" id="home-month-next" class="home-month-nav" aria-label="Next month"><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+          </div>
+          <div id="home-month-calendar" role="grid" aria-labelledby="home-month-label" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder loading-cal-skel" role="status"><span class="loading-sr">Loading your month…</span><div class="loading-cal-head" aria-hidden="true"><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span></div><div class="loading-cal-grid" aria-hidden="true"><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span></div></div></div>
+          <p class="home-month-hint">Dots mark class days in your weekly timetable.</p>
+        </section>
+        <section class="soft-col home-support-panel" aria-label="Campus and weekly overview">
           <!-- QCity Bus Route 4 -->
           <div id="home-bus-card" class="home-bus-card" hidden>
             <span class="home-bus-icon"><i data-lucide="bus" aria-hidden="true"></i></span>
@@ -288,38 +238,27 @@
             <a class="home-bus-link" href="campus-eta.html">View route</a>
           </div>
 
-          <!-- Weekly Schedule Progress -->
+          <!-- This week -->
           <div id="week-progress" class="soft-week-progress" hidden>
             <div class="soft-progress-head">
-              <p class="soft-progress-title">Weekly Schedule Progress</p>
+              <p class="soft-progress-title">This week</p>
               <span class="soft-progress-pct" id="week-progress-pct">—%</span>
             </div>
-            <div class="soft-week-grid" id="week-progress-grid"></div>
+
             <div class="soft-progress-track"><div class="soft-progress-fill" id="week-progress-fill"></div></div>
             <p class="soft-progress-sub" id="week-progress-sub"></p>
           </div>
         </section>
-
-        <!-- MIDDLE: Calendar month + monthly goals -->
-        <section class="soft-col" aria-labelledby="calendar-heading">
-          <div class="soft-col-head">
-            <div class="soft-col-head-text">
-              <h2 id="calendar-heading" class="soft-col-title">Calendar</h2>
-              <p class="soft-col-sub" id="calendar-label">—</p>
-            </div>
-            <a class="soft-col-link" href="schedule.html">Full schedule</a>
-          </div>
-          <div class="soft-calendar" id="soft-calendar" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading calendar…</span><div class="loading-cal-skel" aria-hidden="true"><div class="loading-cal-head"></div><div class="loading-cal-grid"><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span></div></div></div></div>
-
+        <section class="soft-col home-support-panel" aria-label="Classroom updates">
           <div class="soft-col-head">
             <h2 class="soft-col-title">Classroom Updates</h2>
-            <a class="soft-col-link" href="google.html">Open Google</a>
+            <a class="soft-col-link" href="settings.html#google-connection">Open Google</a>
           </div>
           <div id="monthly-goals" class="soft-goals" data-loading-region="dashboard" aria-busy="true"><div class="loading-placeholder" role="status"><span class="loading-sr">Loading Classroom updates…</span><div class="loading-rows-skel" aria-hidden="true"><div class="loading-row-skel loading-row-skel--peach"><span class="skeleton-pulse loading-icon-skel"></span><span class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-short"></span><span class="skeleton-pulse loading-bar loading-bar-title"></span></span></div><div class="loading-row-skel loading-row-skel--mint"><span class="skeleton-pulse loading-icon-skel"></span><span class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-short"></span><span class="skeleton-pulse loading-bar loading-bar-title"></span></span></div><div class="loading-row-skel loading-row-skel--lavender"><span class="skeleton-pulse loading-icon-skel"></span><span class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-short"></span><span class="skeleton-pulse loading-bar loading-bar-title"></span></span></div></div></div></div>
         </section>
 
-        <!-- RIGHT: Tasks & Notes -->
-        <section class="soft-col" aria-labelledby="timeline-heading">
+        <!-- Existing workspace preview -->
+        <section class="soft-col home-support-panel" aria-labelledby="timeline-heading">
           <div class="soft-col-head">
             <h2 id="timeline-heading" class="soft-col-title">Tasks &amp; Notes</h2>
             <a class="soft-col-link" href="workspace.html">Open workspace</a>
@@ -329,6 +268,7 @@
           </div>
         </section>
 
+        </aside>
       </div>
 
       <footer class="student-footer">
@@ -350,13 +290,13 @@
   </div>
 
   <!-- AUTH CHECK LOADING STATE -->
-  <div id="auth-loading" class="app-shell student-shell loading-auth" aria-busy="true"><header class="page-header"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></div></header><div class="bottom-nav" aria-hidden="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></div><main class="page-container section-stack" role="status"><span class="loading-sr">Loading your portal?</span><div class="loading-auth-heading" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div><div class="loading-placeholder" role="status"><span class="loading-sr">Loading content…</span><div class="loading-cards loading-cards-grid" aria-hidden="true"><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div><div class="loading-auth-summary" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-week"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></main></div>
+  <div id="auth-loading" class="app-shell student-shell loading-auth" aria-busy="true"><header class="page-header"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span></div><span class="loading-profile-ring"><span class="skeleton-pulse loading-profile-face"></span></span></div></div></header><div class="bottom-nav" aria-hidden="true"><div class="nav-strip" aria-hidden="true"><span class="nav-item loading-nav-item active"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-add loading-nav-add"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span></div></div><main class="page-container loading-dashboard" role="status"><span class="loading-sr">Loading your portal…</span><div class="loading-auth-heading" aria-hidden="true"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div><div class="loading-dashboard-grid" aria-hidden="true"><div><div class="loading-auth-summary"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-week"><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span></div></div><div class="loading-cards loading-cards--stack"><div class="loading-card loading-card--pastel"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card loading-card--pastel"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-card loading-card--pastel"><div class="loading-card-top"><span class="skeleton-pulse loading-bar loading-chip"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-card-footer"><span class="skeleton-pulse loading-bar loading-chip"></span></div></div></div></div><aside><div class="loading-auth-summary"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><div class="loading-placeholder loading-cal-skel" role="status"><span class="loading-sr">Loading your month…</span><div class="loading-cal-head" aria-hidden="true"><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span></div><div class="loading-cal-grid" aria-hidden="true"><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span><span class="skeleton-pulse loading-cal-cell"></span></div></div></div><div class="loading-auth-summary"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div></div></aside></div></main></div>
 
   <script src="assets/js/lucide.min.js?v=3411692820cb"></script>
   <script>if (window.lucide) window.lucide.createIcons();</script>
 <script src="assets/js/academic.js?v=f415419172a9"></script>
-<script src="assets/js/app.js?v=cfcb2cb55d0c"></script>
-<script src="assets/js/install-prompt.js?v=617f0c91b0cc"></script>
+<script src="assets/js/app.js?v=d69b881571ea"></script>
+<script src="assets/js/install-prompt.js?v=69479668823b"></script>
   <script>
     // Weather chip: keyless Open-Meteo, campus coordinates (same source the
     // ETA page uses). No API keys, honest "unavailable" fallback.

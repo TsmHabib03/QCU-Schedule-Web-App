@@ -20,13 +20,65 @@ const state = {
 
 const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const page = document.body.dataset.page || "home";
-// Sub-pages belong to a nav tab: the Full Schedule and Buildings pages are
-// reached from Home, so they highlight Home instead of leaving the whole bar
-// with no active tab (which also made their hover states look different from
-// every page that does have one).
-const NAV_PARENT_PAGE = { schedule: "home", buildings: "home", tasks: "workspace", notes: "workspace", google: "FAB" };
+// Utility pages belong to Settings; Schedule is a primary destination.
+const NAV_PARENT_PAGE = { buildings: "settings", tasks: "workspace", notes: "workspace" };
 const navPage = NAV_PARENT_PAGE[page] || page;
+// Integration authorization is separate from the Google login identity.
+// Never infer Classroom access from a verified login email or an OAuth URL.
+let googleConnection = null;
+let googleStatusRequest = null;
+let googleStatusCheckedAt = 0;
+let googleStatusVersion = 0;
+function publishGoogleConnection(account) {
+  googleConnection = account;
+  renderHomeAvatar();
+  window.dispatchEvent(new CustomEvent('qcu-google-state', { detail: account }));
+}
+window.QCUGoogleConnection = {
+  get account() { return googleConnection; },
+  async refresh(force = false) {
+    if (googleStatusRequest) return googleStatusRequest;
+    if (!force && googleConnection && Date.now() - googleStatusCheckedAt < 30000) return googleConnection;
+    const version = googleStatusVersion;
+    const localProxy = ['localhost', '127.0.0.1'].includes(location.hostname) && ['5500', '5501', '5502', '5503'].includes(location.port);
+    const endpoint = localProxy ? `${location.protocol}//${location.hostname}:8788/api/google/status` : '/api/google/status';
+    googleStatusRequest = (async () => {
+      try {
+        const response = await fetch(endpoint, { cache: 'no-store', credentials: localProxy ? 'include' : 'same-origin', signal: AbortSignal.timeout(35000) });
+        if (!response.headers.get('Content-Type')?.includes('application/json')) {
+          throw Object.assign(new Error('Google connection is unavailable.'), { code: 'INVALID_API_RESPONSE' });
+        }
+        const result = await response.json();
+        if (!response.ok) throw Object.assign(new Error(result.error || 'Could not check Google connection.'), { status: response.status });
+        if (version !== googleStatusVersion) return googleConnection;
+        googleStatusCheckedAt = Date.now();
+        publishGoogleConnection(result);
+        return result;
+      } catch (error) {
+        if (version === googleStatusVersion) publishGoogleConnection(null);
+        throw error;
+      } finally { googleStatusRequest = null; }
+    })();
+    return googleStatusRequest;
+  },
+  disconnect() {
+    googleStatusVersion++;
+    googleStatusCheckedAt = Date.now();
+    publishGoogleConnection({ connected: false, status: 'not_connected' });
+    try { localStorage.setItem('qcu-google-changed', String(Date.now())); } catch (_) {}
+  }
+};
+window.addEventListener('focus', () => {
+  if (state.dashboard && navigator.onLine) window.QCUGoogleConnection.refresh(true).catch(() => {});
+});
+window.addEventListener('storage', event => {
+  if (event.key === 'qcu-google-changed' && state.dashboard) window.QCUGoogleConnection.refresh(true).catch(() => {});
+});
 let scheduleDay = "all";
+let scheduleEditing = false;
+let scheduleSelectedEntry = null;
+const workspaceCategory = { task: 'all', note: 'all' };
+let workspaceView = page === "notes" || (page === "workspace" && location.hash === "#notes") ? "notes" : "tasks";
 
 /* ── Utils ───────────────────────────────────────────── */
 function iconify() { if (window.lucide && document.querySelector('i[data-lucide]')) window.lucide.createIcons(); }
@@ -321,8 +373,8 @@ function renderShell() {
   window.QCULoading.finish('dashboard');
   const navItems = [
     ["home",      "index.html",     "layout-dashboard", "Home"],
-    ["campus-eta", "campus-eta.html", "bus",             "Bus"],
-    ["FAB",       "#google-connect", "google",           "Google"],
+    ["schedule",  "schedule.html",  "calendar-days",    "Schedule"],
+    ["campus-eta", "campus-eta.html", "bus",             "QC Bus"],
     ["workspace", "workspace.html", "clipboard-list",   "Tasks"],
     ["settings",  "settings.html",  "settings",         "Settings"]
   ];
@@ -330,10 +382,15 @@ function renderShell() {
   const header = document.getElementById("app-header");
   if (header) {
     const brandSub = formatBrandSub();
-    header.innerHTML = `
+    header.innerHTML = page === 'settings' ? `
+      <div class="header-inner profile-toolbar">
+        <a class="profile-toolbar-btn" href="index.html" aria-label="Back to Home"><i data-lucide="chevron-left" aria-hidden="true"></i></a>
+        <h1>My profile</h1>
+        <button id="profile-notifications-btn" class="profile-toolbar-btn" type="button" aria-label="Notification settings"><i data-lucide="bell" aria-hidden="true"></i><span class="profile-bell-dot" hidden></span></button>
+      </div>` : `
       <div class="header-inner">
         <a href="index.html" class="header-brand">
-           <img class="brand-logo" src="assets/images/QCU college of computer studies logo.jpg" alt="QCU Logo">
+           <img class="brand-logo" src="assets/images/brand/qcu-mark.svg" alt="QCU Schedule">
           <div class="brand-text">
             <p id="greeting" class="brand-name">QCUians Schedule</p>
             <p class="brand-sub">${brandSub}</p>
@@ -346,6 +403,7 @@ function renderShell() {
             <p id="live-time" class="clock-time">00:00</p>
           </div>
           <img class="qc-logo" src="assets/images/Quezon_City_Government.png" alt="QC Government logo">
+          <a id="home-avatar" class="home-avatar qc-pride-avatar" href="settings.html" aria-label="Open profile settings"><i data-lucide="user" aria-hidden="true"></i></a>
         </div>
       </div>`;
   }
@@ -353,34 +411,84 @@ function renderShell() {
   const nav = document.getElementById("bottom-nav");
   if (nav) {
     nav.innerHTML = `
-      <div>
+      <div class="nav-strip">
         ${navItems.map(([key, href, icon, label]) => {
-          if (key === "FAB") {
-            // Central floating Classroom button: perfect circle, indigo,
-            // white chalkboard icon. Breaks out above the bar; the label
-            // "Classroom" aligns with the other tab labels.
-            return `<a class="nav-item nav-fab${navPage === "FAB" ? " active" : ""}" href="google.html" aria-label="Google Classroom"${navPage === "FAB" ? ' aria-current="page"' : ""}>
-              <span class="nav-fab-btn">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <rect x="2" y="4" width="20" height="16" rx="2.5" fill="#fff"/>
-                  <path d="M7.5 13a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" fill="#4A3AFF"/>
-                  <path d="M3 17.5c0-1.93 2.01-3.5 4.5-3.5s4.5 1.57 4.5 3.5V18H3v-.5Z" fill="#4A3AFF"/>
-                  <path d="M16.5 13a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" fill="#4A3AFF"/>
-                  <path d="M12 17.5c0-1.93 2.01-3.5 4.5-3.5s4.5 1.57 4.5 3.5V18H12v-.5Z" fill="#4A3AFF"/>
-                </svg>
-              </span>
-              <span class="nav-fab-label">Classroom</span>
-            </a>`;
-          }
           return `<a class="nav-item ${navPage === key ? "active" : ""}"
-             href="${href}" aria-label="${label}" ${navPage === key ? 'aria-current="page"' : ''}>
-            <i data-lucide="${icon}"></i>
-            <span>${label}</span>
+             data-nav-page="${key}" href="${href}" aria-label="${label}" ${navPage === key ? 'aria-current="page"' : ''}>
+            <i data-lucide="${icon}" aria-hidden="true"></i>
+            <span class="nav-label" aria-hidden="true">${label}</span>
           </a>`;
         }).join("")}
+        ${navPage === "workspace" ? `
+          <button class="nav-add" type="button" data-workspace-add aria-label="Add ${workspaceView === 'notes' ? 'note' : 'task'}" title="Add ${workspaceView === 'notes' ? 'note' : 'task'}" aria-haspopup="dialog" aria-controls="${workspaceView === 'notes' ? 'note' : 'task'}-modal">
+            <i data-lucide="plus" aria-hidden="true"></i>
+          </button>` : `
+          <a class="nav-add nav-google" href="settings.html#google-connection" aria-label="Google Classroom integration and updates" title="Google Classroom integration and updates">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          </a>`}
       </div>`;
+    initNavigation(nav);
   }
+  renderHomeAvatar();
   window.QCULoading.finish('shell');
+}
+
+function initNavigation(nav) {
+  // Share the existing editor across routes, keeping its API and form logic.
+  let modal = document.getElementById("crud-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "crud-modal";
+    modal.className = "modal-backdrop";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-label", "Schedule entry form");
+    modal.innerHTML = '<div id="crud-modal-content" class="modal-card"></div>';
+    nav.closest(".app-shell").appendChild(modal);
+  }
+  if (!modal._navigationBound) {
+    modal._navigationBound = true;
+    modal.addEventListener("click", e => {
+      if (e.target === modal || e.target.closest("[data-close-crud-modal]")) closeCrudModal();
+    });
+    modal.addEventListener("keydown", e => {
+      if (e.key === "Escape") { closeCrudModal(); return; }
+      if (e.key !== "Tab") return;
+      const controls = [...modal.querySelectorAll('button, input, select, textarea, a[href]')]
+        .filter(el => !el.disabled && el.getClientRects().length > 0);
+      const first = controls[0], last = controls[controls.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+    });
+  }
+  const select = key => nav.querySelectorAll("[data-nav-page]").forEach(link => {
+    link.classList.toggle("active", link.dataset.navPage === key);
+  });
+  // Carry the departing selection into the next page so a normal route link
+  // can animate without delaying navigation or changing browser behavior.
+  let previous;
+  try {
+    previous = sessionStorage.getItem("qcu-nav-from");
+    sessionStorage.removeItem("qcu-nav-from");
+  } catch { /* Navigation works when browser storage is unavailable. */ }
+  if (previous && previous !== navPage && [...nav.querySelectorAll('[data-nav-page]')].some(link => link.dataset.navPage === previous) &&
+      !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    select(previous);
+    requestAnimationFrame(() => requestAnimationFrame(() => select(navPage)));
+  }
+  nav.onclick = e => {
+    if (e.target.closest("[data-workspace-add]")) {
+      if (workspaceView === "notes") openNoteModal(null);
+      else openTaskModal(null);
+      return;
+    }
+    const link = e.target.closest("[data-nav-page]");
+    if (!link || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (link.dataset.navPage !== navPage) {
+      try { sessionStorage.setItem("qcu-nav-from", navPage); } catch { /* Optional motion state. */ }
+      select(link.dataset.navPage);
+    }
+  };
 }
 
 /* ── Provenance Badge ──────────────────────────────── */
@@ -403,35 +511,87 @@ function weekOverview(now = new Date()) {
   return counts;
 }
 
-function weekStripTemplate(now = new Date()) {
+const HOME_WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+let homeSelectedDay = null;
+let homeToday = null;
+let homeSelectedDate = null;
+let homePreviousDate = null;
+let homeMonth = null;
+
+const homeDateKey = date => date.toISOString().slice(0, 10);
+const homeDateFromKey = key => new Date(key + 'T00:00:00Z');
+function homeMonday(date) {
+  const monday = new Date(date);
+  monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+  return monday;
+}
+function selectHomeDate(key) {
+  const date = homeDateFromKey(key);
+  if (!Number.isFinite(date.getTime())) return;
+  homeSelectedDate = key;
+  homeSelectedDay = HOME_WEEK_DAYS[(date.getUTCDay() + 6) % 7];
+  homeMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  renderHome();
+}
+
+// Represent Manila calendar dates at UTC midnight so browser timezones cannot
+// shift the current week or its date numbers.
+function homeCalendarDate(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: QCU_TIME.zone, year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(now);
+  const p = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return new Date(Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day)));
+}
+
+function selectHomeDay(day) {
+  if (!HOME_WEEK_DAYS.includes(day)) return;
+  const date = homeMonday(homeSelectedDate ? homeDateFromKey(homeSelectedDate) : homeCalendarDate());
+  date.setUTCDate(date.getUTCDate() + HOME_WEEK_DAYS.indexOf(day));
+  selectHomeDate(homeDateKey(date));
+}
+
+function keepHomeDayVisible(button) {
+  const strip = button?.parentElement;
+  if (!strip) return;
+  const box = button.getBoundingClientRect(), viewport = strip.getBoundingClientRect();
+  if (box.left < viewport.left + 4) strip.scrollLeft -= viewport.left + 4 - box.left;
+  else if (box.right > viewport.right - 4) strip.scrollLeft += box.right - viewport.right + 4;
+}
+
+function renderHomeAvatar() {
+  const avatar = document.getElementById('home-avatar');
+  if (!avatar) return;
+  avatar.classList.toggle('google-verified-avatar', googleConnection?.connected === true);
+  const name = String(state.profile?.name || '').trim();
+  const picture = String(state.profile?.picture || '').trim();
+  const key = JSON.stringify([name, picture]);
+  if (avatar.dataset.profileKey === key) return;
+  avatar.dataset.profileKey = key;
+  avatar.setAttribute('aria-label', name ? `Open ${name}’s profile settings` : 'Open profile settings');
+  const words = name.split(/\s+/).filter(Boolean);
+  const initials = words.length ? (Array.from(words[0])[0] + (words.length > 1 ? Array.from(words[words.length - 1])[0] : '')).toUpperCase() : '';
+  const fallback = () => {
+    avatar.innerHTML = `<span class="avatar-face" aria-hidden="true">${initials ? esc(initials) : '<i data-lucide="user"></i>'}</span>`;
+    iconify();
+  };
+  if (!/^https?:\/\//i.test(picture)) { fallback(); return; }
+  avatar.innerHTML = `<span class="avatar-face"><img src="${esc(picture)}" alt="${esc(name || 'Student')}’s profile photo" loading="lazy" referrerpolicy="no-referrer"></span>`;
+  avatar.querySelector('img').addEventListener('error', fallback, { once: true });
+}
+
+function homeClassStatus(item, now) {
+  if (todayDuration(item) === null) return 'upcoming';
+  if (homeSelectedDate) {
+    const todayKey = homeDateKey(homeCalendarDate(now));
+    if (homeSelectedDate < todayKey) return 'finished';
+    if (homeSelectedDate > todayKey) return 'upcoming';
+  }
   const today = QCU_TIME.weekday(now);
-  const counts = weekOverview(now);
-  const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-  // Map weekday name → date of this week (week starts Monday).
-  const monday = new Date(now);
-  const dow = (now.getDay() + 6) % 7; // 0 = Monday
-  monday.setDate(now.getDate() - dow);
-
-  const pills = days.map((d, i) => {
-    const count = counts[d] || 0;
-    const date = new Date(monday);
-    date.setDate(monday.getDate() + i);
-    const isToday = d === today;
-    return `
-      <button type="button" class="week-pill${isToday ? " is-today" : ""}"
-        data-day="${d}" aria-label="View ${d}'s schedule">
-        <span class="week-pill-day">${d.slice(0, 3)}</span>
-        <span class="week-pill-date">${date.getDate()}</span>
-        <span class="week-pill-count${count ? " has-classes" : ""}">${count ? `${count} class${count > 1 ? "es" : ""}` : "Off"}</span>
-      </button>`;
-  }).join("");
-
-  return `<div class="week-pill-strip">${pills}</div>`;
+  if (item.day === today) return getStatus(item, now);
+  return HOME_WEEK_DAYS.indexOf(item.day) < HOME_WEEK_DAYS.indexOf(today) ? 'finished' : 'upcoming';
 }
 
 /* ── Today Task line-up (vertical) ───────────────────── */
-// Deterministic pastel per subject. tick() rebuilds this list every second, so
-// a random pick would make the boxes strobe; a subject keeps its tint instead.
+// Deterministic pastel per subject across clock updates and day selections.
 const TODAY_TINTS = ["peach", "mint", "lavender", "sky", "butter", "blush"];
 
 function todayTint(item) {
@@ -492,28 +652,38 @@ function nowMarkerTemplate(now) {
 }
 
 // Classes whose time already passed collapse to one compact muted line.
+function homeClassPlace(item) {
+  const floor = String(item.floor ?? '').trim();
+  const floorLabel = floor && floor !== '—' ? (/^\d+$/.test(floor) ? `Floor\u00a0${floor}` : floor) : '';
+  return [buildingLabel(item), item.room, floorLabel].filter(value => value && value !== '—').join(' · ');
+}
+
 function todayDoneRowTemplate(item) {
   const mins = todayDuration(item);
-  const hasTime = parseMinutes(item.start) === parseMinutes(item.start) && parseMinutes(item.end) === parseMinutes(item.end);
+  const hasTime = mins !== null;
+  const place = homeClassPlace(item);
   return `
     <article class="home-today-done-row ${todayTint(item)}">
-      <span class="home-today-done-check"><i data-lucide="check-circle-2"></i></span>
+      <span class="home-today-done-check"><i data-lucide="check-circle-2" aria-hidden="true"></i><span class="loading-sr">Done</span></span>
       <span class="home-today-done-main">
-        <span class="home-today-done-subject">${item.subject}</span>
+        <span class="home-today-done-subject">${esc(item.subject || subjectDisplayName(item.course))}</span>
+        ${item.course ? `<span class="home-today-course">${esc(item.course)}</span>` : ''}
         <span class="home-today-done-meta">
           <span class="home-today-done-time">${hasTime ? `${formatTime(item.start)} – ${formatTime(item.end)}` : "Time not set"}</span>
           ${mins === null ? "" : `<span class="home-today-done-duration">${formatGap(mins)}</span>`}
         </span>
+        <span class="home-today-done-details"><i data-lucide="map-pin" aria-hidden="true"></i>${esc(place || 'Room to be announced')}</span>
+        <span class="home-today-done-details"><i data-lucide="graduation-cap" aria-hidden="true"></i>${esc(String(item.instructor || '').trim() || 'Professor to be announced')}</span>
       </span>
     </article>`;
 }
 
-function todayEmptyTile() {
+function todayEmptyTile(day) {
   return `
     <div class="soft-empty-tile">
       <i data-lucide="calendar-x-2"></i>
-      <span class="soft-empty-title">No classes today</span>
-      <span class="soft-empty-sub">Enjoy the break — your full week is on the Schedule page.</span>
+      <span class="soft-empty-title">${day ? `No classes on ${esc(day)}` : 'No classes today'}</span>
+      <span class="soft-empty-sub">Enjoy the break — your full week is on the <a href="schedule.html">Schedule page</a>.</span>
     </div>`;
 }
 
@@ -525,16 +695,15 @@ function todayAllDoneRow() {
     </div>`;
 }
 
-function todayTileTemplate(item, opts) {
-  const now = new Date();
-  const status = getStatus(item, now);
+function todayTileTemplate(item, opts = {}) {
+  const now = opts.now || new Date();
+  const status = homeClassStatus(item, now);
   const statusWord = { current: "In session", next: "Up next", finished: "Done", upcoming: "Scheduled" }[status] || statusLabel(status);
-  const bname = buildingLabel(item);
   const mins = todayDuration(item);
   const timing = todayTiming(item, status, now);
   const feature = opts.feature ? " home-today-card--feature" : "";
-  const place = [bname, item.room, item.floor && item.floor !== "—" ? item.floor : ""].filter(Boolean).join(" · ");
-  const hasTime = parseMinutes(item.start) === parseMinutes(item.start) && parseMinutes(item.end) === parseMinutes(item.end);
+  const place = homeClassPlace(item);
+  const hasTime = mins !== null;
   const stagger = opts.i !== undefined ? ` style="--i:${opts.i}"` : "";
 
   return `
@@ -547,10 +716,11 @@ function todayTileTemplate(item, opts) {
       <div class="home-today-body">
         <div class="home-today-head">
           <span class="home-today-status">${statusWord}</span>
-          ${item.course ? `<span class="home-today-course">${item.course}</span>` : ""}
+          ${item.course ? `<span class="home-today-course">${esc(item.course)}</span>` : ""}
         </div>
-        <h3 class="home-today-subject">${item.subject}</h3>
-        ${place ? `<p class="home-today-building"><i data-lucide="map-pin"></i>${place}</p>` : ""}
+        <h3 class="home-today-subject">${esc(item.subject || subjectDisplayName(item.course))}</h3>
+        <p class="home-today-building"><i data-lucide="map-pin" aria-hidden="true"></i>${esc(place || 'Room to be announced')}</p>
+        <p class="home-today-professor"><i data-lucide="graduation-cap" aria-hidden="true"></i>${esc(String(item.instructor || '').trim() || 'Professor to be announced')}</p>
         <div class="home-today-foot">
           ${mins === null ? "" : `<span class="home-today-duration"><i data-lucide="timer"></i>${formatGap(mins)}</span>`}
           <span class="home-today-live">${timing.live}</span>
@@ -695,51 +865,120 @@ async function renderHomeBusCard() {
   }
 }
 
-/* Dynamic month calendar: real current month, today = solid purple pill,
-   days with classes get a soft-purple tint. */
+/* One compact current-week picker. Dates follow the campus timezone, while
+   the recurring timetable continues to use its existing weekday state. */
 function renderHomeCalendar() {
-  const calEl = document.getElementById("soft-calendar");
-  const labelEl = document.getElementById("calendar-label");
-  if (!calEl) return;
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth(); // 0-based
-  if (labelEl) labelEl.textContent = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(now);
-
-  // Class-count per calendar date (this month only).
-  const monthCounts = {};
-  state.schedule.forEach(x => {
-    if (x.noClasses) return;
-    const d = x.date || x.startDate;
-    // Entries only carry weekday names; approximate per-month by weekday count.
-  });
-  const weekdayCounts = {};
-  state.schedule.forEach(x => { if (!x.noClasses) weekdayCounts[x.day] = (weekdayCounts[x.day] || 0) + 1; });
-
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
-  const dayNameByDow = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  const todayDate = now.getDate();
-
-  let cells = "";
-  for (let i = 0; i < firstDow; i++) cells += '<span class="soft-cal-cell"></span>';
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dow = new Date(year, month, d).getDay();
-    const hasClasses = (weekdayCounts[dayNameByDow[dow]] || 0) > 0;
-    const isToday = d === todayDate;
-    const cls = [
-      "soft-cal-cell",
-      isToday ? "is-today" : "",
-      !isToday && hasClasses ? "has-classes" : ""
-    ].filter(Boolean).join(" ");
-    cells += `<button type="button" class="${cls}" data-day-name="${dayNameByDow[dow]}" aria-label="${dayNameByDow[dow]} ${d}">${d}</button>`;
+  const strip = document.getElementById('soft-calendar');
+  if (!strip) return;
+  const todayDate = homeCalendarDate();
+  const monday = homeMonday(homeSelectedDate ? homeDateFromKey(homeSelectedDate) : todayDate);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(sunday.getUTCDate() + 6);
+  const format = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
+  setText('calendar-label', format.format(monday) + ' \u2013 ' + format.format(sunday));
+  const counts = weekOverview();
+  const key = monday.toISOString() + JSON.stringify(counts);
+  if (strip.dataset.weekKey !== key) {
+    strip.dataset.weekKey = key;
+    strip.innerHTML = HOME_WEEK_DAYS.map((day, index) => {
+      const date = new Date(monday);
+      date.setUTCDate(date.getUTCDate() + index);
+      const count = counts[day] || 0;
+      return '<button type="button" role="tab" class="home-date-tab" id="home-day-' + index + '" data-date="' + homeDateKey(date) + '" data-day-name="' + day + '" aria-controls="today-grid" aria-label="' + day + ', ' + format.format(date) + ', ' + count + (count === 1 ? ' class' : ' classes') + '"><span class="home-date-day">' + day.slice(0, 3) + '</span><span class="home-date-number">' + date.getUTCDate() + '</span><span class="home-date-dot' + (count ? ' has-classes' : '') + '" aria-hidden="true"></span></button>';
+    }).join('');
+    strip.onclick = event => {
+      const button = event.target.closest('[data-day-name]');
+      if (button && strip.contains(button)) selectHomeDay(button.dataset.dayName);
+    };
+    strip.onkeydown = event => {
+      const button = event.target.closest('[data-day-name]');
+      if (!button) return;
+      const index = HOME_WEEK_DAYS.indexOf(button.dataset.dayName);
+      let next;
+      if (event.key === 'ArrowRight') next = (index + 1) % 7;
+      else if (event.key === 'ArrowLeft') next = (index + 6) % 7;
+      else if (event.key === 'Home') next = 0;
+      else if (event.key === 'End') next = 6;
+      else return;
+      event.preventDefault();
+      selectHomeDay(HOME_WEEK_DAYS[next]);
+      strip.querySelectorAll('[role="tab"]')[next].focus({ preventScroll: true });
+    };
   }
-  calEl.innerHTML = `
-    <div class="soft-cal-head">${["S","M","T","W","T","F","S"].map(d => `<span>${d}</span>`).join("")}</div>
-    <div class="soft-cal-grid">${cells}</div>`;
-  calEl.querySelectorAll(".soft-cal-cell[data-day-name]").forEach(btn => {
-    btn.addEventListener("click", () => openDayModal(btn.dataset.dayName));
+  strip.querySelectorAll('[role="tab"]').forEach(button => {
+    const selected = button.dataset.dayName === homeSelectedDay;
+    const isToday = button.dataset.date === homeDateKey(todayDate);
+    button.classList.toggle('is-selected', selected);
+    button.classList.toggle('is-today', isToday);
+    button.setAttribute('aria-selected', String(selected));
+    button.tabIndex = selected ? 0 : -1;
+    if (isToday) button.setAttribute('aria-current', 'date');
+    else button.removeAttribute('aria-current');
   });
+  keepHomeDayVisible(strip.querySelector('.is-selected'));
+}
+
+function renderHomeMonth() {
+  const calendar = document.getElementById('home-month-calendar');
+  if (!calendar) return;
+  const today = homeCalendarDate();
+  if (!homeMonth) homeMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  const monthLabel = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'long', year: 'numeric' }).format(homeMonth);
+  setText('home-month-label', monthLabel);
+  const counts = weekOverview();
+  const key = homeDateKey(homeMonth) + ':' + homeSelectedDate + ':' + homeDateKey(today) + JSON.stringify(counts);
+  if (calendar.dataset.monthKey === key) return;
+  calendar.dataset.monthKey = key;
+  const start = homeMonday(homeMonth);
+  const days = new Date(Date.UTC(homeMonth.getUTCFullYear(), homeMonth.getUTCMonth() + 1, 0)).getUTCDate();
+  const weeks = Math.ceil(((homeMonth.getUTCDay() + 6) % 7 + days) / 7);
+  const labelFormat = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const focusDate = homeSelectedDate && homeDateFromKey(homeSelectedDate).getUTCMonth() === homeMonth.getUTCMonth() && homeDateFromKey(homeSelectedDate).getUTCFullYear() === homeMonth.getUTCFullYear()
+    ? homeSelectedDate : homeDateKey(homeMonth);
+  const rows = [];
+  for (let row = 0; row < weeks; row++) {
+    const cells = [];
+    for (let column = 0; column < 7; column++) {
+      const date = new Date(start);
+      date.setUTCDate(date.getUTCDate() + row * 7 + column);
+      const dateKey = homeDateKey(date);
+      const inMonth = date.getUTCMonth() === homeMonth.getUTCMonth();
+      const count = counts[HOME_WEEK_DAYS[column]] || 0;
+      cells.push(!inMonth ? '<div role="gridcell" class="home-month-blank"></div>'
+        : `<div role="gridcell" aria-selected="${dateKey === homeSelectedDate}"><button type="button" class="home-month-date${dateKey === homeSelectedDate ? ' is-selected' : ''}${dateKey === homeDateKey(today) ? ' is-today' : ''}" data-date="${dateKey}" tabindex="${dateKey === focusDate ? 0 : -1}"${dateKey === homeDateKey(today) ? ' aria-current="date"' : ''} aria-label="${labelFormat.format(date)}, ${count} ${count === 1 ? 'class' : 'classes'}"><span>${date.getUTCDate()}</span><span class="home-month-dot${count ? ' has-classes' : ''}" aria-hidden="true"></span></button></div>`);
+    }
+    rows.push('<div role="row" class="home-month-row">' + cells.join('') + '</div>');
+  }
+  calendar.innerHTML = '<div role="row" class="home-month-row home-month-weekdays">' + HOME_WEEK_DAYS.map(day => '<span role="columnheader" aria-label="' + day + '">' + day.slice(0, 3) + '</span>').join('') + '</div>' + rows.join('');
+  calendar.onclick = event => {
+    const button = event.target.closest('button[data-date]');
+    if (!button) return;
+    selectHomeDate(button.dataset.date);
+    calendar.querySelector('button[data-date="' + homeSelectedDate + '"]')?.focus({ preventScroll: true });
+  };
+  calendar.onkeydown = event => {
+    const button = event.target.closest('button[data-date]');
+    if (!button) return;
+    const date = homeDateFromKey(button.dataset.date);
+    const offsets = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+    if (event.key in offsets) date.setUTCDate(date.getUTCDate() + offsets[event.key]);
+    else if (event.key === 'Home') date.setUTCDate(date.getUTCDate() - (date.getUTCDay() + 6) % 7);
+    else if (event.key === 'End') date.setUTCDate(date.getUTCDate() + 6 - (date.getUTCDay() + 6) % 7);
+    else if (event.key === 'PageUp' || event.key === 'PageDown') {
+      const day = date.getUTCDate();
+      date.setUTCDate(1);
+      date.setUTCMonth(date.getUTCMonth() + (event.key === 'PageUp' ? -1 : 1));
+      date.setUTCDate(Math.min(day, new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate()));
+    } else return;
+    event.preventDefault();
+    selectHomeDate(homeDateKey(date));
+    calendar.querySelector('button[data-date="' + homeSelectedDate + '"]')?.focus({ preventScroll: true });
+  };
+  const previous = document.getElementById('home-month-prev');
+  const next = document.getElementById('home-month-next');
+  previous.onclick = () => { homeMonth.setUTCMonth(homeMonth.getUTCMonth() - 1); renderHomeMonth(); };
+  next.onclick = () => { homeMonth.setUTCMonth(homeMonth.getUTCMonth() + 1); renderHomeMonth(); };
+  document.getElementById('home-month-today').onclick = () => selectHomeDate(homeDateKey(homeCalendarDate()));
 }
 
 /* Google Classroom updates → middle column goals list. Uses the existing
@@ -805,7 +1044,7 @@ function paintClassroomCard(el, data) {
 
   if (data.notConnected) {
     el.innerHTML = `
-      <a class="soft-goal soft-goal--lavender" href="google.html">
+      <a class="soft-goal soft-goal--lavender" href="settings.html#google-connection">
         <span class="soft-goal-icon"><i data-lucide="log-in" aria-hidden="true"></i></span>
         <p class="soft-goal-title">Connect Google Classroom to see announcements, materials, and assignments here.</p>
         <i data-lucide="arrow-up-right" aria-hidden="true" class="soft-goal-more"></i>
@@ -837,7 +1076,7 @@ function paintClassroomCard(el, data) {
   el.innerHTML = updates.map((u, i) => {
     const m = meta[u.type] || meta.announcement;
     return `
-      <a class="soft-goal ${pastels[i % pastels.length]}" href="${esc(u.link || "google.html")}" target="_blank" rel="noopener">
+      <a class="soft-goal ${pastels[i % pastels.length]}" href="${esc(u.link || "settings.html#google-connection")}" target="_blank" rel="noopener">
         <span class="soft-goal-icon"><i data-lucide="${m.icon}" aria-hidden="true"></i></span>
         <span class="soft-goal-copy">
           <span class="soft-goal-course">${esc(u.courseName || "Class")}</span>
@@ -915,35 +1154,18 @@ function renderWeekProgress() {
   wrap.hidden = false;
 
   // This week's Monday (week starts Monday, Asia/Manila).
-  const dow = (now.getDay() + 6) % 7;
-  const monday = new Date(now); monday.setDate(now.getDate() - dow);
-
   let total = 0, done = 0;
-  const grid = days.map((d, i) => {
+  days.forEach((d, i) => {
     const dayClasses = classes.filter(x => x.day === d);
-    const date = new Date(monday); date.setDate(monday.getDate() + i);
-    const isToday = d === today;
-    const isPast = date < now && !isToday;
-    const dayDone = dayClasses.filter(x => isPast || (isToday && getStatus(x, now) === "finished")).length;
     total += dayClasses.length;
-    done += dayDone;
-    return `
-      <button type="button" class="soft-week-day${isToday ? " is-today" : ""}${dayClasses.length && dayDone === dayClasses.length ? " is-done" : ""}" data-day="${d}" aria-label="${d}: ${dayClasses.length} classes">
-        <span class="soft-week-day-label">${d.slice(0, 3)}</span>
-        <span class="soft-week-day-count">${dayClasses.length || "–"}</span>
-      </button>`;
-  }).join("");
+    done += dayClasses.filter(x => todayDuration(x) !== null &&
+      (i < days.indexOf(today) || (d === today && getStatus(x, now) === 'finished'))).length;
+  });
 
   const pct = total ? Math.round((done / total) * 100) : 0;
   setText("week-progress-pct", pct + "%");
   document.getElementById("week-progress-fill").style.width = pct + "%";
   setText("week-progress-sub", `${done} of ${total} class sessions done this week`);
-  const gridEl = document.getElementById("week-progress-grid");
-  if (gridEl) {
-    gridEl.innerHTML = grid;
-    gridEl.querySelectorAll(".soft-week-day").forEach(btn =>
-      btn.addEventListener("click", () => openDayModal(btn.dataset.day)));
-  }
 }
 
 
@@ -960,9 +1182,25 @@ function renderHome() {
   const hour = Math.floor(QCU_TIME.minutes(now) / 60);
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  setText("home-greeting", `${greeting},`);
-  const heroMain = document.getElementById("home-hero-main");
-  if (heroMain) heroMain.dataset.studentName = (state.profile?.name || "Student").split(" ")[0];
+  const today = QCU_TIME.weekday(now);
+  const todayKey = homeDateKey(homeCalendarDate(now));
+  if (!homeSelectedDay || !homeSelectedDate || (homePreviousDate && homePreviousDate !== todayKey && homeSelectedDate === homePreviousDate)) {
+    homeSelectedDay = today;
+    homeSelectedDate = todayKey;
+    homeMonth = new Date(Date.UTC(homeCalendarDate(now).getUTCFullYear(), homeCalendarDate(now).getUTCMonth(), 1));
+  }
+  homePreviousDate = todayKey;
+  homeToday = today;
+  const isToday = homeSelectedDate === todayKey;
+  const dayClasses = classesForDay(homeSelectedDay);
+  const allDone = dayClasses.length && dayClasses.every(item => homeClassStatus(item, now) === 'finished');
+  setText("home-greeting", `${greeting}, ${(String(state.profile?.name || '').trim() || 'Student').split(/\s+/)[0]}!`);
+  setText('home-summary', !isToday ? `${dayClasses.length} ${dayClasses.length === 1 ? 'class' : 'classes'} on ${homeSelectedDay}`
+    : !dayClasses.length ? 'No classes today — enjoy the break' : allDone ? `All ${dayClasses.length} classes done` : `You have ${dayClasses.length} ${dayClasses.length === 1 ? 'class' : 'classes'} today`);
+  const summary = document.getElementById('home-summary');
+  if (summary) summary.innerHTML = esc(summary.textContent).replace(/\d+ classes?/, '<strong>$&</strong>');
+  renderHomeAvatar();
+  setText('today-heading', isToday ? 'Today’s schedule' : `${homeSelectedDay}’s schedule`);
 
   const heroSkeleton = document.getElementById("hero-skeleton");
   if (heroSkeleton) heroSkeleton.style.display = "none";
@@ -972,42 +1210,39 @@ function renderHome() {
   // breaks, and the rest of the day in order.
   const grid = document.getElementById("today-grid");
   if (grid) {
-    const today = QCU_TIME.weekday(now);
-    const todaysClasses = state.schedule
-      .filter(x => x.day === today && !x.noClasses)
-      .sort((a, b) => parseMinutes(a.start) - parseMinutes(b.start));
+    const todaysClasses = dayClasses;
     const tiles = [];
 
     if (!todaysClasses.length) {
-      tiles.push(todayEmptyTile());
+      tiles.push(todayEmptyTile(isToday ? null : homeSelectedDay));
     } else {
-      const done = todaysClasses.filter(x => getStatus(x, now) === "finished");
-      const ahead = todaysClasses.filter(x => getStatus(x, now) !== "finished");
+      const done = todaysClasses.filter(x => homeClassStatus(x, now) === "finished");
+      const ahead = todaysClasses.filter(x => homeClassStatus(x, now) !== "finished");
 
       done.forEach(item => tiles.push(todayDoneRowTemplate(item)));
 
       if (ahead.length) {
         // The Now marker only means something when at least one class left has a
         // real clock time (entries whose COR row lost its time are all "upcoming").
-        const hasClock = x => parseMinutes(x.start) === parseMinutes(x.start) && parseMinutes(x.end) === parseMinutes(x.end);
-        if (ahead.some(hasClock)) tiles.push(nowMarkerTemplate(now));
+        const hasClock = x => todayDuration(x) !== null;
+        if (isToday && ahead.some(hasClock)) tiles.push(nowMarkerTemplate(now));
         const lastDone = done[done.length - 1];
         if (lastDone && hasClock(lastDone) && hasClock(ahead[0])) {
           const gap = parseMinutes(ahead[0].start) - parseMinutes(lastDone.end);
           if (gap >= BREAK_MIN) tiles.push(breakTileTemplate(lastDone.end, ahead[0].start, gap, 0));
         }
-        const feature = ahead[0];   // in session now, or the next class up
+        const feature = isToday ? ahead.find(item => ['current', 'next'].includes(homeClassStatus(item, now))) : null;
         let breakIndex = 0;
         ahead.forEach((item, i) => {
-          tiles.push(todayTileTemplate(item, { feature: item === feature, i }));
+          tiles.push(todayTileTemplate(item, { feature: item === feature, i, now }));
           const nextClass = ahead[i + 1];
-          if (nextClass) {
+          if (nextClass && hasClock(item) && hasClock(nextClass)) {
             const gap = parseMinutes(nextClass.start) - parseMinutes(item.end);
             if (gap >= BREAK_MIN) tiles.push(breakTileTemplate(item.end, nextClass.start, gap, breakIndex++));
           }
         });
       } else {
-        tiles.push(todayAllDoneRow());
+        if (isToday) tiles.push(todayAllDoneRow());
       }
     }
     setInnerHTML(grid, tiles.join(""));
@@ -1015,6 +1250,7 @@ function renderHome() {
 
   renderWeekProgress();
   renderHomeCalendar();
+  renderHomeMonth();
   renderTasksNotesColumn();
   iconify();
   queueHomeWidgets();
@@ -1121,9 +1357,11 @@ function openDayModal(day) {
       </a>
     </div>`;
 
+  prepareStudentModal(content, { label: 'Daily schedule', description: 'Your classes and time on campus for this day.', icon: 'calendar-days', close: closeModal });
   modal.classList.add("open");
   document.body.classList.add("modal-open");
   iconify();
+  content.querySelector("input, .feedback-close")?.focus();
 }
 
 /* ── Schedule Page ───────────────────────────────────── */
@@ -1172,16 +1410,46 @@ function floorShort(floor) {
   return m ? `${m[1]}F` : floor;
 }
 
+function renderScheduleDates(now) {
+  const strip = document.getElementById('schedule-days');
+  if (!strip) return;
+  const monday = homeMonday(homeCalendarDate(now));
+  const sunday = new Date(monday);
+  sunday.setUTCDate(sunday.getUTCDate() + 6);
+  const format = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
+  setText('schedule-week-label', `${format.format(monday)} – ${format.format(sunday)}`);
+  const key = monday.toISOString();
+  if (strip.dataset.weekKey !== key) {
+    strip.dataset.weekKey = key;
+    setInnerHTML(strip, `<button type="button" class="schedule-date schedule-date--week" data-schedule-day="all" aria-label="Full week" aria-controls="schedule-rows"><i data-lucide="calendar-days" aria-hidden="true"></i><span>Week</span></button>` + HOME_WEEK_DAYS.map((day, index) => {
+      const date = new Date(monday);
+      date.setUTCDate(date.getUTCDate() + index);
+      return `<button type="button" class="schedule-date" data-schedule-day="${day}" aria-label="${day}" aria-controls="schedule-rows" title="${day}, ${format.format(date)}"><span class="schedule-date-number">${date.getUTCDate()}</span><span>${dayShort(day)}</span><span class="schedule-date-dot${classesForDay(day).length ? ' has-classes' : ''}" aria-hidden="true"></span></button>`;
+    }).join(''));
+  }
+  strip.querySelectorAll('[data-schedule-day]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.scheduleDay === scheduleDay));
+    if (button.dataset.scheduleDay === QCU_TIME.weekday(now)) button.setAttribute('aria-current', 'date');
+    else button.removeAttribute('aria-current');
+    const dot = button.querySelector('.schedule-date-dot');
+    dot?.classList.toggle('has-classes', classesForDay(button.dataset.scheduleDay).length > 0);
+  });
+}
+
 function renderSchedule() {
   const rows = document.getElementById("schedule-rows");
   if (!rows) return;
   if (state.error && !state.dashboard) {
     setText("schedule-result", "Timetable unavailable");
-    setInnerHTML(rows, '<tr class="schedule-empty-row"><td colspan="6" class="schedule-state"><strong>Your schedule could not be loaded.</strong><p>Use the retry button above to try again.</p></td></tr>');
+    setInnerHTML(rows, '<div class="schedule-state"><strong>Your schedule could not be loaded.</strong><p>Use the retry button above to try again.</p></div>');
     return;
   }
   const now   = new Date();
   const today = QCU_TIME.weekday(now);
+  renderScheduleDates(now);
+  document.querySelector('.schedule-page')?.classList.toggle('is-editing', scheduleEditing);
+  setText('schedule-title', scheduleEditing ? 'Edit Schedule' : 'Full Schedule');
+  setText('schedule-hint', scheduleEditing ? 'Choose a class below to update its time, room, or professor.' : 'A little structure for every day. Tap a class to edit its details.');
   const entries = orderedSchedule(now).filter(item => !item.noClasses && (scheduleDay === "all" || normalizeDayName(item.day) === normalizeDayName(scheduleDay)));
   const summary = `${entries.length} class${entries.length === 1 ? "" : "es"} ${scheduleDay === "all" ? "this week" : `on ${scheduleDay}`}`;
   const result = document.getElementById("schedule-result");
@@ -1189,72 +1457,60 @@ function renderSchedule() {
   if (!entries.length) {
     const title = scheduleDay === "all" ? "Your timetable is empty" : `No classes on ${scheduleDay}`;
     const hint = scheduleDay === "all" ? "Add a class to start building your week." : "Choose another day or view the full week.";
-    setInnerHTML(rows, `<tr class="schedule-empty-row"><td colspan="6" class="schedule-state"><strong>${title}</strong><p>${hint}</p></td></tr>`);
+    setInnerHTML(rows, `<div class="schedule-state"><i data-lucide="calendar-heart" aria-hidden="true"></i><strong>${esc(title)}</strong><p>${hint}</p></div>`);
+    iconify();
     return;
   }
 
-  // Build rows with break/free periods between classes on the same day
+  // Keep one chronological timeline at every screen size, including edit mode.
   const html = [];
   let lastDay = null;
   let lastEnd = null;
 
   entries.forEach(item => {
     const status  = getStatus(item, now);
-    const isToday = item.day === today;
-    const rowClass = [`${status}-row`, isToday ? "today-row" : "", item.noClasses ? "no-class-row" : ""]
+    const isToday = normalizeDayName(item.day) === normalizeDayName(today);
+    const rowClass = ['timeline-slot', `${status}-row`, isToday ? "today-row" : ""]
       .filter(Boolean).join(" ");
+    if (lastDay !== item.day) {
+      html.push(`<div class="timeline-day-heading"><h2>${esc(item.day)}</h2>${isToday ? '<span>Today</span>' : ''}</div>`);
+    }
 
     // Insert break row between consecutive classes on the same day with gap >= BREAK_MIN
     if (!item.noClasses && lastDay === item.day && lastEnd !== null) {
       const gap = parseMinutes(item.start) - lastEnd;
       if (gap >= BREAK_MIN) {
         html.push(`
-          <tr class="break-row">
-            <td data-label="Time" colspan="6" style="text-align:center;">
-              <span class="break-free-label">FREE</span>
-              ${formatTime(minutesToTime(lastEnd))} – ${formatTime(item.start)}
-              <span class="break-duration">· ${formatGap(gap)} break</span>
-            </td>
-          </tr>`);
+          <div class="timeline-slot timeline-break break-row"><span class="timeline-time">${formatTime(minutesToTime(lastEnd))}</span><div class="timeline-break-content"><i data-lucide="coffee" aria-hidden="true"></i><span>${formatGap(gap)} break <small>${formatTime(minutesToTime(lastEnd))} – ${formatTime(item.start)}</small></span></div></div>`);
       }
     }
 
-    if (item.noClasses) {
+    {
+      const loc = homeClassPlace(item) || 'Room to be announced';
+      const hasTime = todayDuration(item) !== null;
+      const selected = scheduleSelectedEntry === item.entryId;
+      const active = status === 'current' || selected;
+      const course = courseVisual(item.course, item.subject);
+      const tag = item.entryId ? 'button' : 'div';
       html.push(`
-        <tr class="${rowClass}">
-          <td data-label="Time"    class="time-cell">${dayShort(item.day)}</td>
-          <td data-label="Subject" class="subject-cell font-bold">No Classes Scheduled</td>
-          <td data-label="Code">—</td>
-          <td data-label="Location">—</td>
-          <td data-label="Units">—</td>
-          <td data-label="Status"><span class="status-dot status-dot-off" title="No Classes"></span></td>
-        </tr>`);
-    } else {
-      const bname = buildingShort(item);
-      const loc = `${bname} · ${floorShort(item.floor)} · ${item.room}`;
-      const prov = provenanceBadge(item.originType);
-      const editBtn = item.entryId
-        ? `<button class="icon-btn icon-btn--sm" data-action="edit-entry" data-entry-id="${esc(item.entryId)}" aria-label="Edit class" title="Edit class"><i data-lucide="pencil"></i></button>`
-        : "";
-      html.push(`
-        <tr class="${rowClass}" ${item.entryId ? `data-entry-id="${esc(item.entryId)}"` : ""}>
-          <td data-label="Time" class="time-cell">
-            <span class="day-abbr">${dayShort(item.day)}</span>
-            <span class="time-range">${formatTime(item.start)} – ${formatTime(item.end)}</span>
-          </td>
-          <td data-label="Subject" class="subject-cell">${esc(item.subject)} ${prov}</td>
-          <td data-label="Code"><span class="code-cell">${esc(item.course || "—")}</span></td>
-          <td data-label="Location" class="location-cell">${esc(loc)}</td>
-          <td data-label="Units"><span class="units-chip">${item.units > 0 ? item.units : "Lab"}</span></td>
-          <td data-label="Status"><span class="schedule-status"><span class="status-dot status-dot-${status}" aria-hidden="true"></span>${status === "inactive" ? "Scheduled" : statusLabel(status)}</span> ${editBtn}</td>
-        </tr>`);
+        <div class="${rowClass}${active ? ' is-highlighted' : ''}" ${item.entryId ? `data-entry-id="${esc(item.entryId)}"` : ""}>
+          <span class="timeline-time">${hasTime ? formatTime(item.start) : 'TBA'}</span>
+          <${tag} class="timeline-class${active ? ' is-highlighted' : ''}" ${item.entryId ? `type="button" data-action="edit-entry" data-entry-id="${esc(item.entryId)}" aria-label="Edit ${esc(item.subject || item.course || 'class')}" aria-haspopup="dialog"` : ''}>
+            <span class="timeline-class-top"><span class="timeline-course"><i data-lucide="${course.icon}" aria-hidden="true"></i>${esc(item.course || 'Class')}</span><span class="schedule-status">${selected ? 'Selected' : status === 'inactive' ? 'Scheduled' : statusLabel(status)}</span></span>
+            <span class="timeline-subject">${esc(item.subject || item.course || 'Untitled class')}</span>
+            <span class="timeline-time-range">${hasTime ? `${formatTime(item.start)} – ${formatTime(item.end)}` : 'Time not set'}<span class="timeline-units">${item.units > 0 ? `${esc(item.units)} units` : 'Lab'}</span></span>
+            <span class="timeline-detail"><i data-lucide="map-pin" aria-hidden="true"></i>${esc(loc)}</span>
+            ${item.instructor ? `<span class="timeline-detail schedule-professor"><i data-lucide="graduation-cap" aria-hidden="true"></i><span>${esc(item.instructor)}</span></span>` : ''}
+            ${item.entryId ? '<span class="timeline-edit-cue">Edit details <i data-lucide="arrow-up-right" aria-hidden="true"></i></span>' : ''}
+          </${tag}>
+        </div>`);
       lastDay = item.day;
       lastEnd = parseMinutes(item.end);
     }
   });
 
   setInnerHTML(rows, html.join(""));
-  if (window.lucide) window.lucide.createIcons({ root: rows });
+  iconify();
 }
 
 function minutesToTime(minutes) {
@@ -1362,22 +1618,22 @@ function openBuildingModal(building) {
         </div>` : ""}
     </div>`;
 
+  prepareStudentModal(content, { label: 'Building details', description: 'Rooms, floors, and classes in this campus building.', icon: 'building-2', close: closeModal });
   modal.classList.add("open");
   document.body.classList.add("modal-open");
   iconify();
+  content.querySelector("input, .feedback-close")?.focus();
 }
 
 function closeModal() {
-  document.getElementById("building-modal")?.classList.remove("open");
-  document.getElementById("day-modal")?.classList.remove("open");
-  document.body.classList.remove("modal-open");
+  closeStudentModal("building-modal");
+  closeStudentModal("day-modal");
 }
 
 /* ── Settings Page ───────────────────────────────────── */
-// Sign out lives in the Settings list now (settings.html), so this only keeps
-// whatever else the page needs. The notification toggle and reset button were
-// removed with their rows.
-function renderSettings() {}
+function renderSettings() {
+  window.QCUSettings?.render(state.profile);
+}
 
 /* ── Clock ───────────────────────────────────────────── */
 function updateClock() {
@@ -1435,6 +1691,41 @@ function subjectColor(code) {
   return SUBJECT_COLORS[code] || { bg: "#EEF1F5", fg: "#5F6368", border: "#E5E7EB" };
 }
 
+function courseVisual(code = '', title = '') {
+  const enrolled = state.academic?.enrollmentSubjects?.find(subject => String(subject.subjectCode || '').toLowerCase() === String(code).toLowerCase());
+  const scheduled = state.schedule.find(item => String(item.course || '').toLowerCase() === String(code).toLowerCase());
+  return window.QCUCourseIcons?.resolve(code, `${SUBJECT_NAMES[String(code).toUpperCase()] || ''} ${enrolled?.title || ''} ${scheduled?.subject || ''} ${title}`) || { id: 'general', label: 'General studies', icon: 'book-open', tone: 'purple' };
+}
+
+function courseIconMarkup(code, title) {
+  const visual = courseVisual(code, title);
+  return `<span class="study-subject-icon tone-${visual.tone}" data-course-category="${visual.id}" title="${visual.label}" aria-hidden="true"><i data-lucide="${visual.icon}"></i></span>`;
+}
+
+function studyMeetingMarkup(item) {
+  if (!item.scheduleTime) return '';
+  const times = String(item.scheduleTime).split(/[–—-]/).map(value => value.trim());
+  if (times.length !== 2 || times.some(value => !Number.isFinite(parseMinutes(value)))) return '';
+  const day = dayNames.find(value => normalizeDayName(value) === normalizeDayName(item.scheduleDay));
+  return `<span class="task-meta"><i data-lucide="clock" aria-hidden="true"></i>${day ? `${esc(dayShort(day))} · ` : ''}${formatTime(times[0])} – ${formatTime(times[1])}</span>`;
+}
+
+function renderWorkspaceCategories(kind, items) {
+  const container = document.getElementById(`${kind}-categories`);
+  if (!container) return;
+  const counts = new Map();
+  items.forEach(item => {
+    const visual = courseVisual(item.subjectCode || item.subject || '', item.subjectName || '');
+    counts.set(visual.id, (counts.get(visual.id) || 0) + 1);
+  });
+  const categories = window.QCUCourseIcons?.categories || [];
+  const available = categories.filter(category => counts.has(category.id));
+  // Keep the two category tiles useful even before a student adds their first item.
+  if (!available.length) available.push(...categories.filter(category => ['computing', 'general'].includes(category.id)));
+  const noun = kind === 'task' ? 'task' : 'note';
+  setInnerHTML(container, `<button type="button" class="study-category tone-orange${workspaceCategory[kind] === 'all' ? ' is-selected' : ''}" data-study-kind="${kind}" data-study-category="all" aria-pressed="${workspaceCategory[kind] === 'all'}"><i data-lucide="${kind === 'task' ? 'list-checks' : 'notebook-pen'}" aria-hidden="true"></i><span class="study-category-title">All ${noun}s</span><span class="study-category-footer">${items.length} ${noun}${items.length === 1 ? '' : 's'}<span class="study-category-arrow"><i data-lucide="arrow-right" aria-hidden="true"></i></span></span></button>` + available.map(category => `<button type="button" class="study-category tone-${category.tone}${workspaceCategory[kind] === category.id ? ' is-selected' : ''}" data-study-kind="${kind}" data-study-category="${category.id}" aria-pressed="${workspaceCategory[kind] === category.id}"><i data-lucide="${category.icon}" aria-hidden="true"></i><span class="study-category-title">${category.label}</span><span class="study-category-footer">${counts.get(category.id) || 0} ${noun}${counts.get(category.id) === 1 ? '' : 's'}<span class="study-category-arrow"><i data-lucide="arrow-right" aria-hidden="true"></i></span></span></button>`).join(''));
+}
+
 function allSubjects() {
   const seen = new Set();
   const result = [];
@@ -1490,6 +1781,186 @@ function loadNotice(key, message, retry, retryLabel = 'Try again') {
     notice.appendChild(button);
   }
 }
+/* ── Toast / side notifications ───────────────────────── */
+/* Non-blocking corner notice (e.g. data freshness). Keyed so repeat
+   calls update one toast rather than stacking. Auto-dismisses unless
+   duration is 0; always dismissible and announced via role="status". */
+/* Shared feedback: semantic states, safe text content, and keyed lifecycle. */
+const QCU_FEEDBACK_ICONS = { info: 'info', success: 'circle-check', error: 'circle-x' };
+function feedbackState(value) { return ['success', 'error'].includes(value) ? value : 'info'; }
+function feedbackIcon(name, className = '') {
+  const icon = document.createElement('i');
+  icon.dataset.lucide = name;
+  icon.className = className;
+  icon.setAttribute('aria-hidden', 'true');
+  return icon;
+}
+function feedbackButton(label, className, onClick) {
+  const button = document.createElement('button');
+  button.type = 'button'; button.className = className; button.textContent = label;
+  button.onclick = onClick;
+  return button;
+}
+function feedbackClose(onClick) {
+  const button = feedbackButton('', 'feedback-close', onClick);
+  button.setAttribute('aria-label', 'Close dialog');
+  button.append(feedbackIcon('x'));
+  return button;
+}
+function feedbackHeading(title, description, iconName, id) {
+  const body = document.createElement('div'); body.className = 'feedback-intro';
+  const icon = document.createElement('span'); icon.className = 'feedback-status-icon';
+  icon.append(feedbackIcon(iconName));
+  const copy = document.createElement('div'); copy.className = 'feedback-copy';
+  const heading = document.createElement('h2'); heading.id = id; heading.className = 'feedback-title'; heading.textContent = title;
+  const text = document.createElement('p'); text.id = id + '-description'; text.className = 'feedback-description'; text.textContent = description;
+  copy.append(heading, text); body.append(icon, copy);
+  return body;
+}
+// Native dialogs provide protected focus and inert background, including when
+// opened over a class editor. Queue requests so each caller receives its answer.
+let feedbackDialogQueue = Promise.resolve();
+function qcuDialog(options = {}) {
+  const show = () => new Promise(resolve => {
+    const variant = feedbackState(options.variant);
+    const dialog = document.createElement('dialog');
+    dialog.className = 'qcu-dialog'; dialog.dataset.feedbackState = variant;
+    dialog.setAttribute('aria-labelledby', 'qcu-dialog-title');
+    dialog.setAttribute('aria-describedby', 'qcu-dialog-title-description');
+    const header = document.createElement('div'); header.className = 'feedback-header';
+    const label = document.createElement('span'); label.textContent = options.label || { info: 'Information', success: 'Success', error: 'Confirm action' }[variant];
+    let closing = false;
+    const finish = confirmed => {
+      if (closing) return; closing = true;
+      dialog.classList.add('is-closing');
+      setTimeout(() => { dialog.close(); dialog.remove(); resolve(confirmed); }, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180);
+    };
+    header.append(label, feedbackClose(() => finish(false)));
+    const footer = document.createElement('div'); footer.className = 'feedback-actions';
+    if (options.secondaryLabel) footer.append(feedbackButton(options.secondaryLabel, 'feedback-secondary', () => finish(false)));
+    footer.append(feedbackButton(options.primaryLabel || 'Got it', 'feedback-primary', () => finish(true)));
+    dialog.append(header, feedbackHeading(options.title || 'Your schedule', options.message || '', QCU_FEEDBACK_ICONS[variant], 'qcu-dialog-title'), footer);
+    dialog.addEventListener('cancel', event => { event.preventDefault(); finish(false); });
+    dialog.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); finish(false); }
+      if (event.key === 'Tab') {
+        const controls = [...dialog.querySelectorAll('button')].filter(el => !el.disabled);
+        if (event.shiftKey && document.activeElement === controls[0]) { event.preventDefault(); controls.at(-1)?.focus(); }
+        else if (!event.shiftKey && document.activeElement === controls.at(-1)) { event.preventDefault(); controls[0]?.focus(); }
+      }
+    }, true);
+    let backdropStart = false;
+    dialog.addEventListener('pointerdown', event => { backdropStart = event.target === dialog && outside(event); });
+    const outside = event => { const rect = dialog.getBoundingClientRect(); return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom; };
+    dialog.addEventListener('click', event => { if (backdropStart && event.target === dialog && outside(event)) finish(false); backdropStart = false; });
+    document.body.append(dialog); iconify(); dialog.showModal();
+    // Destructive confirmations initially focus the safe action.
+    (footer.querySelector('.feedback-secondary') || footer.querySelector('button')).focus();
+  });
+  const result = feedbackDialogQueue.then(show);
+  feedbackDialogQueue = result.catch(() => false);
+  return result;
+}
+window.qcuDialog = qcuDialog;
+
+function prepareStudentModal(content, { label, description, icon, close }) {
+  const modal = content.closest('.modal-backdrop');
+  clearTimeout(modal._closeTimer); modal.classList.remove('is-closing');
+  modal.inert = false;
+  modal._returnFocus = document.activeElement;
+  content.dataset.feedbackState = 'info'; content.classList.add('feedback-editor');
+  const oldHeading = content.querySelector('.modal-title');
+  const title = oldHeading?.textContent || label;
+  content.querySelector('.modal-head')?.remove(); content.querySelector('.modal-drag-handle')?.remove();
+  const header = document.createElement('div'); header.className = 'feedback-header';
+  const type = document.createElement('span'); type.textContent = label;
+  const button = feedbackClose(close);
+  button.setAttribute('aria-label', 'Close');
+  // Retain the established close selector for integrations and keyboard tests.
+  button.setAttribute(modal.id === 'crud-modal' ? 'data-close-crud-modal' : modal.id === 'task-modal' ? 'data-close-task-modal' : modal.id === 'note-modal' ? 'data-close-note-modal' : 'data-close-modal', '');
+  header.append(type, button); content.prepend(header);
+  const inner = content.querySelector('.modal-inner');
+  inner.prepend(feedbackHeading(title, description, icon, modal.id + '-title'));
+  modal.setAttribute('aria-labelledby', modal.id + '-title');
+  modal.setAttribute('aria-describedby', modal.id + '-title-description');
+  const submit = inner.querySelector('.task-form > .action-button');
+  if (submit) {
+    const actions = document.createElement('div'); actions.className = 'feedback-actions';
+    actions.append(feedbackButton('Cancel', 'feedback-secondary', close), submit);
+    submit.classList.add('feedback-primary');
+    inner.querySelector('.task-form').append(actions);
+  }
+  modal._feedbackClose = close;
+  if (!modal._feedbackBound && modal.id !== 'crud-modal') {
+    modal._feedbackBound = true;
+    modal.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); modal._feedbackClose(); }
+      if (event.key !== 'Tab') return;
+      const controls = [...modal.querySelectorAll('button, input, select, textarea, a[href]')].filter(el => !el.disabled && el.getClientRects().length);
+      const first = controls[0], last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    });
+  }
+}
+function closeStudentModal(id) {
+  const modal = document.getElementById(id);
+  if (!modal?.classList.contains('open')) return;
+  modal.classList.remove('open'); modal.classList.add('is-closing');
+  modal.inert = true;
+  modal._closeTimer = setTimeout(() => modal.classList.remove('is-closing'), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180);
+  if (!document.querySelector('.modal-backdrop.open')) document.body.classList.remove('modal-open');
+  if (modal._returnFocus?.isConnected) modal._returnFocus.focus();
+}
+
+function qcuToast(key, message, opts = {}) {
+  let wrap = document.getElementById('qcu-toasts');
+  if (!wrap) { wrap = document.createElement('div'); wrap.id = 'qcu-toasts'; wrap.className = 'qcu-toast-wrap'; document.body.append(wrap); }
+  let toast = document.getElementById('qcu-toast-' + key);
+  if (!toast) { toast = document.createElement('div'); toast.id = 'qcu-toast-' + key; toast.className = 'qcu-toast'; wrap.append(toast); }
+  clearTimeout(toast._timer); clearTimeout(toast._removeTimer); toast._removeTimer = null; toast._progress?.cancel(); toast.replaceChildren();
+  const variant = feedbackState(opts.variant);
+  toast.dataset.feedbackState = variant;
+  toast.setAttribute('role', variant === 'error' ? 'alert' : 'status');
+  toast.setAttribute('aria-live', variant === 'error' ? 'assertive' : 'polite'); toast.setAttribute('aria-atomic', 'true');
+  const icon = document.createElement('span'); icon.className = 'qcu-toast-icon-block'; icon.append(feedbackIcon(opts.icon || QCU_FEEDBACK_ICONS[variant], 'qcu-toast-icon'));
+  const text = document.createElement('span'); text.className = 'qcu-toast-msg'; text.textContent = message;
+  toast.append(icon, text);
+  if (opts.onAction) toast.append(feedbackButton(opts.actionLabel || 'Refresh', 'qcu-toast-action', () => { qcuToastDismiss(key); opts.onAction(); }));
+  const close = feedbackClose(() => qcuToastDismiss(key)); close.className = 'qcu-toast-close'; close.setAttribute('aria-label', 'Dismiss notification'); toast.append(close);
+  const ttl = Math.max(0, Number(opts.duration ?? 9000) || 0);
+  toast._remaining = ttl;
+  const pause = () => {
+    if (!toast._started) return;
+    toast._remaining = Math.max(0, toast._remaining - (performance.now() - toast._started)); toast._started = 0;
+    clearTimeout(toast._timer); toast._progress?.pause();
+  };
+  const resume = () => {
+    if (!ttl || toast.matches(':hover') || toast.contains(document.activeElement) || toast._started || !toast.classList.contains('is-visible')) return;
+    toast._started = performance.now(); toast._progress?.play(); toast._timer = setTimeout(() => qcuToastDismiss(key), toast._remaining);
+  };
+  toast._started = 0;
+  toast.onpointerenter = pause; toast.onpointerleave = resume;
+  toast._pause = pause; toast._resume = resume;
+  if (!toast._focusBound) {
+    toast._focusBound = true;
+    toast.addEventListener('focusin', () => toast._pause());
+    toast.addEventListener('focusout', () => requestAnimationFrame(() => toast._resume()));
+  }
+  if (ttl) {
+    const progress = document.createElement('span'); progress.className = 'qcu-toast-progress'; progress.setAttribute('aria-hidden', 'true'); toast.append(progress);
+    toast._progress = progress.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(0)' }], { duration: ttl, fill: 'forwards' }); toast._progress.pause();
+  }
+  requestAnimationFrame(() => { if (!toast.isConnected || toast._removeTimer) return; toast.classList.add('is-visible'); resume(); }); iconify();
+}
+function qcuToastDismiss(key) {
+  const toast = document.getElementById('qcu-toast-' + key);
+  if (!toast) return;
+  clearTimeout(toast._timer); clearTimeout(toast._removeTimer); toast._progress?.cancel(); toast._started = 0;
+  toast.classList.remove('is-visible');
+  toast._removeTimer = setTimeout(() => toast.remove(), matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180);
+}
+
 async function readWithFeedback(url, key, retry, hasContent = false) {
   const started = performance.now();
   const target = document.getElementById(key === 'tasks' ? 'task-list' : key === 'notes' ? 'note-list' : '');
@@ -1656,7 +2127,8 @@ function filteredTasks() {
   const subject = document.getElementById("task-filter-subject")?.value || "all";
   const sort = document.getElementById("task-sort")?.value || "newest";
 
-  let tasks = _tasksCache || [];
+  let tasks = [...(_tasksCache || [])];
+  if (workspaceCategory.task !== 'all') tasks = tasks.filter(t => courseVisual(t.subjectCode || t.subject || '', t.subjectName || '').id === workspaceCategory.task);
 
   if (search) {
     tasks = tasks.filter(t =>
@@ -1688,10 +2160,9 @@ function taskCardTemplate(t) {
   const done = t.status === "COMPLETED";
   const doneClass = done ? " completed" : "";
   const priorityClass = t.priority ? ` task-card--priority-${t.priority.toLowerCase()}` : "";
-  const sc = subjectColor(t.subjectCode || t.subject || "");
-  const deadline = t.dueDate ? `<span class="task-meta"><i data-lucide="calendar"></i>${esc(formatDateLabel(t.dueDate, false))}</span>` : "";
+  const deadline = `<span class="task-meta"><i data-lucide="calendar" aria-hidden="true"></i>${t.dueDate ? esc(formatDateLabel(t.dueDate)) : 'No deadline set'}</span>`;
   const subject = t.subjectCode
-    ? `<span class="subject-chip" style="background:${sc.bg};color:${sc.fg};border-color:${sc.border};">${subjectDisplayName(t.subjectCode)}</span>`
+    ? `<span class="study-subject-name">${esc(t.subjectName || subjectDisplayName(t.subjectCode))}</span>`
     : "";
   const priority = t.priority ? priorityBadge(t.priority.toLowerCase()) : "";
   const accent = t.priority ? (PRIORITY_META[t.priority.toLowerCase()]?.accent || "") : "";
@@ -1699,20 +2170,23 @@ function taskCardTemplate(t) {
 
   return `
     <article class="task-card${doneClass}${priorityClass}" data-task-id="${esc(taskId)}"${accent ? ` style="--task-accent:${accent}"` : ""}>
-      <button class="task-check-btn${done ? " checked" : ""}" data-action="toggle" data-id="${esc(taskId)}" aria-label="Toggle done"></button>
+      ${courseIconMarkup(t.subjectCode || t.subject || '', t.subjectName || '')}
       <div class="task-card-content">
         <div class="task-card-header">
           <h3 class="task-card-title${done ? " done" : ""}">${esc(t.title || "Untitled task")}</h3>
           <div class="task-card-actions">
+            <button class="task-check-btn${done ? " checked" : ""}" data-action="toggle" data-id="${esc(taskId)}" aria-label="${done ? 'Mark pending' : 'Mark complete'}" aria-pressed="${done}"><i data-lucide="check" aria-hidden="true"></i></button>
             <button class="icon-btn" data-action="edit" data-id="${esc(taskId)}" aria-label="Edit"><i data-lucide="pencil"></i></button>
             <button class="icon-btn icon-btn--danger" data-action="delete" data-id="${esc(taskId)}" aria-label="Delete"><i data-lucide="trash-2"></i></button>
           </div>
         </div>
+        ${subject}
         ${t.description ? `<p class="task-card-desc">${esc(t.description)}</p>` : ""}
         <div class="task-card-footer">
-          ${priority}
-          ${subject}
           ${deadline}
+          ${studyMeetingMarkup(t)}
+          <span class="study-status ${done ? 'is-done' : 'is-pending'}">${done ? 'Completed' : 'Pending'}</span>
+          ${priority}
         </div>
       </div>
     </article>`;
@@ -1734,9 +2208,11 @@ function renderTasks() {
   }
 
   const tasks = filteredTasks();
+  renderWorkspaceCategories('task', _tasksCache || []);
+  setText('task-count', `${tasks.length} shown · ${(_tasksCache || []).filter(task => task.status !== 'COMPLETED').length} pending`);
   const hasFilters = (document.getElementById("task-search")?.value || "") ||
                      (document.getElementById("task-filter-status")?.value || "all") !== "all" ||
-                     (document.getElementById("task-filter-subject")?.value || "all") !== "all";
+                     (document.getElementById("task-filter-subject")?.value || "all") !== "all" || workspaceCategory.task !== 'all';
   let html;
   if (!tasks.length && hasFilters) {
     html = `<div class="empty-state"><i data-lucide="search-x" class="empty-icon"></i><span class="empty-text">No matching tasks</span><span class="empty-sub">Try adjusting your search or filters.</span></div>`;
@@ -1809,9 +2285,11 @@ function openTaskModal(task) {
       </form>
     </div>`;
 
+  prepareStudentModal(content, { label: 'Task details', description: 'Keep your coursework and deadlines in one place.', icon: 'clipboard-list', close: closeTaskModal });
   modal.classList.add("open");
   document.body.classList.add("modal-open");
   iconify();
+  content.querySelector("input, .feedback-close")?.focus();
 
   document.getElementById("task-form").addEventListener("submit", async e => {
     e.preventDefault();
@@ -1839,9 +2317,7 @@ function openTaskModal(task) {
 }
 
 function closeTaskModal() {
-  const modal = document.getElementById("task-modal");
-  if (modal) modal.classList.remove("open");
-  document.body.classList.remove("modal-open");
+  closeStudentModal("task-modal");
 }
 
 /* ── Notes (API-backed) ──────────────────────────────── */
@@ -1914,7 +2390,8 @@ function filteredNotes() {
   const subject = document.getElementById("note-filter-subject")?.value || "all";
   const sort = document.getElementById("note-sort")?.value || "newest";
 
-  let notes = _notesCache || [];
+  let notes = [...(_notesCache || [])];
+  if (workspaceCategory.note !== 'all') notes = notes.filter(n => courseVisual(n.subjectCode || n.subject || '', n.subjectName || '').id === workspaceCategory.note);
 
   if (search) {
     notes = notes.filter(n =>
@@ -1934,16 +2411,16 @@ function filteredNotes() {
 }
 
 function noteCardTemplate(n) {
-  const sc = subjectColor(n.subjectCode || n.subject || "");
   const subject = n.subjectCode
-    ? `<span class="subject-chip" style="background:${sc.bg};color:${sc.fg};border-color:${sc.border};">${subjectDisplayName(n.subjectCode)}</span>`
+    ? `<span class="study-subject-name">${esc(n.subjectName || subjectDisplayName(n.subjectCode))}</span>`
     : "";
-  const date = n.createdAt ? `<span class="task-meta"><i data-lucide="clock"></i>${QCU_TIME.dateLabel(new Date(n.createdAt), { month: "short", day: "numeric" })}</span>` : "";
+  const date = `<span class="task-meta"><i data-lucide="clock" aria-hidden="true"></i>${n.updatedAt || n.createdAt ? esc(formatDateLabel(n.updatedAt || n.createdAt, true)) : 'Date not set'}</span>`;
   const bodyPreview = (n.body || "").length > 140 ? (n.body || "").slice(0, 140) + "…" : (n.body || "");
   const noteId = n.noteId || n.id;
 
   return `
-    <article class="note-card" data-note-id="${esc(noteId)}" style="border-left:3px solid ${sc.border || 'var(--blue)'};">
+    <article class="note-card" data-note-id="${esc(noteId)}">
+      ${courseIconMarkup(n.subjectCode || n.subject || '', n.subjectName || '')}
       <div class="note-card-inner">
         <div class="note-card-header">
           <h3 class="note-card-title">${esc(n.title || "Untitled note")}</h3>
@@ -1952,10 +2429,12 @@ function noteCardTemplate(n) {
             <button class="icon-btn icon-btn--danger" data-action="delete-note" data-id="${esc(noteId)}" aria-label="Delete"><i data-lucide="trash-2"></i></button>
           </div>
         </div>
+        ${subject}
         ${bodyPreview ? `<p class="note-card-body">${esc(bodyPreview)}</p>` : ""}
         <div class="note-card-footer">
-          ${subject}
           ${date}
+          ${studyMeetingMarkup(n)}
+          <span class="study-status is-note">Saved note</span>
         </div>
       </div>
     </article>`;
@@ -1977,8 +2456,10 @@ function renderNotes() {
   }
 
   const notes = filteredNotes();
+  renderWorkspaceCategories('note', _notesCache || []);
+  setText('note-count', `${notes.length} ${notes.length === 1 ? 'note' : 'notes'} shown`);
   const hasFilters = (document.getElementById("note-search")?.value || "") ||
-                     (document.getElementById("note-filter-subject")?.value || "all") !== "all";
+                     (document.getElementById("note-filter-subject")?.value || "all") !== "all" || workspaceCategory.note !== 'all';
   let html;
   if (!notes.length && hasFilters) {
     html = `<div class="empty-state"><i data-lucide="search-x" class="empty-icon"></i><span class="empty-text">No matching notes</span><span class="empty-sub">Try adjusting your search or filters.</span></div>`;
@@ -2037,9 +2518,11 @@ function openNoteModal(note) {
       </form>
     </div>`;
 
+  prepareStudentModal(content, { label: 'Note details', description: 'Save your ideas and study notes for later.', icon: 'notebook-pen', close: closeNoteModal });
   modal.classList.add("open");
   document.body.classList.add("modal-open");
   iconify();
+  content.querySelector("input, .feedback-close")?.focus();
 
   document.getElementById("note-form").addEventListener("submit", async e => {
     e.preventDefault();
@@ -2065,9 +2548,7 @@ function openNoteModal(note) {
 }
 
 function closeNoteModal() {
-  const modal = document.getElementById("note-modal");
-  if (modal) modal.classList.remove("open");
-  document.body.classList.remove("modal-open");
+  closeStudentModal("note-modal");
 }
 
 /* ── Tick ────────────────────────────────────────────── */
@@ -2089,7 +2570,8 @@ function tick(force = false) {
     document.querySelectorAll('.home-today-card[data-schedule-index]').forEach(card => {
       const item = state.schedule[Number(card.dataset.scheduleIndex)];
       if (!item) return;
-      const timing = todayTiming(item, getStatus(item, now), now);
+      if (item.day !== today || homeSelectedDate !== homeDateKey(homeCalendarDate(now))) return;
+      const timing = todayTiming(item, homeClassStatus(item, now), now);
       const live = card.querySelector('.home-today-live');
       if (live && live.textContent !== timing.live) live.textContent = timing.live;
       const progress = card.querySelector('.home-today-progress span');
@@ -2100,6 +2582,7 @@ function tick(force = false) {
     if (marker && marker.textContent !== label) marker.textContent = label;
   }
   if (page === 'schedule' && scheduleChanged) renderSchedule();
+  if (page === 'settings') renderSettings();
   if (['tasks', 'workspace'].includes(page) && tasksChanged) renderTasks();
   if (['notes', 'workspace'].includes(page) && notesChanged) renderNotes();
   lastTickKey = key; lastTickSchedule = state.schedule; lastTickTasks = _tasksCache; lastTickNotes = _notesCache;
@@ -2165,7 +2648,7 @@ function mapApiEntry(item) {
     room: item.roomCode || "",
     floor: item.floor != null ? String(item.floor) : "—",
     units: item.units || 0,
-    instructor: "",
+    instructor: item.instructor ?? item.instructorName ?? "",
     notes: "",
     entryId: item.entryId,
     buildingId: item.buildingId,
@@ -2211,14 +2694,12 @@ function normalizeDayName(value) {
 
 let _crudEditingEntry = null;
 let _crudEnrollmentSubjects = [];
-let _crudReturnFocus = null;
 
 function openCrudModal(entry = null) {
   _crudEditingEntry = entry;
   const modal = document.getElementById("crud-modal");
   const content = document.getElementById("crud-modal-content");
   if (!modal || !content) return;
-  _crudReturnFocus = document.activeElement;
 
   const isEdit = !!entry;
   const title = isEdit ? "Edit Class" : "Add Class";
@@ -2300,6 +2781,12 @@ function openCrudModal(entry = null) {
           </div>
         </div>
 
+        <div class="crud-field">
+          <label for="crud-professor">Professor <span class="crud-optional">(optional)</span></label>
+          <input type="text" id="crud-professor" maxlength="120" placeholder="e.g. Prof. Maria Reyes" value="${esc(entry?.instructor || '')}" autocomplete="off" aria-describedby="crud-professor-hint">
+          <p id="crud-professor-hint" class="crud-field-hint">Saved for this class meeting.</p>
+        </div>
+
         <div class="crud-field" id="crud-location-field">
           <label for="crud-location">Location Note</label>
           <input type="text" id="crud-location" placeholder="e.g. Online via Zoom" value="${esc(entry?.locationText || "")}">
@@ -2313,10 +2800,11 @@ function openCrudModal(entry = null) {
           </div>
         </div>
 
-        <p id="crud-error" class="crud-error" style="display:none;"></p>
+        <p id="crud-error" role="alert" class="crud-error" style="display:none;"></p>
       </form>
     </div>`;
 
+  prepareStudentModal(content, { label: 'Class schedule', description: isEdit ? 'Update the time, location, or professor for this class.' : 'Choose a subject and set its weekly class meeting.', icon: 'calendar-plus', close: closeCrudModal });
   modal.classList.add("open");
   document.body.classList.add("modal-open");
   iconify();
@@ -2464,8 +2952,9 @@ async function handleCrudSubmit(existingEntry) {
     const buildingEl = field("crud-building");
     const roomEl = field("crud-room");
     const locationEl = field("crud-location");
+    const professorEl = field("crud-professor");
 
-    [subjectEl, dayEl, startEl, endEl].forEach(el => el?.removeAttribute("aria-invalid"));
+    [subjectEl, dayEl, startEl, endEl, professorEl].forEach(el => el?.removeAttribute("aria-invalid"));
 
     const subjectVal = subjectEl?.value || "";
     const dayVal = dayEl?.value || "";
@@ -2475,6 +2964,8 @@ async function handleCrudSubmit(existingEntry) {
     const buildingVal = buildingEl?.value || "";
     const roomVal = roomEl?.value || "";
     const locationVal = locationEl?.value || "";
+    const professorVal = (professorEl?.value || "").trim();
+    if (professorVal.length > 120) fail(professorEl, "Professor name must be at most 120 characters.");
 
     // ── Validation (shown in the modal, never a silent native bubble) ──
     if (!subjectVal) {
@@ -2510,6 +3001,9 @@ async function handleCrudSubmit(existingEntry) {
     if (!existingEntry?.entryId || subjectChanged) {
       payload.enrollmentSubjectId = nextSubject;
     }
+    if (existingEntry?.entryId ? professorVal !== (existingEntry.instructor || '').trim() : professorVal !== '') {
+      payload.instructorName = professorVal;
+    }
 
     window.QCULoading.button(saveBtn, true);
 
@@ -2536,10 +3030,9 @@ async function handleCrudSubmit(existingEntry) {
       throw err;
     }
 
+    qcuToast("class-save", existingEntry ? "Class changes saved." : "Class added to your schedule.", { variant: "success" });
     // Success — close modal, reload schedule
-    const modal = document.getElementById("crud-modal");
-    if (modal) modal.classList.remove("open");
-    document.body.classList.remove("modal-open");
+    closeCrudModal();
 
     // Reload schedule from API and re-render
     await reloadSchedule();
@@ -2578,14 +3071,22 @@ async function handleCrudSubmit(existingEntry) {
   }
 }
 
-function confirmDeleteEntry(entry) {
-  if (!entry?.entryId) return;
-  const confirmed = window.confirm(
-    `Delete "${entry.subject || entry.course || "this class"}" on ${entry.day}?`
-  );
+const pendingClassDeletions = new Set();
+async function confirmDeleteEntry(entry) {
+  if (!entry?.entryId || pendingClassDeletions.has(entry.entryId)) return;
+  pendingClassDeletions.add(entry.entryId);
+  try {
+  const confirmed = await qcuDialog({
+    variant: 'error', label: 'Delete class', title: 'Remove this class?',
+    message: `Delete "${entry.subject || entry.course || "this class"}" on ${entry.day}? This will remove the meeting from your schedule.`,
+    primaryLabel: 'Delete class', secondaryLabel: 'Keep class'
+  });
   if (!confirmed) return;
 
-  window.QCULoading.action(document.getElementById("crud-delete-btn"), () => performDeleteEntry(entry));
+  await window.QCULoading.action(document.getElementById("crud-delete-btn"), () => performDeleteEntry(entry));
+  } finally {
+    pendingClassDeletions.delete(entry.entryId);
+  }
 }
 
 async function performDeleteEntry(entry) {
@@ -2598,10 +3099,9 @@ async function performDeleteEntry(entry) {
       throw new Error(result?.error || "Failed to delete entry.");
     }
 
+    qcuToast("class-delete", "Class removed from your schedule.", { variant: "success" });
     // Close modal, reload
-    const modal = document.getElementById("crud-modal");
-    if (modal) modal.classList.remove("open");
-    document.body.classList.remove("modal-open");
+    closeCrudModal();
 
     await reloadSchedule();
   } catch (err) {
@@ -2629,16 +3129,19 @@ async function reloadSchedule() {
 
 /* ── Schedule CRUD Modal Close Handler ────────────── */
 function closeCrudModal() {
-  const modal = document.getElementById("crud-modal");
-  const wasOpen = modal?.classList.contains("open");
-  if (modal) modal.classList.remove("open");
-  document.body.classList.remove("modal-open");
   _crudEditingEntry = null;
-  if (wasOpen && _crudReturnFocus?.isConnected) _crudReturnFocus.focus();
+  const selectedId = scheduleSelectedEntry;
+  scheduleSelectedEntry = null;
+  if (page === 'schedule') {
+    renderSchedule();
+    if (selectedId) document.getElementById('crud-modal')._returnFocus = document.querySelector(`#schedule-rows button[data-entry-id="${CSS.escape(selectedId)}"]`) || document.getElementById('schedule-add-btn');
+  }
+  closeStudentModal("crud-modal");
 }
 
 /* ── Sign Out ────────────────────────────────────── */
 window.signOut = function (button) {
+  window.QCUGoogleConnection.disconnect();
   window.QCULoading.button(button, true);
   window.QCUData?.invalidate('logout');
   // GET /api/auth/logout does a 302 redirect that clears all cookies
@@ -2649,8 +3152,11 @@ window.signOut = function (button) {
 /* ── Init ────────────────────────────────────────────── */
 let dashboardRefresh = null;
 function hidePrivateContent(message = 'Please sign in again to continue.') {
+  window.QCUGoogleConnection.disconnect();
+  document.getElementById('google-connection')?.close();
   state.dashboard = null;
   state.profile = null;
+  if (page === 'settings') renderSettings();
   state.schedule = [];
   state.buildings = [];
   state.academic = null;
@@ -2757,8 +3263,8 @@ function applyDashboard(data) {
   if (Array.isArray(data.notes)) _notesCache = data.notes;
   if (data.cacheInfo?.cached) {
     const time = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit' }).format(new Date(data.cacheInfo.at));
-    loadNotice('freshness', 'Last updated at ' + time + '.', () => refreshDashboard(true), 'Refresh');
-  } else loadNotice('freshness', '');
+    qcuToast('freshness', 'Last updated at ' + time + '.', { actionLabel: 'Refresh', onAction: () => refreshDashboard(true), icon: 'clock-3' });
+  } else qcuToastDismiss('freshness');
 }
 
 async function init() {
@@ -2769,7 +3275,6 @@ async function init() {
   // HTML contains responsive placeholders until the profile and data are ready.
   renderShell();
   iconify();
-  if (page === "google") window.QCUGoogleIntegration?.init();
 
   // Fetch authenticated dashboard data (single endpoint)
   try {
@@ -2812,6 +3317,8 @@ async function init() {
     if (data.status !== 'OK') throw new Error('Dashboard data is unavailable.');
     if (data.status === "OK") {
       applyDashboard(data);
+      if (navigator.onLine) window.QCUGoogleConnection.refresh().catch(() => {});
+      if (page === 'settings') window.QCUGoogleModal?.init();
     }
   } catch (e) {
     console.warn("Dashboard load failed:", e);
@@ -2829,7 +3336,7 @@ async function init() {
   if (page === "settings")  renderSettings();
 
   /* ── Modal close handlers ─────────────────────────── */
-  ["building-modal", "day-modal", "task-modal", "note-modal", "crud-modal"].forEach(id => {
+  ["building-modal", "day-modal", "task-modal", "note-modal"].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener("click", e => {
@@ -2858,26 +3365,25 @@ async function init() {
       day.setAttribute("aria-pressed", String(day === button));
     });
     renderSchedule();
+    keepHomeDayVisible(button);
   });
 
-  // "Today" jumps the table to the current day — the full schedule is the only
-  // place the week lives now, so it needs to be able to centre today.
+  document.getElementById('schedule-edit-btn')?.addEventListener('click', event => {
+    scheduleEditing = !scheduleEditing;
+    const button = event.currentTarget;
+    button.setAttribute('aria-pressed', String(scheduleEditing));
+    button.querySelector('span').textContent = scheduleEditing ? 'Done editing' : 'Edit schedule';
+    renderSchedule();
+  });
+
+  // "Today" selects the campus weekday and reveals its date pill.
   document.getElementById("schedule-today-btn")?.addEventListener("click", () => {
     const today = QCU_TIME.weekday();
     const target = [...document.querySelectorAll("[data-schedule-day]")]
       .find(day => normalizeDayName(day.dataset.scheduleDay) === normalizeDayName(today));
     if (!target) return;
     target.click();
-    target.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
-  });
-  document.getElementById("crud-modal")?.addEventListener("keydown", e => {
-    if (e.key !== "Tab") return;
-    const controls = [...e.currentTarget.querySelectorAll('button, input, select, textarea, a[href]')]
-      .filter(el => !el.disabled && el.getClientRects().length > 0);
-    const first = controls[0];
-    const last = controls[controls.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+    keepHomeDayVisible(target);
   });
 
   /* ── Schedule Edit button delegation ─────────────── */
@@ -2887,12 +3393,12 @@ async function init() {
     const entryId = btn.dataset.entryId;
     if (!entryId) return;
     const entry = state.schedule.find(s => s.entryId === entryId);
-    if (entry) openCrudModal(entry);
-  });
-
-  document.getElementById("home-week-strip")?.addEventListener("click", e => {
-    const cell = e.target.closest("[data-day]");
-    if (cell) openDayModal(cell.dataset.day);
+    if (entry) {
+      scheduleSelectedEntry = entryId;
+      renderSchedule();
+      document.querySelector(`#schedule-rows [data-entry-id="${CSS.escape(entryId)}"][data-action="edit-entry"]`)?.focus();
+      openCrudModal(entry);
+    }
   });
 
   /* ── Task page event listeners ────────────────────── */
@@ -2910,19 +3416,6 @@ async function init() {
       }
       if (action === "delete") { await window.QCULoading.action(btn, () => deleteTask(id)); renderTasks(); }
     });
-  }
-
-  if (!document.querySelector(`[data-page="tasks"] .fab, [data-page="workspace"] .fab`)) {
-    const tasksFab = document.createElement("button");
-    tasksFab.className = "fab";
-    tasksFab.innerHTML = '<i data-lucide="plus"></i>';
-    tasksFab.setAttribute("aria-label", "Add task or note");
-    tasksFab.addEventListener("click", () => {
-      const active = document.querySelector("[data-workspace-view].is-active")?.dataset.workspaceView || "tasks";
-      if (active === "notes") openNoteModal(null);
-      else openTaskModal(null);
-    });
-    document.querySelector(`[data-page="tasks"] .page-container, [data-page="workspace"] .page-container`)?.appendChild(tasksFab);
   }
 
   document.getElementById("task-search")?.addEventListener("input", renderTasks);
@@ -2961,20 +3454,27 @@ async function init() {
     });
   }
 
-  if (page === "notes" && !document.querySelector(`[data-page="notes"] .fab`)) {
-    const notesFab = document.createElement("button");
-    notesFab.className = "fab";
-    notesFab.innerHTML = '<i data-lucide="plus"></i>';
-    notesFab.setAttribute("aria-label", "Add note");
-    notesFab.addEventListener("click", () => openNoteModal(null));
-    document.querySelector(`[data-page="notes"] .page-container`)?.appendChild(notesFab);
-  }
-
   if (page === "workspace") {
     const workspace = document.querySelector("[data-page=workspace]");
     const buttons = workspace?.querySelectorAll("[data-workspace-view]") || [];
     const panels = workspace?.querySelectorAll("[data-workspace-panel]") || [];
+    workspace?.addEventListener('click', event => {
+      const category = event.target.closest('[data-study-category]');
+      if (!category) return;
+      const kind = category.dataset.studyKind;
+      workspaceCategory[kind] = category.dataset.studyCategory;
+      const subject = document.getElementById(`${kind}-filter-subject`);
+      if (subject) subject.value = 'all';
+      kind === 'task' ? renderTasks() : renderNotes();
+      document.querySelector(`[data-study-kind="${kind}"][data-study-category="${workspaceCategory[kind]}"]`)?.focus({ preventScroll: true });
+    });
     const setWorkspaceView = async (view, updateUrl = true) => {
+      workspaceView = view;
+      const addButton = document.querySelector("#bottom-nav [data-workspace-add]");
+      const kind = view === "notes" ? "note" : "task";
+      addButton?.setAttribute("aria-label", `Add ${kind}`);
+      addButton?.setAttribute("title", `Add ${kind}`);
+      addButton?.setAttribute("aria-controls", `${kind}-modal`);
       buttons.forEach(button => {
         const active = button.dataset.workspaceView === view;
         button.classList.toggle("is-active", active);
@@ -3017,6 +3517,7 @@ async function init() {
 
   /* ── Global keyboard shortcuts ────────────────────── */
   document.addEventListener("keydown", e => {
+    if (document.querySelector(".qcu-dialog[open]")) return;
     if (e.key === "Escape") { closeModal(); closeTaskModal(); closeNoteModal(); closeCrudModal(); }
   });
 

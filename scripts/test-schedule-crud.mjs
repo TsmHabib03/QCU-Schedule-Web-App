@@ -14,13 +14,13 @@
 // Run against a local dev server:  node scripts/dev-server.mjs  (port 8788)
 // Override with BASE=http://127.0.0.1:8790
 
-const BASE = process.env.BASE || "http://127.0.0.1:8788";
+let BASE = process.env.BASE || "";
 const SESSION_SECRET = process.env.TEST_SESSION_SECRET || "local-admin-regression-test-secret";
 
 // ── Server bootstrap ────────────────────────────────────────────────────
 // Needs the dev server (scripts/dev-server.mjs). Start one automatically when
-// the default port is not already serving, so `npm run test:schedule` works
-// standalone; set BASE to point at an already-running instance instead.
+// an isolated free port, so an existing development server's credentials and
+// database cannot affect the fixtures; BASE explicitly opts into another server.
 
 async function serverIsUp() {
   try {
@@ -34,17 +34,23 @@ async function serverIsUp() {
 let spawned = null;
 
 async function ensureServer() {
-  if (await serverIsUp()) return;
-
   if (process.env.BASE) {
+    if (await serverIsUp()) return;
     console.error(`\nNo dev server responding at ${BASE} (BASE is set, so nothing was started).\n`);
     process.exit(1);
   }
 
+  const { createServer } = await import("node:http");
+  const probe = createServer();
+  await new Promise(resolve => probe.listen(0, "127.0.0.1", resolve));
+  const port = probe.address().port;
+  await new Promise(resolve => probe.close(resolve));
+  BASE = `http://127.0.0.1:${port}`;
   const { spawn } = await import("node:child_process");
   spawned = spawn(process.execPath, ["scripts/dev-server.mjs"], {
     env: {
       ...process.env,
+      PORT: String(port),
       APPS_SCRIPT_URL: "",
       APPS_SCRIPT_SECRET: "",
       GOOGLE_SESSION_SECRET: SESSION_SECRET,
@@ -141,11 +147,29 @@ const fresh = await createEntry({
   dayOfWeek: "SATURDAY",
   startTime: "14:00",
   endTime: "15:30",
+  instructorName: "  Prof. Maria Reyes  ",
   modality: "ONSITE",
 });
 
 assert("a class can be created", fresh.status === 201 && fresh.data?.ok === true, fresh);
 assert("the created class reports its subject code", Boolean(fresh.data?.data?.code), fresh.data?.data);
+assert("professor is trimmed and returned", fresh.data?.data?.instructor === "Prof. Maria Reyes", fresh.data?.data);
+const professorPath = `/api/v1/schedule/entries/${fresh.data?.data?.entryId}`;
+const renamedProfessor = await api("PATCH", professorPath, cookie, { instructorName: "Prof. <Cruz>" });
+assert("professor can be edited", renamedProfessor.data?.data?.instructor === "Prof. <Cruz>", renamedProfessor);
+const professorDash = await api("GET", "/api/v1/dashboard", cookie);
+assert("dashboard returns the saved professor", professorDash.data?.entries?.find(e => e.entryId === fresh.data?.data?.entryId)?.instructor === "Prof. <Cruz>", professorDash.data);
+const professorList = await api("GET", "/api/v1/schedule", cookie);
+const listedEntry = professorList.data?.data?.entries?.find(e => e.entryId === fresh.data?.data?.entryId);
+assert("schedule list returns professor and subject snapshot", listedEntry?.instructor === "Prof. <Cruz>" && listedEntry?.code === subjectCode && listedEntry?.title === fresh.data?.data?.title, professorList.data);
+const preservedProfessor = await api("PATCH", professorPath, cookie, { locationText: "Room 301" });
+assert("other edits preserve the professor", preservedProfessor.data?.data?.instructor === "Prof. <Cruz>", preservedProfessor);
+for (const instructorName of ["x".repeat(121), { name: "Prof. Invalid" }]) {
+  const invalidProfessor = await api("PATCH", professorPath, cookie, { instructorName });
+  assert("invalid professor is rejected", invalidProfessor.status === 422, invalidProfessor);
+}
+const clearedProfessor = await api("PATCH", professorPath, cookie, { instructorName: "" });
+assert("professor can be cleared", clearedProfessor.data?.data?.instructor === "", clearedProfessor);
 
 const numeric = await createEntry({
   enrollmentSubjectId: subjectId,

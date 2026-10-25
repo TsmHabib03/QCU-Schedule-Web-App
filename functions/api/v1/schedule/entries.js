@@ -16,6 +16,7 @@ import {
   CatalogRooms,
 } from "../../repo/index.js";
 import { normalizeDayOfWeek, normalizeTime, isClockTime } from "../../_lib/day-time.js";
+import { validInstructorName, normalizeInstructorName } from "../../_lib/instructor.js";
 
 const VALID_MODALITIES = ["ONSITE", "ONLINE", "HYBRID", "TBA"];
 
@@ -42,6 +43,9 @@ export async function onRequestPost(context) {
 
     // ── Resolve active enrollment ──────────────────────────────────────
     const enrollments = Enrollments.getByUserId(user.userId);
+    if (!validInstructorName(body.instructorName)) {
+      return json({ status: "VALIDATION_FAILED", error: "Professor name must be text with at most 120 characters" }, 422);
+    }
     const activeEnrollment = enrollments.find((e) => e.status === "ACTIVE");
     if (!activeEnrollment) {
       return json({ status: "VALIDATION_FAILED", error: "No active enrollment" }, 422);
@@ -187,6 +191,7 @@ export async function onRequestPost(context) {
       buildingId: buildingId || null,
       roomId: roomId || null,
       locationText: body.locationText || null,
+      instructorName: normalizeInstructorName(body.instructorName),
       sortOrder,
       originType: "STUDENT_MANUAL",
       status: "ACTIVE",
@@ -210,6 +215,7 @@ export async function onRequestPost(context) {
         code: ens?.subjectCodeSnapshot || catalogSubject?.subjectCode || "",
         title: ens?.subjectTitleSnapshot || catalogSubject?.title || "",
         units: ens?.units || catalogSubject?.units || 0,
+        instructor: entry.instructorName ?? ens?.instructorName ?? "",
         modality: entry.modality,
         dayOfWeek: entry.dayOfWeek,
         startTime: entry.startTime,

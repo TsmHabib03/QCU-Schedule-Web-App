@@ -11,10 +11,10 @@
   function header() {
     // No button skeleton here: the header's Sign out control moved to Settings,
     // so a placeholder pill made the shell promise a control that never arrives.
-    return `<div class="header-inner loading-header" aria-hidden="true"><div class="header-brand">${bar('loading-avatar')}<div class="brand-text loading-lines">${bar('loading-brand-title')}${bar('loading-brand-sub')}</div></div><div class="header-right"><div class="header-clock loading-lines">${bar()}${bar()}</div></div></div>`;
+    return `<div class="header-inner loading-header" aria-hidden="true"><div class="header-brand">${bar('loading-avatar')}<div class="brand-text loading-lines">${bar('loading-brand-title')}${bar('loading-brand-sub')}</div></div><div class="header-right"><div class="header-clock loading-lines">${bar()}${bar()}</div><span class="loading-profile-ring">${bar('loading-profile-face')}</span></div></div>`;
   }
   function nav() {
-    return `<div aria-hidden="true">${Array.from({ length: 5 }, () => `<span class="nav-item loading-nav-item">${bar('loading-nav-icon')}${bar('loading-nav-label')}</span>`).join('')}</div>`;
+    return `<div class="nav-strip" aria-hidden="true">${Array.from({ length: 5 }, (_, index) => `<span class="nav-item loading-nav-item ${index === 0 ? 'active' : ''}">${bar('loading-nav-icon')}${index === 0 ? bar('loading-nav-label') : ''}</span>`).join('')}<span class="nav-add loading-nav-add">${bar('loading-nav-icon')}</span></div>`;
   }
   function finish(group) {
     document.querySelectorAll(`[data-loading-region="${group}"], [data-loading-cover="${group}"]`).forEach(element => {

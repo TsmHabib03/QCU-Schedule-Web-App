@@ -32,12 +32,6 @@
 .student-shell .header-right { gap: 16px; }
 .student-shell .clock-time { color: var(--text); font-variant-numeric: tabular-nums; }
 .student-shell .signout-btn { min-width: 44px; min-height: 44px; border-radius: 4px; }
-.student-shell .bottom-nav { background: #fff; box-shadow: none; border-color: var(--border); }
-.student-shell .bottom-nav > div { width: min(100%, 1120px); max-width: 1200px; }
-.student-shell .nav-item { min-height: 56px; font-size: 10px; border-radius: 4px; gap: 5px; }
-.student-shell .nav-item.active { background: #eef4fa; color: var(--blue); }
-.student-shell .nav-item::before { display: none; }
-.student-shell .nav-item svg { width: 20px; height: 20px; stroke-width: 1.8; }
 .student-skip {
   position: fixed; top: -100px; left: 16px; z-index: 100;
   padding: 12px 20px; background: #fff; color: var(--blue); border: 2px solid var(--blue);
@@ -191,8 +185,6 @@
   .student-shell .home-today-head { gap: 4px 8px; }
   .student-shell .home-today-body { padding-right: 12px; }
   .student-shell .home-today-grid { gap: 10px; }
-  .student-shell .nav-item { padding-inline: 2px; }
-  .student-shell .nav-item span { white-space: normal; overflow: visible; text-align: center; line-height: 1.2; }
   .student-shell :is(.task-search-input, .task-filter-select) { font-size: 16px; }
   .student-shell .crud-field :is(input, select) { font-size: 16px; }
   .student-shell .task-filters { display: grid; grid-template-columns: minmax(0, 1fr); }
@@ -234,11 +226,6 @@
 @media (min-width: 1024px) {
   .student-shell.app-shell { padding-bottom: 24px; }
   .student-shell .page-header { position: relative; }
-  .student-shell .bottom-nav { position: sticky; top: 0; bottom: auto; border-top: 0; border-bottom: 1px solid var(--border); padding: 0; z-index: 29; }
-  .student-shell .bottom-nav > div { display: flex; justify-content: flex-start; gap: 8px; padding: 0 32px; }
-  .student-shell .nav-item { flex: 0 0 auto; flex-direction: row; padding: 14px 20px; min-height: 52px; gap: 8px; border-radius: 0; font-size: 13px; }
-  .student-shell .nav-item.active { box-shadow: inset 0 -2px var(--blue); }
-  .student-shell .nav-item:hover { background: #eef4fa; }
   .student-shell .page-container { padding-top: 36px; }
 }
 

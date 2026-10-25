@@ -837,6 +837,7 @@ export const ScheduleEntries = {
       enrollmentSubjectId: fields.enrollmentSubjectId,
       dayOfWeek: fields.dayOfWeek,
       dayLabel: fields.dayLabel || null,
+      instructorName: fields.instructorName ?? null,
       startTime: fields.startTime,
       endTime: fields.endTime,
       modality: fields.modality || "ONSITE",

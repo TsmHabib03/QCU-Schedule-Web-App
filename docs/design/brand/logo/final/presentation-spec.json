@@ -1,0 +1,36 @@
+{
+  "brand": "QCU Schedule",
+  "tagline": "Do I have class today?",
+  "brief": "A mobile-first status board that answers one question for Quezon City University students - is class on today? Calm, truthful, institutional; a public-service tool, not a consumer app.",
+  "adjectives": ["institutional", "truthful", "calm", "student-friendly"],
+  "criteria": "Success: says QCU + time in one glyph, recognisable at 16 px, works in one colour, calm and trustworthy.",
+  "industry": "education",
+  "nav": ["Today", "Buildings", "Settings"],
+  "brand_color": "#005BAC",
+  "greyscale": false,
+  "designer": "Logo design",
+  "round": 1,
+  "concepts": [
+    {
+      "name": "Q Hour",
+      "symbol": "final-symbol-color.svg",
+      "lockup": "final-horizontal.svg",
+      "symbol_on_tile": "final-symbol-color-white.svg",
+      "lockup_on_dark": "final-horizontal-white.svg",
+      "tile_color": "#005BAC",
+      "idea": "The Q is a clock face and its tail is the hand - QCU, built around time.",
+      "rationale": [
+        "Says QCU and 'now' in a single mark - no second element needed",
+        "Carries equity from the old Q-and-hand icon, resolved cleanly",
+        "Holds its silhouette down to 16 px; strong as a favicon and app tile",
+        "Blue + gold reads as QCU; flat and calm, matching the status-board voice"
+      ]
+    }
+  ],
+  "recommendation": "Q Hour, in QCU blue with a gold hand. One idea, legible everywhere, and unmistakably QCU.",
+  "next_steps": [
+    "Outline the wordmark in Public Sans for final masters",
+    "Wire the favicon + app-icon set into the web app",
+    "Optional: colour-highlight the current class block in-product"
+  ]
+}

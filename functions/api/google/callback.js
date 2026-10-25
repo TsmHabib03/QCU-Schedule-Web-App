@@ -14,15 +14,22 @@ import {
 export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const oauthState = await readOauthState(context).catch(() => null);
-  const returnTo = oauthState && oauthState.returnTo ? oauthState.returnTo : "/google.html#google-integration";
+  const returnTo = oauthState && oauthState.returnTo ? oauthState.returnTo : "/settings.html#google-connection";
+  function resultDestination(result, reason) {
+    const destination = new URL(returnTo, url.origin);
+    destination.searchParams.set('google', result);
+    if (reason) destination.searchParams.set('reason', reason);
+    destination.hash = 'google-connection';
+    return destination.pathname + destination.search + destination.hash;
+  }
   const clearState = clearCookie(OAUTH_COOKIE, context.request);
 
   if (url.searchParams.get("error")) {
     const result = oauthState && oauthState.includeGmail ? "gmail_denied" : "cancelled";
-    return redirect(`${returnTo.split("#")[0]}?google=${result}#google-integration`, { "Set-Cookie": clearState });
+    return redirect(resultDestination(result), { "Set-Cookie": clearState });
   }
   if (!oauthState || oauthState.nonce !== url.searchParams.get("state") || !url.searchParams.get("code")) {
-    return redirect(`${returnTo.split("#")[0]}?google=failed#google-integration`, { "Set-Cookie": clearState });
+    return redirect(resultDestination('failed'), { "Set-Cookie": clearState });
   }
 
   try {
@@ -45,12 +52,11 @@ export async function onRequestGet(context) {
       connectedAt: previous && previous.connectedAt ? previous.connectedAt : new Date().toISOString()
     };
     if (!session.refreshToken) throw new Error("Google did not return a renewable authorization");
-    const destination = `${returnTo.split("#")[0]}?google=connected#google-integration`;
+    const destination = resultDestination('connected');
     return redirect(destination, { "Set-Cookie": await sessionHeader(context, session) });
   } catch (error) {
     const message = String(error && error.message || "OAuth callback failed").slice(0, 180);
     console.error("Google OAuth callback failed:", message);
-    const reason = encodeURIComponent(message);
-    return redirect(`${returnTo.split("#")[0]}?google=failed&reason=${reason}#google-integration`, { "Set-Cookie": clearState });
+    return redirect(resultDestination('failed', message), { "Set-Cookie": clearState });
   }
 }

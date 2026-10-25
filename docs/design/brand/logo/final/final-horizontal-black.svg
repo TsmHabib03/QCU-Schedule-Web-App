@@ -1,0 +1,12 @@
+<svg fill="#000000" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 256"><title>QCU Schedule logo</title>
+
+  <g transform="translate(16,38) scale(0.703)">
+    <path fill="#000000" fill-rule="evenodd"
+          d="M128 32 a96 96 0 1 0 0 192 a96 96 0 1 0 0 -192 Z
+             M128 70 a58 58 0 1 1 0 116 a58 58 0 1 1 0 -116 Z"/>
+    <rect fill="#000000" x="128" y="117" width="112" height="22" rx="11" transform="rotate(45 128 128)"/>
+    <circle fill="#000000" cx="128" cy="128" r="15"/>
+  </g>
+  <text x="236" y="140" font-family="'Public Sans',Arial,sans-serif" font-size="112" font-weight="800" fill="#000000" letter-spacing="-3">QCU</text>
+  <text x="239" y="198" font-family="'Public Sans',Arial,sans-serif" font-size="50" font-weight="500" fill="#000000" letter-spacing="6">Schedule</text>
+</svg>

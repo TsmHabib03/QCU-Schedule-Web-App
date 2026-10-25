@@ -10,49 +10,131 @@
   <meta http-equiv="Expires" content="0">
   <title>Settings | QCU Portal</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/jpeg" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="apple-touch-icon" href="assets/images/QCU college of computer studies logo.jpg">
-  <link rel="stylesheet" href="assets/css/styles.css?v=1254bb55d03c">
-  <link rel="stylesheet" href="assets/css/student.css?v=6d7bcbb967f6">
-  <link rel="stylesheet" href="assets/css/soft-ui.css?v=a22c92c45b59">
-  <link rel="stylesheet" href="assets/css/loading.css?v=1df68e62d39b">
-  <script src="assets/js/loading.js?v=982ac9f69bc1"></script>
+  <link rel="icon" type="image/svg+xml" href="assets/images/brand/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/brand/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/images/brand/apple-touch-icon.png">
+  <link rel="stylesheet" href="assets/css/styles.css?v=034e5a2c2473">
+  <link rel="stylesheet" href="assets/css/student.css?v=9ecad895a789">
+  <link rel="stylesheet" href="assets/css/soft-ui.css?v=edf140f7712a">
+  <link rel="stylesheet" href="assets/css/loading.css?v=05b6d5c0e71e">
+  <link rel="stylesheet" href="assets/css/settings.css?v=833710901847">
+  <script src="assets/js/loading.js?v=01a8e56243a0"></script>
   <script src="assets/js/data-cache.js?v=502c0a662174"></script>
 </head>
 <body data-page="settings">
   <div class="app-shell student-shell">
     <a class="student-skip" href="#main-content">Skip to content</a>
-    <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar "></span></div></div></div></header>
-    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div aria-hidden="true"><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span></div></nav>
+    <header id="app-header" class="page-header" data-loading-region="shell" aria-busy="true"><div class="header-inner loading-header loading-profile-toolbar" aria-hidden="true"><div class="header-brand"><span class="skeleton-pulse loading-bar loading-avatar"></span><div class="brand-text loading-lines"><span class="skeleton-pulse loading-bar loading-brand-title"></span><span class="skeleton-pulse loading-bar loading-brand-sub"></span></div></div><div class="header-right"><div class="header-clock loading-lines"><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar"></span></div><span class="loading-profile-ring"><span class="skeleton-pulse loading-profile-face"></span></span></div></div></header>
+    <nav id="bottom-nav" class="bottom-nav" aria-label="Primary navigation" data-loading-region="shell" aria-busy="true"><div class="nav-strip" aria-hidden="true"><span class="nav-item loading-nav-item active"><span class="skeleton-pulse loading-bar loading-nav-icon"></span><span class="skeleton-pulse loading-bar loading-nav-label"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-item loading-nav-item"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span><span class="nav-add loading-nav-add"><span class="skeleton-pulse loading-bar loading-nav-icon"></span></span></div></nav>
     <main id="main-content" tabindex="-1" class="page-container section-stack settings-page">
-      <section class="student-heading"><div><h1 class="page-title">Settings</h1><p class="caption" style="margin-top:4px;">Preferences are saved locally in your browser.</p></div></section>
-      <section style="display:flex;flex-direction:column;gap:10px;" data-loading-cover="dashboard" aria-busy="true" inert><div class="loading-cover" aria-hidden="true"><div class="loading-settings" aria-hidden="true"><div class="loading-setting"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><span class="skeleton-pulse loading-bar "></span></div><div class="loading-setting"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><span class="skeleton-pulse loading-bar "></span></div><div class="loading-setting"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><span class="skeleton-pulse loading-bar "></span></div><div class="loading-setting"><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar "></span><span class="skeleton-pulse loading-bar loading-bar-short"></span></div><span class="skeleton-pulse loading-bar "></span></div></div></div>
-        <a class="settings-item settings-item-google" href="google.html"><div class="settings-label-wrap"><p class="settings-label-title">Google Integration</p><p class="settings-label-sub">Connect Classroom and optional email updates.</p></div><i data-lucide="graduation-cap" style="flex-shrink:0;color:var(--success);"></i></a>
-        <a class="settings-item" href="buildings.html"><div class="settings-label-wrap"><p class="settings-label-title">Campus Buildings</p><p class="settings-label-sub">Browse the QCU building directory and locations.</p></div><i data-lucide="building-2" style="flex-shrink:0;color:var(--blue);"></i></a>
-                        <button id="install-app-btn" class="settings-item" style="cursor:pointer;">
-          <div class="settings-label-wrap"><p class="settings-label-title">Install App</p><p class="settings-label-sub">Add QCU Schedule to your home screen for quick access.</p></div>
-          <i data-lucide="download" style="flex-shrink:0;color:var(--blue);"></i>
-        </button>
-        <button id="settings-signout" class="settings-item settings-item--signout" type="button" onclick="signOut(this)">
-          <div class="settings-label-wrap"><p class="settings-label-title">Sign out</p><p class="settings-label-sub">End this session on this device.</p></div>
-          <i data-lucide="log-out" style="flex-shrink:0;" aria-hidden="true"></i>
-        </button>
-                      </section>
+      <div class="profile-content" data-loading-cover="dashboard" aria-busy="true" inert>
+        <div class="loading-cover" aria-hidden="true"><div class="loading-settings"><div class="loading-profile-card"><span class="skeleton-pulse loading-profile-portrait"></span><div class="loading-lines"><span class="skeleton-pulse loading-bar loading-bar-title"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-bar loading-chip"></span></div></div><div class="loading-profile-group"><div class="loading-setting"><span class="skeleton-pulse loading-profile-icon"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-profile-chevron"></span></div><div class="loading-setting"><span class="skeleton-pulse loading-profile-icon"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-profile-chevron"></span></div><div class="loading-setting"><span class="skeleton-pulse loading-profile-icon"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-profile-chevron"></span></div></div><div class="loading-profile-group"><div class="loading-setting"><span class="skeleton-pulse loading-profile-icon"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-profile-chevron"></span></div><div class="loading-setting"><span class="skeleton-pulse loading-profile-icon"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-profile-chevron"></span></div></div><div class="loading-profile-group"><div class="loading-setting"><span class="skeleton-pulse loading-profile-icon"></span><span class="skeleton-pulse loading-bar"></span><span class="skeleton-pulse loading-profile-chevron"></span></div></div></div></div>
+        <section id="profile-card" class="profile-card" role="button" tabindex="0" aria-label="My profile: manage Google Classroom connection" aria-haspopup="dialog" aria-controls="google-connection">
+          <div id="profile-avatar" class="profile-avatar" aria-hidden="true"><i data-lucide="user"></i></div>
+          <div class="profile-identity">
+            <h2 id="profile-name">Your profile</h2>
+            <p id="profile-email"></p>
+            <span class="profile-badge"><i data-lucide="badge-check" aria-hidden="true"></i><span id="profile-badge-label">Student account</span></span>
+          </div>
+          <i class="profile-card-chevron" data-lucide="chevron-right" aria-hidden="true"></i>
+        </section>
+
+        <section class="profile-group" aria-label="App preferences">
+          <button id="general-settings-btn" class="profile-row" type="button" aria-expanded="false" aria-controls="general-settings-panel">
+            <span class="profile-row-icon"><i data-lucide="settings-2" aria-hidden="true"></i></span>
+            <span class="profile-row-copy"><span class="profile-row-title">General App Settings</span></span>
+            <i class="profile-chevron" data-lucide="chevron-right" aria-hidden="true"></i>
+          </button>
+          <div id="general-settings-panel" class="profile-preferences" hidden>
+            <p>Manage your connected services and campus tools.</p>
+            <a href="schedule.html">Manage your schedule <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+            <a href="campus-eta.html">Campus Bus <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+            <a href="buildings.html">Campus Buildings <i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+          </div>
+          <button id="install-app-btn" class="profile-row" type="button" aria-describedby="install-app-status">
+            <span class="profile-row-icon"><i data-lucide="download" aria-hidden="true"></i></span>
+            <span class="profile-row-copy"><span class="profile-row-title">Install this App</span><span id="install-app-status" class="profile-row-sub">Keep your schedule close.</span></span>
+            <i class="profile-chevron" data-lucide="chevron-right" aria-hidden="true"></i>
+          </button>
+          <div id="settings-notifications" class="profile-row profile-row--notification">
+            <span class="profile-row-icon"><i data-lucide="bell" aria-hidden="true"></i></span>
+            <span class="profile-row-copy"><span id="notification-label" class="profile-row-title">Notifications</span><span id="notification-status" class="profile-row-sub" role="status">Classroom updates in this browser.</span></span>
+            <button id="notification-toggle" class="profile-switch" type="button" role="switch" aria-checked="false" aria-labelledby="notification-label" aria-describedby="notification-status"><span></span></button>
+          </div>
+        </section>
+
+        <section class="profile-group" aria-label="Information and support">
+          <a class="profile-row" href="privacy.html">
+            <span class="profile-row-icon"><i data-lucide="shield-check" aria-hidden="true"></i></span>
+            <span class="profile-row-copy"><span class="profile-row-title">Privacy Policy</span></span>
+            <i class="profile-chevron" data-lucide="chevron-right" aria-hidden="true"></i>
+          </a>
+          <button id="settings-help-btn" class="profile-row" type="button" aria-haspopup="dialog" aria-controls="settings-help">
+            <span class="profile-row-icon"><i data-lucide="circle-help" aria-hidden="true"></i></span>
+            <span class="profile-row-copy"><span class="profile-row-title">Help/Support</span></span>
+            <i class="profile-chevron" data-lucide="chevron-right" aria-hidden="true"></i>
+          </button>
+        </section>
+
+        <section class="profile-group" aria-label="Session">
+          <button id="settings-signout" class="profile-row profile-row--logout" type="button" onclick="signOut(this)">
+            <span class="profile-row-icon"><i data-lucide="log-out" aria-hidden="true"></i></span>
+            <span class="profile-row-copy"><span class="profile-row-title">Logout</span></span>
+            <i class="profile-chevron" data-lucide="chevron-right" aria-hidden="true"></i>
+          </button>
+        </section>
+      </div>
     </main>
 
+    <dialog id="google-connection" class="google-connection-modal" aria-labelledby="google-connection-title" aria-describedby="google-connection-description">
+      <div class="google-connection-visual">
+        <div class="google-connection-logo" aria-hidden="true"><svg class="brand-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg></div>
+        <button id="google-connection-close" type="button" aria-label="Close Google connection" autofocus><i data-lucide="x" aria-hidden="true"></i></button>
+      </div>
+      <div class="google-connection-content">
+        <h2 id="google-connection-title">Connect Google Classroom</h2>
+        <p id="google-connection-description">Sync announcements, materials, and assignments directly into your schedule. We only request read access for Classroom activity and optional Gmail metadata. You will be redirected to securely authorize access. Your password is never stored.</p>
+        <section id="google-integration" aria-label="Google connection">
+          <span id="google-status-indicator" class="profile-sr-only" role="status">Checking connection</span>
+          <div id="google-feedback" class="google-feedback" role="status" aria-live="polite" hidden></div>
+          <div id="google-account-card" aria-busy="true"><p class="google-connection-loading" role="status">Checking your Google connection…</p></div>
+        </section>
+      <section id="google-updates-section" class="google-modal-updates" hidden>
+        <div class="google-updates-heading">
+          <div>
+            <h3>Classroom updates</h3>
+          </div>
+          <div class="google-updates-summary"><span id="google-update-count" class="google-update-count" aria-live="polite">0 new</span><div class="google-feed-view-toggle" role="tablist" aria-label="Update view"><button type="button" role="tab" aria-selected="true" aria-controls="google-updates-list" class="is-active" data-google-view="new"><i data-lucide="sparkles"></i>New</button><button type="button" role="tab" aria-selected="false" aria-controls="google-updates-list" data-google-view="all"><i data-lucide="layers-3"></i>All</button></div></div>
+        </div>
+
+        <div class="google-update-filters" role="search" aria-label="Filter Classroom updates">
+          <label class="google-filter-search"><i data-lucide="search"></i><input id="google-update-search" type="search" aria-label="Search updates" placeholder="Search updates" autocomplete="off"></label>
+          <select id="google-update-subject" aria-label="Filter by subject"><option value="all">All Subjects</option></select>
+          <select id="google-update-type" aria-label="Filter by update type"><option value="all">All Types</option><option value="announcement">Announcements</option><option value="assignment">Assignments</option><option value="material">New Materials</option><option value="email">Email</option></select>
+          <label class="google-filter-new"><input id="google-update-new" type="checkbox"><span>New only</span></label>
+          <button class="google-filter-reset" type="button" data-google-action="clear-filters" title="Clear update filters" aria-label="Clear update filters"><i data-lucide="rotate-ccw"></i></button>
+        </div>
+        <div id="google-offline-notice" class="google-offline-notice" hidden><i data-lucide="wifi-off"></i><span>Offline - showing last synced updates</span></div>
+        <div id="google-updates-list" class="google-updates-list"></div>
+      </section>
+
+
+      </div>
+    </dialog>
+    <dialog id="settings-help" class="profile-help" aria-labelledby="settings-help-title">
+      <div class="profile-help-heading"><h2 id="settings-help-title">Here to help</h2><form method="dialog"><button class="profile-toolbar-btn" aria-label="Close help"><i data-lucide="x" aria-hidden="true"></i></button></form></div>
+      <p class="profile-help-intro">Make the most of your QCU schedule.</p>
+      <details open><summary>How do I change a class?</summary><p>Open <a href="schedule.html">Full Schedule</a>, choose Edit Schedule, then select a class card to update its details.</p></details>
+      <details><summary>Where are my Classroom updates?</summary><p>Tap <a href="#google-connection" data-google-open>your profile card</a> to connect Classroom or refresh your updates. The notification switch controls browser alerts while updates are synced; email preferences are managed in your Google connection.</p></details>
+      <details><summary>Why aren't notifications working?</summary><p>Allow notifications for this site in your browser settings, then turn on Notifications here. Browser alerts appear when new Classroom updates are detected while the app is open.</p></details>
+      <details><summary>Need more help?</summary><p>For account or COR issues, contact your campus administrator. For app problems, visit the <a href="https://github.com/TsmHabib03/QCU-Schedule-Web-App/issues" target="_blank" rel="noopener noreferrer">project support page <span class="profile-sr-only">(opens in a new tab)</span></a>.</p></details>
+    </dialog>
   </div>
   <script src="assets/js/lucide.min.js?v=3411692820cb"></script>
   <script src="assets/js/academic.js?v=f415419172a9"></script>
-  <script src="assets/js/app.js?v=cfcb2cb55d0c"></script>
-  <script src="assets/js/install-prompt.js?v=617f0c91b0cc"></script>
-  <script>
-    document.getElementById("install-app-btn")?.addEventListener("click", () => {
-      window.QCUInstallPrompt?.trigger();
-    });
-    if (window.QCUInstallPrompt?.isInstalled()) {
-      const btn = document.getElementById("install-app-btn");
-      if (btn) btn.style.display = "none";
-    }
-  </script>
+  <script src="assets/js/app.js?v=d69b881571ea"></script>
+  <script src="assets/js/settings.js?v=3e6b48972979"></script>
+  <script src="assets/js/google-connection.js?v=085fe820154e"></script>
+  <script src="assets/js/install-prompt.js?v=69479668823b"></script>
 </body>
 </html>

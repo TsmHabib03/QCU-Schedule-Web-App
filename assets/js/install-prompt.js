@@ -26,7 +26,10 @@
   const isStandalone = window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone === true;
 
-  if (isStandalone) return; // already installed
+  if (isStandalone) {
+    window.QCUInstallPrompt = { canInstall: () => false, trigger() {}, isInstalled: () => true, hasNativePrompt: () => false };
+    return;
+  }
 
   /* ── State ──────────────────────────────────────────── */
   let deferredPrompt = null;
@@ -41,6 +44,7 @@
   function saveState(state) {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
     catch (_) {}
+    window.dispatchEvent(new Event('qcu-install-changed'));
   }
 
   function shouldShow() {
@@ -132,13 +136,14 @@
   }
 
   /* ── Show / Hide ────────────────────────────────────── */
-  function show() {
-    if (banner || !shouldShow()) return;
+  function show(manual = false) {
+    if (banner || loadState()?.installed || (!manual && !shouldShow())) return;
     // If no native prompt and no mobile browser, still show on mobile browsers
     // For desktop browsers without beforeinstallprompt, show instructions
     banner = createBanner();
     document.body.appendChild(banner);
-    requestAnimationFrame(() => requestAnimationFrame(() => banner.classList.add("is-visible")));
+    const activeBanner = banner;
+    requestAnimationFrame(() => requestAnimationFrame(() => activeBanner.classList.add("is-visible")));
 
     const installBtn = document.getElementById("install-btn-install");
     const dismissBtn = document.getElementById("install-btn-dismiss");
@@ -148,20 +153,32 @@
 
   function hide() {
     if (!banner) return;
-    banner.classList.remove("is-visible");
-    setTimeout(() => banner?.remove(), 350);
+    const closingBanner = banner;
+    closingBanner.classList.remove("is-visible");
+    closingBanner.removeAttribute('id');
+    closingBanner.inert = true;
+    closingBanner.querySelectorAll('[id]').forEach(element => element.removeAttribute('id'));
+    setTimeout(() => closingBanner.remove(), 350);
     banner = null;
   }
 
   async function install() {
     if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === "accepted") {
-      saveState({ installed: true, installedAt: Date.now() });
+    const prompt = deferredPrompt;
+    const button = document.getElementById('install-btn-install');
+    if (button?.disabled) return;
+    if (button) button.disabled = true;
+    try {
+      await prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      if (outcome === "accepted") saveState({ installed: true, installedAt: Date.now() });
+    } catch (_) {
+      // If the browser rejects the native request, show its install instructions.
+    } finally {
+      deferredPrompt = null;
+      hide();
+      if (!loadState()?.installed) show(true);
     }
-    deferredPrompt = null;
-    hide();
   }
 
   function dismiss() {
@@ -173,6 +190,7 @@
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;
+    if (timer) clearTimeout(timer);
     timer = setTimeout(show, INITIAL_DELAY_MS);
   });
 
@@ -184,7 +202,7 @@
   /* ── Manual trigger (for Settings page button) ─────── */
   window.QCUInstallPrompt = {
     canInstall() { return true; }, // always "installable" — either native or instructions
-    trigger() { show(); },
+    trigger() { show(true); },
     isInstalled() {
       const s = loadState();
       return !!(s && s.installed);
